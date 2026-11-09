@@ -1,0 +1,46 @@
+.native-stamp-editor {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: white;
+}
+
+.native-stamp-editor::backdrop { background: #070e20aa; }
+.native-stamp-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1024px;
+  height: 768px;
+  transform: translate(var(--native-stamp-x, -512px), var(--native-stamp-y, -384px)) scale(var(--native-stamp-scale, 1));
+  transform-origin: top left;
+}
+
+.native-stamp-stage > img, .native-stamp-stage > canvas,
+.native-stamp-stage > button, .native-stamp-button img { position: absolute; }
+.native-stamp-stage > img, .native-stamp-button img { pointer-events: none; user-select: none; }
+.native-stamp-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.native-stamp-pixels, .native-stamp-preview { display: block; image-rendering: pixelated; }
+.native-stamp-pixels { cursor: crosshair; touch-action: none; }
+.native-stamp-button, .native-stamp-chip {
+  display: block;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.native-stamp-chip { border-radius: 1px; }
+.native-stamp-chip:focus-visible { outline-offset: 1px; }
+.native-stamp-button:focus-visible { border-radius: 12px; outline-offset: 0; }

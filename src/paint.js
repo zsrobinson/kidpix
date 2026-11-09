@@ -2,6 +2,8 @@ import { brushOpacity, brushSpacing, drawBrushDab } from './paint-brushes.js'
 import { cutoutContours, makeFillRenderer, makeSurface, mixPixels } from './paint-pixels.js'
 import { drawOriginalDab, originalDab } from './paint-original.js'
 import { createPaintAudio } from './paint-audio.js'
+import { createNativeSprayAssets } from './native-spray-assets.js'
+import { selectNativeShape, drawNativeShape } from './native-spray-runtime.js'
 
 const shapes = new Set(['line', 'curve', 'rectangle', 'ellipse', 'polygon'])
 const drawingTools = new Set(['pencil', 'chalk', 'crayon', 'marker'])
@@ -139,6 +141,9 @@ export function createPaint(canvas, hooks = {}) {
   const work = makeSurface(width, height)
   const sample = makeSurface(width, height, true)
   const imageCache = new Map()
+  const nativeSprayAssets = createNativeSprayAssets()
+  let shapeBankId = null
+  let nextNativeShape = null
   const contourCache = new WeakMap()
   const paperMasks = new WeakMap()
   const back = []
@@ -511,6 +516,14 @@ export function createPaint(canvas, hooks = {}) {
 
   function drawDab(current, point) {
     const { options: brush, dab, image, random } = current
+    if (current.nativeShapes) {
+      const { bank, imageFor } = current.nativeShapes
+      const frame = nextNativeShape ?? bank.frames[0]
+      drawNativeShape(preview, { x: Math.floor(point.x), y: Math.floor(point.y) }, frame, imageFor(frame.image))
+      nextNativeShape = selectNativeShape(bank, Math.random)
+      current.lastNativeShapeAt = performance.now()
+      return
+    }
     if (current.particles) {
       current.particles.push({ point, seed: Math.round(random() * 4294967295), start: performance.now() })
       return
@@ -538,7 +551,7 @@ export function createPaint(canvas, hooks = {}) {
     let lastFrame = 0
     function tick(now) {
       if (gesture !== current) return
-      if (now - lastDab >= 130) {
+      if (now - (current.nativeShapes ? current.lastNativeShapeAt ?? lastDab : lastDab) >= (current.nativeShapes ? 100 : 130)) {
         drawDab(current, current.end)
         lastDab = now
         if (!current.particles) render()
@@ -781,6 +794,12 @@ export function createPaint(canvas, hooks = {}) {
     const brush = activeOptions(event)
     const { tool, variant } = brush
     if (tool === 'none') return
+    const nativeShapes = tool === 'spray' && !['moving', 'moving-spray'].includes(brush.mode)
+      ? nativeSprayAssets.peek('spray', 24000 + 100 * ((brush.effectIndex ?? 0) % 15)) : null
+    if (tool === 'spray' && !['moving', 'moving-spray'].includes(brush.mode) && !nativeShapes) {
+      hooks.onError?.(new Error('Loading the original spray shapes. Try again in a moment.'))
+      return
+    }
     if (tool === 'sound' && brush.mode === 'hands-free') return
     const image = cachedAsset(brushAsset(brush))
     const dab = originalDab(brush)
@@ -835,7 +854,7 @@ export function createPaint(canvas, hooks = {}) {
     canvas.setPointerCapture(event.pointerId)
     paintAudio.start(brush)
     clearPreview()
-    const common = { start: point, end: point, options: brush, pointerId: event.pointerId, image, dab }
+    const common = { start: point, end: point, options: brush, pointerId: event.pointerId, image, dab, nativeShapes }
 
     if (tool === 'sound') {
       gesture = { ...common, type: 'sound', random: makeRandom(Math.round(performance.now())), step: 0 }
@@ -877,8 +896,10 @@ export function createPaint(canvas, hooks = {}) {
       const random = makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))
       gesture = { ...common, type: 'stroke', last: point, remainder: 0, random, step: 0 }
       if (tool === 'spray') {
-        gesture.frames = sprayFrames(brush).map(cachedAsset).filter(Boolean)
-        if (gesture.frames.length && ['moving', 'moving-spray'].includes(brush.mode)) gesture.particles = []
+        if (!nativeShapes) {
+          gesture.frames = sprayFrames(brush).map(cachedAsset).filter(Boolean)
+          if (gesture.frames.length && ['moving', 'moving-spray'].includes(brush.mode)) gesture.particles = []
+        }
         sprayWhileHeld(gesture)
       }
       drawDab(gesture, point)
@@ -937,6 +958,10 @@ export function createPaint(canvas, hooks = {}) {
       }
     } else if (current.type === 'sound') {
       respondToSound()
+    } else if (current.nativeShapes) {
+      // The native cyclic shape renderer is throttled by time, not distance;
+      // bitmap registration supplies placement without jitter or rotation.
+      if (event.type !== 'pointerup' && performance.now() - current.lastNativeShapeAt >= 100) drawDab(current, point)
     } else {
       const events = event.getCoalescedEvents?.()
       if (events?.length) events.forEach(entry => strokeTo(current, pointFor(entry)))
@@ -1069,8 +1094,15 @@ export function createPaint(canvas, hooks = {}) {
     canvas.style.cursor = hooks.cursorFor?.(options) || cursors[toolAliases[options.tool] || options.tool] || 'crosshair'
     if (options.tool === 'sound' && 'level' in next) respondToSound()
     if (Object.keys(next).every(key => key === 'level' || key === 'pitch')) return
-    const asset = brushAsset(activeOptions({}))
-    const frames = sprayFrames(activeOptions({}))
+    const brush = activeOptions({})
+    if (brush.tool === 'spray' && !['moving', 'moving-spray'].includes(brush.mode)) {
+      const id = 24000 + 100 * ((brush.effectIndex ?? 0) % 15)
+      if (shapeBankId !== id) { shapeBankId = id; nextNativeShape = null }
+      return nativeSprayAssets.load('spray', id)
+    }
+    if (brush.tool !== 'eyedropper') { shapeBankId = null; nextNativeShape = null }
+    const asset = brushAsset(brush)
+    const frames = sprayFrames(brush)
     if (frames.length) frames.forEach(frame => loadAsset(frame).catch(() => {}))
     if (options.variant === 'cookie-cutter' && originalTools && !cutoutRequest) {
       cutoutRequest = fetch(`${originalTools}cutouts/regions.json`).then(response => {
@@ -1112,6 +1144,7 @@ export function createPaint(canvas, hooks = {}) {
   return {
     canvas,
     setOptions,
+    resetNativeSpray() { nextNativeShape = null },
     setBackground: (asset, settings) => setLayer('background', asset, settings),
     setForeground: asset => setLayer('foreground', asset),
     setPaper: asset => setLayer('paper', asset),

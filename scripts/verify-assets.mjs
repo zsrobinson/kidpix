@@ -57,6 +57,18 @@ try {
   for (const cursor of Object.values(ui.cursors?.items ?? {})) {
     for (const frame of cursor.frames) check(join('ui', frame.image));
   }
+  if (ui.stampEditor) {
+    const editor = read('ui/stamp-editor/manifest.json');
+    for (const part of [editor.frame, editor.palette]) check(join('ui', part.image));
+    for (const button of Object.values(editor.buttons)) {
+      for (const state of Object.values(button.states)) check(join('ui', state.image));
+    }
+    for (const file of Object.values(editor.sounds)) check(join('ui', file));
+  }
+  for (const clip of Object.values(ui.buttonAnimations?.scripts ?? {})) {
+    for (const frame of clip.frames) check(join('ui', frame.image));
+    for (const cue of clip.sounds) check(join('ui', `easel-${cue.sound}.wav`));
+  }
   for (const [manifest, folder] of [['ui/trays.json', 'trays'], ['ui/library-trays.json', 'libraries']]) {
     for (const tray of Object.values(read(manifest).trays)) {
       if (tray.image) check(join(dirname(manifest), folder, tray.image));
@@ -65,6 +77,19 @@ try {
         for (const option of page.options) check(join(dirname(manifest), folder, option.image));
       }
     }
+  }
+  for (const mode of ['spray', 'moving-spray']) {
+    const index = read(`tools/${mode}-native.json`);
+    let count = 0;
+    for (const entry of Object.values(index.banks)) {
+      const shard = read(entry.manifest);
+      const bank = shard.banks[entry.id];
+      if (bank.frames.length !== entry.frameCount) throw new Error(`Incorrect source sprite count for ${mode} ${entry.id}`);
+      count += bank.frames.length;
+      for (const frame of bank.frames) check(frame.image);
+      for (const clip of Object.values(shard.clips)) for (const sound of clip.sounds) check(sound.src);
+    }
+    if (count !== index.spriteCount) throw new Error(`Incorrect total source sprite count for ${mode}`);
   }
 
   const largest = [...checked].reduce((a, b) => a[1] > b[1] ? a : b);

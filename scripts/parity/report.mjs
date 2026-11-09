@@ -53,7 +53,7 @@ export async function buildReport(run, directories = {}) {
         if (kind === 'web' && JSON.stringify(metadata.environment) !== JSON.stringify(run.environment)) {
           throw new Error('Web baseline environment differs (OS, architecture or browser version). Rerun in the original environment or explicitly accept new web baselines.');
         }
-        const { diff, metrics } = compareImages(PNG.sync.read(web), PNG.sync.read(reference), scenario.id !== 'slide-show');
+        const { diff, metrics } = compareImages(PNG.sync.read(web), PNG.sync.read(reference), !['slide-show', 'stamp-editor'].includes(scenario.id));
         const different = metrics[0].changed > 0;
         if (kind === 'web' && different) regressionFailures++;
         const diffBuffer = PNG.sync.write(diff);

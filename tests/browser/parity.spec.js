@@ -98,6 +98,17 @@ for (const scenario of scenarios) {
       await page.getByRole('button', { name: 'Backgrounds', exact: true }).click();
       await expect(page.locator('#library-tray [data-asset]').first()).toBeVisible();
     }
+    if (scenario.id === 'spray-native-shape') {
+      await page.getByRole('button', { name: 'Painting Tools', exact: true }).click();
+      await page.getByRole('button', { name: 'Spray Can', exact: true }).click();
+      await expect(page.locator('#paper-canvas')).toHaveAttribute('data-paint-ready', 'ready');
+      await page.mouse.click(164 + 220, 67 + 170);
+    }
+    if (scenario.id === 'stamp-editor') {
+      await page.getByRole('button', { name: 'Rubber Stamp Tools', exact: true }).click();
+      await page.locator('#library-tray [data-asset]').first().dblclick();
+      await expect(page.getByRole('dialog', { name: 'Stamp Editor', exact: true })).toBeVisible();
+    }
     if (scenario.id === 'sticker-placed') {
       await page.getByRole('button', { name: 'Stickers', exact: true }).click();
       await page.locator('#library-tray [data-asset]').first().dblclick();

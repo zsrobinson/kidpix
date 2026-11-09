@@ -3,12 +3,13 @@ import { createPaint } from './paint.js';
 import { createScene } from './scene.js';
 import { makeId } from './id.js';
 import { readData, recordMedia } from './recording.js';
-import { editStamp } from './stamp-editor.js';
+import { editStamp } from './native-stamp-editor.js';
 import { loadCatalog, original, originalCssUrl, rebaseProject } from './library.js';
 import { highlightLibraryItem, libraryCategories, showOriginalLibrary, trayKey } from './library-tray.js';
 import { loadNativeUi, nativeButtonParts, nativeCursor, renderNativeDrawing, renderNativeSizes, setSprite } from './native-ui.js';
 import { commandButtons, libraryGroups, optionTitle, place, toolGroups, trayState } from './trays.js';
 import { createNativeAnimation } from './native-animation.js';
+import { attachNativeRollovers } from './native-rollovers.js';
 
 const app = document.querySelector('#app');
 const state = {
@@ -45,6 +46,7 @@ let backgroundRequest = 0;
 const undoStack = [];
 const redoStack = [];
 let undoFaceRedo = false;
+let toolRequest = 0;
 
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const button = (action, label, x, y, w, h, extra = '') =>
@@ -370,7 +372,26 @@ function syncTool() {
   });
   if (state.pickColor) next.tool = 'eyedropper';
   if (state.playing || objectPlacement || pathPointer !== null) next.tool = 'none';
-  paint.setOptions(next);
+  const pending = paint.setOptions(next);
+  const request = ++toolRequest;
+  canvas.dataset.paintReady = pending ? 'loading' : 'ready';
+  canvas.setAttribute('aria-busy', String(Boolean(pending)));
+  if (pending) {
+    const cursor = canvas.style.cursor;
+    canvas.style.cursor = 'progress';
+    pending.then(() => {
+      if (request !== toolRequest) return;
+      canvas.dataset.paintReady = 'ready';
+      canvas.setAttribute('aria-busy', 'false');
+      canvas.style.cursor = cursor;
+    }).catch(() => {
+      if (request !== toolRequest) return;
+      canvas.dataset.paintReady = 'error';
+      canvas.setAttribute('aria-busy', 'false');
+      canvas.style.cursor = cursor;
+      showStatus('Could not load the selected tool. Select it again to retry.');
+    });
+  }
   if (pathPointer === null) scene.chooseMode(state.pickColor ? 'paint' : group === 'text' ? 'text' : group === 'grab' && tool === 'grab' ? 'grab' : 'paint');
   canvas.dataset.tool = next.tool;
   canvas.dataset.paintStyle = art;
@@ -457,7 +478,7 @@ function showTray() {
       trayArt.src = original(`guide/${fallback}.png`);
     }
     trayArt.classList.remove('paper-tray');
-    const controls = view.controls.filter(({ action }) => !nativeTray || !['effect', 'page'].includes(action) && !(view.art === 'scissors' && action === 'style'));
+    const controls = view.controls.filter(({ action }) => !nativeTray || !['effect', 'page'].includes(action) && !(view.art === 'scissors' && action === 'style') && !(nativeTray.sizeEnabled === false && action === 'size'));
     layer.innerHTML = controls.map(({ action, value, label, x, y, w, h, selected }) =>
       button(`${action}:${value}`, label, 113 + x / 2, 608 + y / 2, w / 2, h / 2, 'tray-hit')
         .replace('title=', `aria-pressed="${selected}" title=`),
@@ -504,7 +525,7 @@ function showTray() {
       layer.innerHTML += '<div class="path-controls"><button class="pill" data-action="path">Path</button><button class="pill" data-action="loop-path">Loop Path</button><button class="pill" data-action="preview-object">Play Object</button></div>';
     }
     if (nativeDraw) disconnectTraySprites = renderNativeDrawing($('#native-draw'), nativeUi, state, layer);
-    else if (nativeUi && nativeTray && ['paint', 'mixer', 'eraser'].includes(state.tray)) {
+    else if (nativeUi && nativeTray && nativeTray.sizeEnabled !== false && ['paint', 'mixer', 'eraser'].includes(state.tray)) {
       disconnectTraySprites = renderNativeSizes(layer, nativeUi, state.sizes[state.tray]);
     }
   }
@@ -1160,6 +1181,7 @@ async function activate(action) {
   const group = state.tray;
   if (id === 'tray') { playUiSound(libKeys.has(value) && value !== 'stamp' ? 1000 : 1002); stopMicrophone(); selectTray(value); }
   else if (id === 'tool') {
+    if (value === 'spray') paint.resetNativeSpray();
     state.tools[group] = value;
     state.page = 0; state.effect = 0; state.alt = false;
     if (value === 'sound') enableMicrophone();
@@ -1172,7 +1194,10 @@ async function activate(action) {
     else state.drawStyle = value;
     showTray();
   } else if (id === 'cookie') { state.selectionStyle = 'cookie-cutter'; state.cookie = Number(value); showTray(); }
-  else if (id === 'effect') { state.effect = Number(value); showTray(); }
+  else if (id === 'effect') {
+    if (state.tray === 'paint' && state.tools.paint === 'spray' && !state.alt) paint.resetNativeSpray();
+    state.effect = Number(value); showTray();
+  }
   else if (id === 'page') { state.page = Math.max(0, state.page + Number(value)); state.effect = 0; showTray(); }
   else if (id === 'lib-page') {
     state.libraryPage = Math.max(0, state.libraryPage + Number(value));
@@ -1378,6 +1403,7 @@ loadNativeUi().then(manifest => {
   nativeSprites = nativeButtonParts(manifest, $('#hit-layer'));
   $('#native-buttons').replaceChildren(...[...nativeSprites].filter(([name]) => name !== 'swatch').map(([, image]) => image));
   if (manifest.undoAnimations) undoAnimation = createNativeAnimation($('#native-buttons'), nativeSprites.get('undo-face'), playUiSound);
+  attachNativeRollovers(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'));
   if (manifest.slideShow) {
     $('#slides').classList.add('native-slides');
     $('#slides').style.setProperty('--slide-slot', originalCssUrl('ui/slide-slot.png'));

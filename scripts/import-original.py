@@ -584,6 +584,12 @@ def export_tools(read, output, missing):
                 except (ValueError, struct.error, FileNotFoundError) as error:
                     missing[("Tools", str(error))] += 1
             print(f"{archive}: {count} tool assets", flush=True)
+            if folder in ("spray", "moving-spray"):
+                resources = {(kind.encode("ascii"), resource_id): library.read(kind, resource_id)
+                             for kind, entries in library.directory.items() for resource_id in entries}
+                importlib.import_module("native-spray").export_native_spray(
+                    resources, output, mode=folder, bitmap_decoder=bitmap,
+                    sound_decoder=decode_sound, layout="atlas", shard=True)
     save_asset(output / "tools", "spray-frames", "json", json.dumps(spray, separators=(",", ":")).encode())
     export_fills(read("Data/Tools/Tp.MHK"), output / "tools")
 

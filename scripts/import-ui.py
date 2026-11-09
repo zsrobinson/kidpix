@@ -326,7 +326,7 @@ def export_trays(read, tp, easel, output):
             frame.crop(tray_rect).save(folder / f"{name}.png")
             pages.append({"image": f"{name}.png", "options": []})
         details["trays"][name] = {"base": base_filename, "pages": pages, "options": option_positions,
-                                 "dynamicOptionFrames": True}
+                                 "dynamicOptionFrames": True, "sizeEnabled": 18149 in scripts}
     (output / "trays.json").write_text(json.dumps(details, indent=2) + "\n")
 
 
@@ -588,6 +588,9 @@ def export_ui(volume, output):
     manifest["paperTextures"] = export_paper(easel, output)
     manifest["undoAnimations"] = export_undo_animations(easel, output)
     manifest["cursors"] = import_module("native-cursor").export_cursors(mohawk(read("Data/General.MHK")), output)
+    manifest["stampEditor"] = import_module("native-stamp-editor").export_stamp_editor(read, output)
+    buttons = import_module("button-animation")
+    manifest["buttonAnimations"] = buttons.export_button_animations(easel, 75, output, sprite, buttons.EASEL_NAMES, "Data/Easel.MHK")
     sprite(palette[b"tBMH", 1500], 7).save(output / "eyedropper.png")
     sprite(little_palette[b"tBMH", 1500], 0).save(output / "small-palette.png")
     sprite(login[b"tBMH", 7600], 51).save(output / "login.png")

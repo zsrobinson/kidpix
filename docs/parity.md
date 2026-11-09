@@ -23,16 +23,21 @@ Before publishing, also run `npm run test:browser:build`. It builds the actual C
 
 The browser suite covers:
 
-- Eight comparison states: empty Paint Zone, pencil straight line, filled box, painting tray, large Air Brush selection, background tray, placed sticker and Slide Show with one picture.
+- Ten comparison states: empty Paint Zone, pencil straight line, filled box, painting tray, large Air Brush selection, original Paint Shape, native Stamp Editor, background tray, placed sticker and Slide Show with one picture.
 - Drawing, exact canvas undo/redo, saving a picture containing ink and a sticker, clearing it, reopening it, and checking exported PNG dimensions and an ink pixel.
 - Drawing at an 800×600 viewport to verify pointer-to-page coordinate mapping.
 - Undo Guy face toggling, independent history arrows, animation placement/completion and restoration of the idle composition.
 - Native tool/size/effect selection artwork, stroke-size behavior, and removal of stale baked-in option highlights.
 - Eyedropper preview/cancel/commit, picking a placed image above blank ink, and the recovered cursor/hotspot.
+- Scripted button rollover timing, repeat policy, pointer continuity and cancellation on leave, press, selection and disable.
+- Paint Shapes source pixels, dimensions, registration and complete-bank selection, compared across the entire canvas rather than only checking for non-white pixels.
+- Real Stamp Editor entry, source layout/palette, pixel transformations, edited-stamp persistence/placement, cancellation, keyboard isolation, failed-load retry and prevention of duplicate modals.
 
 Browser exceptions, failed asset requests and HTTP errors fail the tests. Captures wait for manifests, library rendering, visible images, backgrounds and fonts. Screenshots use a 1024×768 frame at device scale 1, a fixed locale/timezone and a seeded web random generator. The seed makes our own captures repeatable; it does not reproduce the original's random effects. The first scenarios deliberately use static states.
 
 The cursor and scripted-animation checks require the updated UI import. With the trial mounted, run `python3 scripts/import-ui.py` using the Python environment configured for the original import. `npm run test:import` checks the standalone animation command and cursor decoders; the cursor tests require Pillow. These local import tests are separate from the asset-free Node/Cloudflare checks.
+
+Paint Shapes also requires `npm run import:tools`. The importer writes lossless atlases, one-bank metadata shards and source sound records. The browser loads the selected bank's atlases, rather than thousands of individual image requests. Shape selection/placement and source timing are documented in [spray-engine.md](spray-engine.md); the pixel comparison tests verify the shipped renderer against the recovered data. Complete Moving Paints data is recovered, but its new lifecycle controller remains separate until application integration and browser tests are complete.
 
 ## Accept web regression baselines
 

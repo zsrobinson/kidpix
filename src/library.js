@@ -1,5 +1,5 @@
 const uiVersion = typeof __APP_VERSION__ === 'undefined' ? 'dev' : __APP_VERSION__;
-export const original = name => `${import.meta.env.BASE_URL}original/${name}${name.startsWith('ui/') ? `?v=${encodeURIComponent(uiVersion)}` : ''}`;
+export const original = name => `${import.meta.env.BASE_URL}original/${name}${name.startsWith('ui/') || name.startsWith('tools/') ? `?v=${encodeURIComponent(uiVersion)}` : ''}`;
 
 export function originalCssUrl(name) {
   return `url("${new URL(original(name), document.baseURI).href}")`;

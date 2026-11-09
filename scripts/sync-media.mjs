@@ -85,7 +85,7 @@ export async function withRetry(run, { attempts = 5, delay = ms => new Promise(r
 }
 
 export async function syncMedia(files, transport, { concurrency = 6, log = console.log } = {}) {
-  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 16) throw new Error('Concurrency must be an integer from 1 to 16.');
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 32) throw new Error('Concurrency must be an integer from 1 to 32.');
   const totals = { uploaded: 0, skipped: 0, bytes: 0 };
   let next = 0;
   let failure;
@@ -120,42 +120,73 @@ export async function syncMedia(files, transport, { concurrency = 6, log = conso
   return totals;
 }
 
-async function createTransport(env, bucket) {
-  for (const name of ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY']) {
-    if (!env[name]) throw new Error(`Missing ${name}. Use a bucket-scoped R2 Object Read & Write access key.`);
-  }
-  if (!/^[a-f\d]{32}$/i.test(env.R2_ACCOUNT_ID)) throw new Error('R2_ACCOUNT_ID must be a Cloudflare account ID.');
-  const { S3Client, HeadObjectCommand, PutObjectCommand } = await import('@aws-sdk/client-s3');
-  const client = new S3Client({
-    endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, region: 'auto',
-    credentials: { accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY },
-    maxAttempts: 1, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED',
-  });
+export async function createS3Transport(client, bucket, { ListObjectsV2Command, HeadObjectCommand, PutObjectCommand }) {
+  // Inventory once so new objects need only a PUT. Existing objects still need
+  // HEAD because ListObjectsV2 does not include SHA-256 or delivery metadata.
+  const knownKeys = new Set();
+  let continuationToken;
+  do {
+    const page = await withRetry(() => client.send(new ListObjectsV2Command({
+      Bucket: bucket, Prefix: 'original/', ...(continuationToken ? { ContinuationToken: continuationToken } : {}),
+    })));
+    for (const object of page.Contents ?? []) {
+      if (typeof object.Key === 'string' && object.Key.startsWith('original/')) knownKeys.add(object.Key);
+    }
+    if (!page.IsTruncated) break;
+    if (!page.NextContinuationToken || page.NextContinuationToken === continuationToken) throw Object.assign(new Error('R2 returned an incomplete object inventory.'), { code: 'INCOMPLETE_INVENTORY' });
+    continuationToken = page.NextContinuationToken;
+  } while (true);
   return {
     async head(key) {
+      if (!knownKeys.has(key)) return null;
       try { return await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key })); }
       catch (error) {
-        if (error.$metadata?.httpStatusCode === 404) return null;
+        if (error.$metadata?.httpStatusCode === 404) {
+          knownKeys.delete(key);
+          return null;
+        }
         throw error;
       }
     },
     async put(file) {
       const body = createReadStream(file.path);
       try {
-        return await client.send(new PutObjectCommand({ Bucket: bucket, Key: file.key, Body: body,
+        const result = await client.send(new PutObjectCommand({ Bucket: bucket, Key: file.key, Body: body,
           ContentLength: file.size, ContentType: file.contentType, CacheControl: file.cacheControl,
           Metadata: { sha256: file.sha256 } }));
+        knownKeys.add(file.key);
+        return result;
       } finally { body.destroy(); }
     },
     close() { client.destroy(); },
   };
 }
 
+export async function createTransport(env, bucket, sdk) {
+  for (const name of ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY']) {
+    if (!env[name]) throw new Error(`Missing ${name}. Use a bucket-scoped R2 Object Read & Write access key.`);
+  }
+  if (!/^[a-f\d]{32}$/i.test(env.R2_ACCOUNT_ID)) throw new Error('R2_ACCOUNT_ID must be a Cloudflare account ID.');
+  const { S3Client, ListObjectsV2Command, HeadObjectCommand, PutObjectCommand } = sdk ?? await import('@aws-sdk/client-s3');
+  const client = new S3Client({
+    endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, region: 'auto',
+    credentials: { accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY },
+    maxAttempts: 1, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED',
+  });
+  try { return await createS3Transport(client, bucket, { ListObjectsV2Command, HeadObjectCommand, PutObjectCommand }); }
+  catch (error) {
+    client.destroy();
+    const status = error.$metadata?.httpStatusCode;
+    const detail = error.code === 'INCOMPLETE_INVENTORY' ? 'Incomplete object inventory' : status ? `HTTP ${status}` : error.code || error.name;
+    throw new Error(`Could not read the R2 media inventory: ${detail}`);
+  }
+}
+
 export async function main(args = process.argv.slice(2), env = process.env) {
   if (args.includes('--help')) {
     console.log(`Upload public/original/ to R2 as original/* without deleting remote objects.
 
-Usage: node scripts/sync-media.mjs [--dry-run] [--concurrency 1-16]
+Usage: node scripts/sync-media.mjs [--dry-run] [--concurrency 1-32]
 
 Environment: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
 Optional: R2_BUCKET (default: kidpix-media)
@@ -172,7 +203,7 @@ Interrupted uploads are safe to resume by running the same command again.`);
     else if (args[index] === '--concurrency') concurrency = Number(args[++index]);
     else throw new Error(`Unknown argument: ${args[index]}`);
   }
-  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 16) throw new Error('Concurrency must be an integer from 1 to 16.');
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 32) throw new Error('Concurrency must be an integer from 1 to 32.');
   const bucket = env.R2_BUCKET || 'kidpix-media';
   if (!/^[a-z\d][a-z\d-]{1,61}[a-z\d]$/.test(bucket)) throw new Error('R2_BUCKET must be a valid bucket name.');
   const files = await buildManifest();

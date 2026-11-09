@@ -4,7 +4,7 @@ import { copyFile, mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { buildManifest, cacheControl, checksum, contentType, objectKey, syncMedia, unchanged, withRetry } from './sync-media.mjs';
+import { buildManifest, cacheControl, checksum, contentType, createS3Transport, createTransport, objectKey, syncMedia, unchanged, withRetry } from './sync-media.mjs';
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'kidpix-media-'));
@@ -125,6 +125,111 @@ test('retries transient failures, stops after limit, and fails authentication im
   assert.equal(attempts, 1);
 });
 
+const mockCommands = Object.fromEntries(['ListObjectsV2Command', 'HeadObjectCommand', 'PutObjectCommand'].map(name => [name, class {
+  constructor(input) { this.input = input; this.operation = name; }
+}]));
+
+test('transport inventories all pages and only HEADs keys that exist in R2', async () => {
+  const requests = [];
+  const metadata = { Metadata: { sha256: 'existing-hash' }, ContentLength: 3 };
+  const client = {
+    async send(command) {
+      requests.push(command);
+      if (command.operation === 'ListObjectsV2Command') {
+        if (!command.input.ContinuationToken) return { Contents: [{ Key: 'original/a.png' }], IsTruncated: true, NextContinuationToken: 'page-two' };
+        return { Contents: [{ Key: 'original/b.png' }], IsTruncated: false };
+      }
+      if (command.operation === 'HeadObjectCommand') return metadata;
+      assert.fail(`Unexpected operation: ${command.operation}`);
+    },
+    destroy() {},
+  };
+  const transport = await createS3Transport(client, 'test-bucket', mockCommands);
+  assert.deepEqual(requests.map(request => request.input), [
+    { Bucket: 'test-bucket', Prefix: 'original/' },
+    { Bucket: 'test-bucket', Prefix: 'original/', ContinuationToken: 'page-two' },
+  ]);
+  assert.equal(await transport.head('original/missing.png'), null);
+  assert.equal(requests.length, 2, 'missing keys do not make HEAD requests');
+  assert.equal(await transport.head('original/b.png'), metadata);
+  assert.deepEqual(requests[2].input, { Bucket: 'test-bucket', Key: 'original/b.png' });
+});
+
+test('transport streams new uploads and tracks successful PUTs in its inventory', async t => {
+  const root = await fixture(t);
+  await writeFile(join(root, 'a.png'), 'aaa');
+  const [file] = await buildManifest(root);
+  file.sha256 = await checksum(file.path);
+  const requests = [];
+  let destroyed = false;
+  const client = {
+    async send(command) {
+      requests.push(command);
+      if (command.operation === 'ListObjectsV2Command') return {};
+      if (command.operation === 'PutObjectCommand') {
+        const chunks = [];
+        for await (const chunk of command.input.Body) chunks.push(chunk);
+        assert.equal(Buffer.concat(chunks).toString(), 'aaa');
+        assert.equal(command.input.ContentLength, 3);
+        assert.equal(command.input.Metadata.sha256, file.sha256);
+        assert.equal(command.input.ContentType, file.contentType);
+        assert.equal(command.input.CacheControl, file.cacheControl);
+        return {};
+      }
+      if (command.operation === 'HeadObjectCommand') return { Metadata: { sha256: file.sha256 } };
+    },
+    destroy() { destroyed = true; },
+  };
+  const transport = await createS3Transport(client, 'test-bucket', mockCommands);
+  assert.equal(await transport.head(file.key), null);
+  await transport.put(file);
+  assert.deepEqual(await transport.head(file.key), { Metadata: { sha256: file.sha256 } });
+  assert.deepEqual(requests.map(request => request.operation), ['ListObjectsV2Command', 'PutObjectCommand', 'HeadObjectCommand']);
+  transport.close();
+  assert.equal(destroyed, true);
+});
+
+test('transport handles objects removed after listing and rejects incomplete pagination', async () => {
+  let heads = 0;
+  const client = {
+    async send(command) {
+      if (command.operation === 'ListObjectsV2Command') return { Contents: [{ Key: 'original/removed.png' }] };
+      heads++;
+      throw Object.assign(new Error(), { $metadata: { httpStatusCode: 404 } });
+    },
+    destroy() {},
+  };
+  const transport = await createS3Transport(client, 'test-bucket', mockCommands);
+  assert.equal(await transport.head('original/removed.png'), null);
+  assert.equal(await transport.head('original/removed.png'), null);
+  assert.equal(heads, 1);
+  await assert.rejects(createS3Transport({ send: async () => ({ IsTruncated: true }) }, 'test-bucket', mockCommands), /incomplete object inventory/);
+});
+
+test('inventory authentication failure is sanitized, attempted once, and closes the client', async () => {
+  let destroyed = false;
+  let attempts = 0;
+  class S3Client {
+    async send() {
+      attempts++;
+      throw Object.assign(new Error('private-credential-value'), { $metadata: { httpStatusCode: 401 } });
+    }
+    destroy() { destroyed = true; }
+  }
+  await assert.rejects(createTransport({ R2_ACCOUNT_ID: 'a'.repeat(32), R2_ACCESS_KEY_ID: 'test', R2_SECRET_ACCESS_KEY: 'test' }, 'test-bucket', { S3Client, ...mockCommands }), error => {
+    assert.match(error.message, /R2 media inventory: HTTP 401/);
+    assert.ok(!error.message.includes('private-credential-value'));
+    return true;
+  });
+  assert.equal(attempts, 1);
+  assert.equal(destroyed, true);
+});
+
+test('sync accepts the concurrency limit of 32 and rejects 33', async () => {
+  assert.deepEqual(await syncMedia([], {}, { concurrency: 32 }), { uploaded: 0, skipped: 0, bytes: 0 });
+  await assert.rejects(syncMedia([], {}, { concurrency: 33 }), /1 to 32/);
+});
+
 test('dry-run and help work without R2 credentials or loading the SDK', async t => {
   // Exercise the real CLI in a standalone fixture, without this machine's imported media or node_modules.
   const root = await fixture(t);
@@ -141,10 +246,13 @@ test('dry-run and help work without R2 credentials or loading the SDK', async t 
   const help = spawnSync(process.execPath, ['scripts/sync-media.mjs', '--help'], { cwd: root, encoding: 'utf8', env });
   assert.equal(help.status, 0);
   assert.match(help.stdout, /R2_ACCESS_KEY_ID/);
+  assert.match(help.stdout, /concurrency 1-32/);
+  const maxConcurrency = spawnSync(process.execPath, ['scripts/sync-media.mjs', '--dry-run', '--concurrency', '32'], { cwd: root, encoding: 'utf8', env });
+  assert.equal(maxConcurrency.status, 0, maxConcurrency.stderr);
 });
 
 test('CLI rejects invalid concurrency and unknown options', () => {
-  for (const args of [['--concurrency', '100'], ['--concurrency'], ['--unknown']]) {
+  for (const args of [['--concurrency', '33'], ['--concurrency'], ['--unknown']]) {
     const result = spawnSync(process.execPath, ['scripts/sync-media.mjs', ...args], { encoding: 'utf8' });
     assert.equal(result.status, 1);
   }

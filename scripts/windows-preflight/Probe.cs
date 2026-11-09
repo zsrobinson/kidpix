@@ -65,7 +65,7 @@ class Probe {
  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
  [DllImport("userenv.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool DeleteProfile(string sid,string path,string computer);
  static string Name(IntPtr h) { var b=new StringBuilder(256); int n; return GetUserObjectInformation(h,2,b,512,out n)? b.ToString():"unavailable"; }
- static int TokenInt(IntPtr t,int cls) { IntPtr b=Marshal.AllocHGlobal(16); try { int n; if(!GetTokenInformation(t,cls,b,16,out n)) { int code=Marshal.GetLastWin32Error(); report["failedTokenQueryClass"]=cls; report["failedTokenQueryError"]=code; throw new System.ComponentModel.Win32Exception(code); } return Marshal.ReadInt32(b); } finally { Marshal.FreeHGlobal(b); } }
+ static int TokenInt(IntPtr t,int cls) { IntPtr b=Marshal.AllocHGlobal(4); try { int n; if(!GetTokenInformation(t,cls,b,4,out n)) { int code=Marshal.GetLastWin32Error(); report["failedTokenQueryClass"]=cls; report["failedTokenQueryError"]=code; throw new System.ComponentModel.Win32Exception(code); } return Marshal.ReadInt32(b); } finally { Marshal.FreeHGlobal(b); } }
  static bool Identity() {
   using(var id=WindowsIdentity.GetCurrent()) {
   IntPtr t; if(!OpenProcessToken(GetCurrentProcess(),8,out t)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());

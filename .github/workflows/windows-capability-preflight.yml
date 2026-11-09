@@ -1,0 +1,38 @@
+name: Harmless Windows capability preflight
+'on':
+  push:
+    branches: ['t3/d318dd34']
+    paths:
+      - '.github/workflows/windows-capability-preflight.yml'
+      - 'scripts/windows-preflight/**'
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - name: Checkout reviewed helper only
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/windows-preflight
+      - name: Run bounded harmless probe
+        shell: powershell
+        run: '& ./scripts/windows-preflight/Run.ps1'
+      - name: Upload allowlisted diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-capability-preflight
+          path: |
+            ${{ runner.temp }}/kidpix-preflight-evidence/inventory.json
+            ${{ runner.temp }}/kidpix-preflight-evidence/execution.json
+            ${{ runner.temp }}/kidpix-preflight-evidence/blocker.json
+            ${{ runner.temp }}/kidpix-preflight-evidence/cleanup.json
+            ${{ runner.temp }}/kidpix-preflight-evidence/parent.json
+            ${{ runner.temp }}/kidpix-preflight-evidence/child.json
+            ${{ runner.temp }}/kidpix-preflight-evidence/parent-window.png
+            ${{ runner.temp }}/kidpix-preflight-evidence/child-window.png
+          retention-days: 3
+          if-no-files-found: warn

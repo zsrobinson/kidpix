@@ -1,7 +1,7 @@
 name: Harmless Windows capability preflight
 'on':
   push:
-    branches: ['t3/d318dd34']
+    branches: ['t3/windows-capability-preflight']
     paths:
       - '.github/workflows/windows-capability-preflight.yml'
       - 'scripts/windows-preflight/**'

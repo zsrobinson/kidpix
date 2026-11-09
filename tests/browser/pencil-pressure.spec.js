@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { PNG } from 'pngjs';
 
+test.describe('freehand renderer @module', () => {
 // Exercise createPaint and the real procedural/native renderers, without app
 // chrome or synthetic capture pretending to prove physical Pencil behavior.
 test.beforeEach(async ({ page }) => {
@@ -145,4 +146,34 @@ test('native Crayon scales a grayscale mask per dab with exact neutral source co
   const paper = `data:image/png;base64,${PNG.sync.write(texture).toString('base64')}`;
   expect((await render(page, { ...options, paper })).png)
     .toBe((await render(page, { ...options, paper, pointerType: 'mouse' })).png);
+});
+
+});
+
+test('actual studio pen pressure changes Pencil ink and preserves undo/redo', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Uses Chromium pen event delivery; hardware Safari acceptance is separate.');
+  await page.routeWebSocket(/ws:\/\/127\.0\.0\.1:/, socket => socket.close());
+  await page.goto('/');
+  await expect(page.locator('[data-native-tool-motion="draw"]')).toBeVisible();
+  await page.locator('#tray-buttons [data-action="size:16"]').evaluate(button => button.click());
+  const canvas = page.locator('#paper-canvas'), box = await canvas.boundingBox();
+  const cdp = await page.context().newCDPSession(page);
+  const stroke = async (row, force) => {
+    const at = x => ({x:box.x+x*box.width/720,y:box.y+row*box.height/542});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',...at(120),button:'left',buttons:1,clickCount:1,pointerType:'pen',force});
+    for (const x of [150,180,210,240,270,300]) await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',...at(x),button:'left',buttons:1,pointerType:'pen',force});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',...at(300),button:'left',buttons:0,clickCount:1,pointerType:'pen',force:0});
+  };
+  await stroke(150,.1); await stroke(250,.9);
+  const pixels = await canvas.evaluate(canvas => {
+    const context=canvas.getContext('2d'),image=context.getImageData(0,0,canvas.width,canvas.height);
+    const count=row=>{let result=0;for(let y=row-35;y<row+35;y++)for(let x=180;x<240;x++){const i=(y*canvas.width+x)*4;if(image.data[i]<100&&image.data[i+1]<100&&image.data[i+2]<100)result++;}return result;};
+    return {light:count(150),heavy:count(250),png:canvas.toDataURL()};
+  });
+  expect(pixels.light).toBeGreaterThan(0); expect(pixels.heavy).toBeGreaterThan(pixels.light*2);
+  await page.locator('[data-action="undo"]').first().evaluate(button=>button.click());
+  await expect.poll(()=>canvas.evaluate(canvas=>canvas.toDataURL())).not.toBe(pixels.png);
+  await page.locator('[data-action="redo"]').first().evaluate(button=>button.click());
+  await expect.poll(()=>canvas.evaluate(canvas=>canvas.toDataURL())).toBe(pixels.png);
+  await cdp.detach();
 });

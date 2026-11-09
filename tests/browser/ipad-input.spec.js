@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+test.use({hasTouch:true});
+
 // Synthetic contacts isolate ownership and lifecycle. Real CDP capture is tested below.
 async function harness(page) {
   await page.goto('/');
@@ -22,6 +24,7 @@ async function harness(page) {
   });
 }
 
+test.describe('input module fixtures @module', () => {
 for (const termination of ['pointercancel', 'lostpointercapture', 'blur', 'pagehide', 'hidden', 'resize', 'destroy']) {
   test(`paint recovers after ${termination}, preserves first owner and history`, async ({ page }) => {
     await harness(page);
@@ -139,6 +142,8 @@ for (const module of ['native-stamp-editor', 'stamp-editor']) {
     expect(result).toEqual({ignored:true,continued:true,undone:true,released:true,fresh:true,cancelPolicy:true,lossKeepsPixels:true,fillStays:true});
   });
 }
+
+});
 
 test('browser-delivered pen capture rejects touch chrome activation', async ({ page }) => {
   await page.goto('/'); await expect(page.locator('#paint-chrome')).toHaveClass(/native/);

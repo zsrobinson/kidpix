@@ -180,13 +180,14 @@ def export_backdrops(read, archive, result, output):
     # Stamp's library chrome has a distinct category selector recipe.
     base=Image.new('RGBA',(1024,768))
     for n in (18048,18034,18028,18031): ui.render_script(base,archive,n)
-    for index,y in [(450,665),(453,665+ui.sprite(archive[b'tBMH',18000],450).height)]:
-        base.alpha_composite(ui.sprite(archive[b'tBMH',18000],index),(329,y))
+    # Category arrows belong to their actors, including boundary-disabled poses.
+    # Baking their ordinary art here leaves contaminated edges under every pose.
     path='secondary-motion/backdrops/stamps-1.png'; target=output/path
     base.crop((113,608,930,776)).save(target)
     result['backdrops']['stamps']=dict(rect=[113,608,817,168],pages=[dict(image=path,sha256=sha(target.read_bytes()))],
         omittedScripts=[18236,18053,18149,18144],retainedScripts=[18048,18034,18028,18031],requiresPrimaryActors=False,
-        dynamicLibraryContent=True)
+        dynamicLibraryContent=True,requiresCategoryArrowActors=True,
+        omittedCategoryArrowSprites=[dict(collection=18000,sprite=451),dict(collection=18000,sprite=454)])
 
 
 def export(resources, output):

@@ -2,6 +2,17 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.7.0
+
+- Animated 19 more secondary controls using 59 complete source programs and 81 authored poses: Text alignment and independent Bold/Italic/Underline, Grab clipboard/ordering actions, and Stamp category arrows, sizes and editor entry.
+- Synchronized animation state with actual text styles, selection, clipboard and category bounds. Held actions cancel when their target changes, including changes before the next animation frame; formatting preserves the direction and active end of text selections.
+- Restored Stamp artwork within three separate footprints so arrows, sizes, editor controls, library tiles and the category popup coexist. Independently verified 29 source compositions and 123 restoration transitions; fixed baked arrow contamination in the clean backdrop.
+- Preserved static Grab object-navigation arrows by restoring clipboard and ordering artwork within separate source footprints. Their web actions remain follow-up work.
+- Kept Path, Loop Path and Play Object available in the Paint Zone menu while preserving the native Grab tray layout.
+- Optional animation failures retain usable static controls. Browser coverage includes source pixels, pointer/keyboard cancellation, asset retry, editor entry, library dragging and boundary-disabled states.
+- Verified 188 Node checks, 237 development browser cases, 226 built-browser cases and 13 exporter checks. Reviewed and accepted all 17 Ubuntu web captures; the resulting comparison report has zero web regressions/errors. Source-only checks pass with six asset-dependent cases skipped.
+- iPad input hardening is the next focused milestone. Original runtime timing, sound latency and feel remain unverified; native references remain 0/17.
+
 ## 0.6.0
 
 - Restored all 16 primary tool actors across Drawing, Painting, Bucket, Mixer, Eraser and Grab, retaining 48 source programs and 453 authored poses, exact hit regions and source sound cues.

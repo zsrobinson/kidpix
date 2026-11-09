@@ -13,6 +13,8 @@ import { attachNativeRollovers } from './native-rollovers.js';
 import { applyNativeControlRegions } from './native-control-regions.js';
 import { createNativePaperPicker } from './native-paper.js';
 import { createNativeToolMotion } from './native-tool-motion.js';
+import { createNativeActionMotion } from './native-action-motion.js';
+import { createNativeStampMotion } from './native-stamp-motion.js';
 import { createNativeSecondaryMotion } from './native-secondary-motion.js';
 
 const app = document.querySelector('#app');
@@ -120,7 +122,7 @@ app.innerHTML = `
         <div id="menu-items" hidden>
           ${menu('File', [['new', 'New Picture'], ['open', 'Open Picture…'], ['save', 'Save Picture…'], ['export', 'Export PNG…'], ['ideas', 'Idea Machine…'], ['print', 'Print Picture…']])}
           ${menu('Edit', [['undo', 'Undo'], ['redo', 'Redo'], ['edit:cut', 'Cut'], ['edit:copy', 'Copy'], ['edit:paste', 'Paste'], ['import-image', 'Import Image…']])}
-          ${menu('Paint Zone', [['play', 'Play Picture'], ['path', 'Path Animation Tool'], ['enlarge', 'Enlarge to Fill Canvas'], ['record-video', 'Video Narration…'], ['record-sound', 'Record Sound…'], ['flipbook', 'Add Picture to Slide Show'], ['slideshow', 'Go to Slide Show'], ['clear', 'Erase Picture']])}
+          ${menu('Paint Zone', [['play', 'Play Picture'], ['path', 'Path Animation Tool'], ['loop-path', 'Loop Path'], ['preview-object', 'Play Object'], ['enlarge', 'Enlarge to Fill Canvas'], ['record-video', 'Video Narration…'], ['record-sound', 'Record Sound…'], ['flipbook', 'Add Picture to Slide Show'], ['slideshow', 'Go to Slide Show'], ['clear', 'Erase Picture']])}
           ${menu('Help', [['help', 'Extended Help'], ['about', 'About KID PIX 3D']])}
         </div>
       </nav>
@@ -431,6 +433,69 @@ const nativeSecondaryMotion = createNativeSecondaryMotion({
   onReady: () => showTray(), onActivate: action => activate(action),
 });
 
+let actionTextTarget;
+// Formatting chrome keeps the editor's caret/range during pointer activation.
+$('#tray-buttons').addEventListener('pointerdown', event => {
+  const action = event.target.closest('[data-action]')?.dataset.action;
+  if (state.tray === 'text' && (['bold', 'italic', 'underline'].includes(action) || action?.startsWith('align:'))
+    && document.activeElement?.matches('.object-text')) event.preventDefault();
+}, { capture: true });
+function applyTextStyle() {
+  const editor = document.activeElement?.matches('.object-text') ? document.activeElement : null;
+  const selection = window.getSelection();
+  let offsets;
+  if (editor && selection.rangeCount && editor.contains(selection.anchorNode) && editor.contains(selection.focusNode)) {
+    const offset = (node, position) => {
+      const prefix = document.createRange();
+      prefix.selectNodeContents(editor); prefix.setEnd(node, position);
+      return prefix.toString().length;
+    };
+    offsets = [offset(selection.anchorNode, selection.anchorOffset), offset(selection.focusNode, selection.focusOffset)];
+  }
+  const id = editor?.closest('[data-object]')?.dataset.object;
+  scene.setTextStyle(textStyle());
+  const replacement = id && [...$('#objects').children].find(node => node.dataset.object === id)?.querySelector('.object-text');
+  if (replacement && offsets) {
+    replacement.focus({ preventScroll: true });
+    const point = offset => {
+      const walker = document.createTreeWalker(replacement, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (offset <= node.length) return [node, offset];
+        offset -= node.length;
+      }
+      return [replacement, replacement.childNodes.length];
+    };
+    selection.setBaseAndExtent(...point(offsets[0]), ...point(offsets[1]));
+  }
+}
+function actionMotionState() {
+  const capabilities = state.tray === 'grab' && state.tools.grab === 'scissors' ? paint.actionState : scene.actionState;
+  if (state.tray === 'text' && capabilities.target !== actionTextTarget) {
+    actionTextTarget = capabilities.target;
+    if (capabilities.textStyle) {
+      Object.assign(state, capabilities.textStyle);
+      queueMicrotask(() => showTray());
+    }
+  }
+  return { bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
+}
+const nativeActionMotion = createNativeActionMotion({
+  stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
+  onReady: () => showTray(), onActivate: action => activate(action),
+  refreshCurrent: actionMotionState,
+});
+
+function stampMotionState() {
+  return { active: state.tray === 'stamp', nativeUi: Boolean(nativeUi && libraryManifest?.trays.stamps),
+    categoryIndex: state.category, categoryCount: library.categories?.length ?? 0,
+    stampSize: state.sizes.stamp, selectedAssetId: state.selectedAsset?.id ?? null };
+}
+const nativeStampMotion = createNativeStampMotion({
+  stage: studio, controls: library, resolve: path => original(`ui/${path}`),
+  onReady: () => showLibrary(), onActivate: action => activate(action), readState: stampMotionState,
+});
+
 function libraryKey() {
   if (state.tray === 'stamp') return 'stamps';
   if (state.tray === 'media') return state.media;
@@ -438,6 +503,7 @@ function libraryKey() {
 }
 
 function showLibrary() {
+  nativeStampMotion.beforeRender();
   const key = libraryKey();
   const categories = [...libraryCategories(groups, key, state.libraryTab)];
   const added = importedAssets.get(key);
@@ -456,8 +522,10 @@ function showLibrary() {
       categories, key, categoryIndex: state.category, page: state.libraryPage, pages, row,
       selected: state.selectedAsset, stampSize: state.sizes.stamp, tab: state.libraryTab, status: catalogStatus,
     });
+    nativeStampMotion.update(stampMotionState());
     return;
   }
+  nativeStampMotion.update({ ...stampMotionState(), nativeUi: false });
   library.classList.remove('original-library');
   library.innerHTML = `
     <div class="tray-categories">
@@ -487,6 +555,7 @@ function showLibrary() {
 function showTray() {
   nativeToolMotion.beforeRender();
   nativeSecondaryMotion.beforeRender();
+  nativeActionMotion.beforeRender();
   disconnectTraySprites?.();
   const lib = libKeys.has(state.tray);
   const nativeDraw = state.tray === 'draw' && nativeUi;
@@ -494,6 +563,7 @@ function showTray() {
   $('#native-draw').hidden = !nativeDraw;
   studio.classList.toggle('native-draw', Boolean(nativeDraw));
   library.hidden = !lib;
+  if (state.tray !== 'stamp') nativeStampMotion.update({ active: false });
   $('#tray-bed').hidden = true;
   const layer = $('#tray-buttons');
   layer.replaceChildren();
@@ -553,7 +623,7 @@ function showTray() {
       for (const voice of window.speechSynthesis?.getVoices() || []) voiceSelect.add(new Option(voice.name, voice.voiceURI));
       voiceSelect.value = state.voice;
     }
-    if (state.tray === 'grab' && state.tools.grab === 'grab') {
+    if (state.tray === 'grab' && state.tools.grab === 'grab' && !(nativeUi && nativeTray)) {
       layer.innerHTML += '<div class="path-controls"><button class="pill" data-action="path">Path</button><button class="pill" data-action="loop-path">Loop Path</button><button class="pill" data-action="preview-object">Play Object</button></div>';
     }
     if (nativeDraw) disconnectTraySprites = renderNativeDrawing($('#native-draw'), nativeUi, state, layer);
@@ -573,6 +643,8 @@ function showTray() {
   }
   nativeSecondaryMotion.update({ tray: state.tray, art: motionView.art, page: state.page,
     selected: state.tools[state.tray], eraserShape: state.eraserShape, color: state.color, nativeUi });
+  nativeActionMotion.update({ ...actionMotionState(), tray: state.tray, art: motionView.art, page: state.page,
+    selected: state.tools[state.tray], color: state.color, nativeUi });
   syncTool();
 }
 
@@ -1184,7 +1256,7 @@ const commands = {
   'preview-object': () => {
     const result = scene.togglePreview();
     if (result === null) showStatus('Select an animation or movie first.');
-    else $('[data-action="preview-object"]').textContent = result ? 'Pause Object' : 'Play Object';
+    else for (const control of app.querySelectorAll('[data-action="preview-object"]')) control.textContent = result ? 'Pause Object' : 'Play Object';
   },
   'loop-path': () => {
     const result = scene.toggleLoop();
@@ -1196,9 +1268,9 @@ const commands = {
     syncTool();
     showStatus('Draw a path for the selected object.');
   },
-  bold: () => { state.bold = !state.bold; scene.setTextStyle(textStyle()); showTray(); },
-  italic: () => { state.italic = !state.italic; scene.setTextStyle(textStyle()); showTray(); },
-  underline: () => { state.underline = !state.underline; scene.setTextStyle(textStyle()); showTray(); },
+  bold: () => { state.bold = !state.bold; applyTextStyle(); showTray(); },
+  italic: () => { state.italic = !state.italic; applyTextStyle(); showTray(); },
+  underline: () => { state.underline = !state.underline; applyTextStyle(); showTray(); },
   menu: () => {
     $('#menu-items').hidden = !$('#menu-items').hidden;
     $('#menu-trigger').setAttribute('aria-expanded', String(!$('#menu-items').hidden));
@@ -1302,7 +1374,7 @@ async function activate(action) {
   } else if (id === 'slide') {
     selectedSlide = Number(value);
     showSlides();
-  } else if (id === 'align') { state.align = value; scene.setTextStyle(textStyle()); showTray(); }
+  } else if (id === 'align') { state.align = value; applyTextStyle(); showTray(); }
   else if (id === 'edit') doEdit(value);
   else commands[id]?.();
 }

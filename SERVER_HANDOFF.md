@@ -172,3 +172,43 @@ private `/var/tmp/kidpix-native-runtime/`; no Wine drive mapping remains in the
 repo. Vite explicitly ignores research artifacts and never follows symlinks.
 The consumed private sudo delivery file has been removed. Proton enrollment
 remains host-local and supports authenticated Cloudflare commands without sudo.
+
+## 0.7.0 release and pending tablet integration
+
+0.6.0 was published from `7717f68ffae02f26884cb3f17f886a9f4dd648e8`.
+Its public checks passed194 behavior cases plus the exhaustive transport case in
+an isolated rerun. The0.7.0 source completes19 Text/Grab/Stamp secondary rows with
+59 programs and81 poses, for42 enabled secondary rows overall. Shared controller
+fixes preserve authoritative state, release identity and backward text selections.
+Grab restoration retains unbound navigation artwork; extra Path actions stay in
+the Paint Zone menu. Stamp restoration is independently pinned.
+
+Final0.7 gates pass188 Node checks,237 dev browser cases,226 built cases,
+13 exporter checks,9,751 asset references, build and deployment dry run. Source-only
+checks pass182 cases with6 asset-dependent skips. All17 Ubuntu web captures were
+reviewed and accepted; zero comparison/regression errors, native0/17. Only the
+secondary manifest and clean Stamp PNG changed in media; both were uploaded and
+verified before publication. Evidence and receipts: `artifacts/t3/release-070/`.
+The code is ready for its main push/automatic build; public verification follows.
+
+The user requested iPad/Apple Pencil support and accepted modern Safari as the
+baseline. Isolated, unpushed branches hold the upcoming input work:
+
+- Ownership/lifecycle: `f8958a9`, parent review fixes `23a4a79`, and shipped-entry
+  test separation `a29b74d`. Preserve root actionState getters and scene.destroy
+  during integration. The review fixes release non-gesture contacts and block
+  identity-free browser dblclick from rejected touch.27 focused/editor checks,
+  64 existing browser checks and157 Node checks pass on the0.6 base.
+- Pressure: `f792cb3`, neutral mouse/touch path preservation `e1ca2f7`, and studio
+  pen/undo coverage `ad850a5`. Includes procedural Pencil and native Chalk/Crayon;
+  Marker/shapes/timed tools retain their semantics.3 new Node tests,18 focused
+  browser cases,16 exact baseline comparisons and1 actual-studio pen case pass.
+- Both branches start at0.6. Parent must combine them with0.7 and rerun action,
+  Stamp, input/history, pressure, dev/built/live release checks before publication.
+  Branch checkout paths and full evidence remain in ignored tablet artifacts.
+
+WebKit downloaded successfully, but additional Ubuntu libraries are unavailable;
+the private setup card was cancelled. Do not claim WebKit or iPad hardware tested.
+Chromium automation checks pointer behavior and pressure response, not actual
+Pencil delivery, OS palm rejection, latency or subjective feel. Actual iPad
+acceptance remains separate. Original-runtime references are still0/17.

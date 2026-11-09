@@ -120,6 +120,39 @@ class Source(unittest.TestCase):
     def test_compile_is_deterministic(self):
         self.assertEqual(self.manifest,exporter.compile_manifest(self.archive))
 
+    def test_stamp_actor_pixels_and_every_restoration_transition(self):
+        from PIL import Image
+        pins=json.loads(Path(__file__).with_name('stamp-pose-oracles.json').read_text())
+        self.assertEqual(pins['sourceTpSha256'],exporter.SOURCE_HASH)
+        data=json.loads((ROOT/'public/original/ui/secondary-motion/manifest.json').read_text())
+        base=ROOT/'public/original/ui'
+        backing=Image.new('RGBA',(1024,776))
+        backing.alpha_composite(Image.open(base/'paint-empty.png').convert('RGBA'))
+        backing.alpha_composite(Image.open(base/data['backdrops']['stamps']['pages'][0]['image']).convert('RGBA'),(113,608))
+        def overlay(image,pose):
+            clip=data['scripts'][str(pose['script'])]
+            for part in clip['frames'][pose['frame']]['parts']:
+                sprite=data['sprites'][f"{clip['collection']}:{part['sprite']}"]
+                image.alpha_composite(Image.open(base/sprite['image']).convert('RGBA'),(part['x'],part['y']))
+            return image
+        def posed(pose):
+            return overlay(backing.copy(),pose)
+        transitions=0
+        for row in pins['rows']:
+            x,y,w,h=row['boundsXYWH']; box=(x,y,x+w,y+h)
+            for pose in row['poses']:
+                with self.subTest(table=row['table'],row=row['row'],script=pose['script'],frame=pose['frame']):
+                    target=posed(pose)
+                    self.assertEqual(exporter.sha(target.crop(box).tobytes()),pose['rgbaSha256'])
+                    for prior in row['poses']:
+                        image=posed(prior)
+                        image.paste(backing.crop(box),(x,y))
+                        overlay(image,pose)
+                        self.assertEqual(exporter.sha(image.crop(box).tobytes()),pose['rgbaSha256'])
+                        self.assertEqual(exporter.sha(image.tobytes()),exporter.sha(target.tobytes()))
+                        transitions+=1
+        self.assertEqual(transitions,123)
+
     def test_unsupported_image_flags_fail_closed(self):
         archive=dict(self.archive)
         raw=bytearray(archive[b'tSCR',18201])

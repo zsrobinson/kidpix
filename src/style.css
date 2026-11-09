@@ -343,6 +343,7 @@ select { min-width: 0; }
 select.text-value { appearance: none; text-align: center; }
 input.text-value { padding: 0 4px; color-scheme: light; }
 #tray-buttons [data-action^="align:"][aria-pressed="true"], #tray-buttons [data-action="bold"][aria-pressed="true"], #tray-buttons [data-action="italic"][aria-pressed="true"], #tray-buttons [data-action="underline"][aria-pressed="true"] { box-shadow: inset 0 0 0 2px #abd870; }
+#tray-buttons .hit.native-control[aria-pressed="true"] { box-shadow: none; }
 
 /* Primary tool actors composite at source resolution above the drawing surface. */
 #native-tool-motion > canvas, .native-secondary-motion > canvas { position: absolute; inset: 0; width: 1024px; height: 768px; pointer-events: none; }

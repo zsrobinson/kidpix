@@ -142,3 +142,36 @@ media delta plus index, final full regressions/release and media-inclusive hando
 Native runtime comparison, timing/feel, audio latency/output and Mac bitmap
 rounding/color space remain unverified. Original application execution and native
 reference captures remain unavailable (0/17).
+
+## Secondary action integration — 0.7.0
+
+The enabled secondary scope now includes the previous 23 selector rows plus 19
+action/Stamp rows: 42 rows, 128 programs and 173 authored poses. This is separate
+from the 16 primary actors' 48 programs and 453 poses. It does not mean every
+recovered secondary action or the complete original program is implemented.
+
+`native-action-state.js` preserves mode-0 momentary actions, mode-1 independent
+toggles and mode-2 exclusive/boundary behavior. `native-action-motion.js` binds
+Text alignment/B/I/U and supported Grab actions to authoritative application
+state. `native-stamp-motion.js` uses independent arrow, editor and size owners;
+category bounds select the source disabled programs. The category popup remains
+a standard select. Unimplemented action contracts remain separate follow-up work.
+
+Stamp source restoration omits the two manually baked arrow sprites from its
+clean backdrop; the existing static library artwork remains the failure fallback.
+The tracked independent pose pins cover 29 draw groups and 123 transitions.
+Actual-studio tests cover all 26 animated groups, including the disabled arrows.
+Source-pixel and browser checks establish web behavior, not native event timing
+or subjective feel. Native references remain 0/17.
+
+Grab action restoration uses two disjoint source-derived footprints for clipboard
+and ordering. The unbound next/previous-object column stays transparent to the
+retained static source art; these two arrows have no new action binding. Path,
+Loop Path and Play Object remain available through the Paint Zone menu rather
+than floating over the restored native tray.
+
+Release validation:188 Node checks,237 dev browser cases,226 built browser cases
+and13 focused exporter cases passed. All17 reviewed Ubuntu web captures were
+accepted with zero remaining regression/comparison errors; native comparisons
+remain0/17. Failed-art and Text press phase probes, independent composition
+checks and staging receipts are retained separately from the final full runs.

@@ -37,6 +37,7 @@ The browser suite covers:
 - Pointer-capture loss, blur, editable text selection, protected chrome, popup dismissal and retained rollover owner cleanup.
 - Native grayscale brush-mask coverage through the actual painting tool and exact undo/redo, with separate synthetic-pixel tests for density, spatter and shadow/glint rules.
 - Real Stamp Editor entry, source layout/palette, pixel transformations, edited-stamp persistence/placement, cancellation, keyboard isolation, failed-load retry and prevention of duplicate modals.
+- Text alignment and independent formatting source programs, selection-direction preservation, Grab clipboard/ordering capabilities, target changes before release, disjoint restoration around unbound navigation art, and Stamp boundary arrows/sizes/editor ownership.
 
 Browser exceptions, failed asset requests and HTTP errors fail the tests. Captures wait for manifests, library rendering, visible images, backgrounds and fonts. Screenshots use a 1024×768 frame at device scale 1, a fixed locale/timezone and a seeded web random generator. The seed makes our own captures repeatable; it does not reproduce the original's random effects. The first scenarios deliberately use static states.
 

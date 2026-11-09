@@ -18,6 +18,8 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   loadAssets = loadDrawingMotionAssets,
   createController = createDrawingMotionController,
   actionForButton = button => `tool:${button.name}`,
+  authoritativeFor, refreshCurrent,
+  targetFor = () => null,
   supported = tray => ['draw', 'paint', 'bucket', 'mixer', 'eraser', 'grab'].includes(tray),
 }) {
   const view = stage.ownerDocument.defaultView;
@@ -42,6 +44,32 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   let releaseIndex;
   let focusAction;
   let rendering = false;
+  let targetIdentity;
+  let authoritative = [];
+
+  function syncAuthoritative(force = false) {
+    if (!owner || !authoritativeFor) return;
+    const next = authoritativeFor(owner.manifest, current);
+    next.forEach((value, i) => {
+      if (force || JSON.stringify(value) !== JSON.stringify(authoritative[i])) owner.controller.setAuthoritativeState(i, value);
+    });
+    authoritative = next;
+  }
+  function normalizeProposal(proposal, index) {
+    return proposal === null ? null : typeof proposal === 'object' ? proposal : { index };
+  }
+  function proposalIndex(proposal) {
+    if (proposal === null) return null;
+    return typeof proposal === 'object' ? proposal.index : proposal;
+  }
+  function activateProposal(proposal) {
+    if (proposal === null) return;
+    const i = proposalIndex(proposal);
+    const button = owner?.manifest.buttons[i];
+    if (button) onActivate(proposal.binding ?? actionForButton(button));
+    refreshState();
+    syncAuthoritative(true);
+  }
 
   async function image(path) {
     if (images.has(path)) return images.get(path);
@@ -71,14 +99,16 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     // Restore authored pixels before every destination-dependent composite.
     // Restrict the opaque restoration to the actor area; options stay live.
     context.save();
-    context.beginPath(); context.rect(...owner.bounds); context.clip();
+    context.beginPath();
+    for (const rect of manifest.restorationRects ?? [owner.bounds]) context.rect(...rect);
+    context.clip();
     context.drawImage(owner.chrome, 0, 0);
     context.drawImage(backdrop.image, ...backdrop.rect);
     context.restore();
     const color = current.color.match(/[a-f\d]{2}/gi).map(value => parseInt(value, 16));
     for (const item of snapshot) paintDrawingMotionFrame(context, manifest, item.frame, assets, color, { clipRect: item.clipRect });
-    canvas.dataset.motionSnapshot = JSON.stringify(snapshot.map(({ name, script, frameIndex, state, auxiliary, finished }) =>
-      ({ name, script, frameIndex, state, auxiliary, finished })));
+    canvas.dataset.motionSnapshot = JSON.stringify(snapshot.map(({ name, script, frameIndex, state, auxiliary, finished, disabled }) =>
+      ({ name, script, frameIndex, state, auxiliary, finished, disabled })));
   }
 
   function reset() {
@@ -86,14 +116,27 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     abort?.abort(); abort = null; pending = null;
     view.cancelAnimationFrame(raf);
     owner?.controller.dispose(); owner?.canvas.remove(); owner = null;
-    tracking = null;
+    tracking = null; authoritative = []; targetIdentity = undefined;
     if (pointerId !== null && pointerCaptureTarget?.hasPointerCapture(pointerId)) pointerCaptureTarget.releasePointerCapture(pointerId); pointerId = null; pointerCaptureTarget = null; keyboardIndex = null; releaseIndex = undefined;
     soundActive = true; focusAction = null; cancelledKeyboardClick = false;
     layer.hidden = true;
   }
 
+  function refreshState() {
+    if (refreshCurrent) {
+      const next = { ...current, ...refreshCurrent() };
+      const nextTarget = targetFor(next);
+      const changedTarget = nextTarget !== targetIdentity;
+      targetIdentity = nextTarget;
+      current = next;
+      syncAuthoritative();
+      if (changedTarget) cancel();
+    }
+  }
+
   function animate(time) {
     if (!owner) return;
+    refreshState();
     owner.controller.step(time);
     raf = view.requestAnimationFrame(animate);
   }
@@ -148,8 +191,9 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
           bounds: [left, top, right - left, bottom - top] };
         layer.replaceChildren(canvas);
         owner.controller = createController(manifest, {
-          selected: selectedIndex(manifest), render, playSound, now: () => view.performance.now(),
+          selected: selectedIndex(manifest), authoritative: authoritativeFor?.(manifest, current), render, playSound, now: () => view.performance.now(),
         });
+        authoritative = authoritativeFor?.(manifest, current) ?? [];
         raf = view.requestAnimationFrame(animate);
       }
       owner.backdrop = { key, image: base, rect: requestedBackdrop.rect, path: requestedBackdrop.path };
@@ -184,12 +228,17 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
 
   function update(next) {
     if (current?.tray !== next.tray) reset();
+    const nextTarget = targetFor(next);
+    const changedTarget = targetIdentity !== undefined && targetIdentity !== nextTarget;
+    targetIdentity = nextTarget;
     current = next;
     const key = `${next.art}:${next.page}`;
     const ready = owner?.tray === next.tray && owner.backdrop?.key === key;
     layer.hidden = !ready;
     if (owner) {
-      const selected = selectedIndex(owner.manifest);
+      syncAuthoritative();
+      if (changedTarget) cancel();
+      const selected = authoritativeFor ? null : selectedIndex(owner.manifest);
       if (selected !== null && owner.controller.snapshot()[selected].state !== 3) owner.controller.dispatch(selected, 0x2006);
       if (ready) { bind(); owner.controller.repaint(); }
     }
@@ -205,6 +254,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   }
 
   function target(event) {
+    if (owner) refreshState();
     const control = event.target.closest?.('[data-native-motion-index]');
     const index = Number(control?.dataset.nativeMotionIndex);
     return control && !layer.hidden && owner?.manifest.buttons[index]
@@ -253,13 +303,16 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     }
   }, options);
   controls.addEventListener('pointerup', event => {
-    if (tracking === null || event.pointerId !== pointerId) return;
-    const index = owner.controller.release(contains(tracking, event)) === null ? null : tracking;
+    // Selection/capabilities may have changed in the same task as this release,
+    // before the next RAF. Refresh can cancel the held proposal and capture.
+    if (owner) refreshState();
+    if (!owner || tracking === null || event.pointerId !== pointerId) return;
+    const proposal = normalizeProposal(owner.controller.release(contains(tracking, event)), tracking);
     tracking = null; pointerId = null;
     // Commit here: a same-tray render may have removed the original pointerdown
     // element, in which case browsers omit the compatibility click entirely.
     releaseIndex = null;
-    if (index !== null) onActivate(actionForButton(owner.manifest.buttons[index]));
+    activateProposal(proposal);
   }, options);
   controls.addEventListener('pointercancel', event => {
     if (event.pointerId === pointerId) cancel();
@@ -269,6 +322,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   }, options);
   controls.addEventListener('keydown', event => {
     const hit = target(event);
+    if (hit && event.repeat && ['Enter', ' '].includes(event.key)) { event.preventDefault(); return; }
     if (hit) {
       soundActive = true;
       if (!event.repeat && ['Enter', ' '].includes(event.key)) cancelledKeyboardClick = false;
@@ -283,7 +337,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     event.preventDefault();
     const index = keyboardIndex;
     keyboardIndex = null;
-    if (owner.controller.release(true) !== null) onActivate(actionForButton(owner.manifest.buttons[index]));
+    activateProposal(normalizeProposal(owner.controller.release(true), index));
   }, options);
   controls.addEventListener('click', event => {
     const hit = target(event);
@@ -294,13 +348,15 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     if (event.detail === 0 && hit) {
       if (cancelledKeyboardClick) return;
       soundActive = true;
-      owner.controller.press(hit.index);
-      index = owner.controller.release(true) === null ? null : hit.index;
+      // Enter's native click releases its own accepted key press. A synthetic
+      // click may start a new press, but can never release another held actor.
+      if (keyboardIndex === hit.index) index = normalizeProposal(owner.controller.release(true), hit.index);
+      else if (tracking === null && keyboardIndex === null && owner.controller.press(hit.index)) index = normalizeProposal(owner.controller.release(true), hit.index);
+      else index = null;
     }
-    keyboardIndex = null;
     if (index !== null && index !== undefined) {
-      const button = owner.manifest.buttons[index];
-      if (button) onActivate(actionForButton(button));
+      keyboardIndex = null;
+      activateProposal(index);
     }
   }, { ...options, capture: true });
   controls.addEventListener('focusout', () => { if (keyboardIndex !== null && !rendering) cancel(); }, options);

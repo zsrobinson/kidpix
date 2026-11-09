@@ -602,14 +602,21 @@ test('sprite bundles are opaque HTTP payloads with exact compressed hashes and b
     expect(digest(body)).toBe(manifest.bundle.sha256);
     const bytes = gunzipSync(body);
     expect(bytes.length).toBe(manifest.bundle.byteLength);
-    for (const sprite of Object.values(manifest.sprites)) for (const kind of ['argb', 'png']) {
-      const [start, length] = sprite.bundleOffsets[kind];
-      expect(start).toBeGreaterThanOrEqual(0); expect(length).toBeGreaterThan(0);
-      expect(start + length).toBeLessThanOrEqual(bytes.length);
-      const fallback = await page.request.get(`/original/ui/${kind === 'argb' ? sprite.argb : sprite.image}`);
-      expect(fallback.ok()).toBe(true);
-      expect(bytes.subarray(start, start + length).equals(await fallback.body()), `${tray}/${kind}: bundle retains exact fallback bytes`).toBe(true);
-    }
+    const files = Object.entries(manifest.sprites).flatMap(([id, sprite]) => ['argb', 'png'].map(kind => ({ id, sprite, kind })));
+    let next = 0;
+    // Verify every fallback while bounding public-origin latency and pressure.
+    // Serial requests for hundreds of files exceed the live test's deadline.
+    await Promise.all(Array.from({ length: Math.min(8, files.length) }, async () => {
+      while (next < files.length) {
+        const { id, sprite, kind } = files[next++];
+        const [start, length] = sprite.bundleOffsets[kind];
+        expect(start).toBeGreaterThanOrEqual(0); expect(length).toBeGreaterThan(0);
+        expect(start + length).toBeLessThanOrEqual(bytes.length);
+        const fallback = await page.request.get(`/original/ui/${kind === 'argb' ? sprite.argb : sprite.image}`);
+        expect(fallback.ok()).toBe(true);
+        expect(bytes.subarray(start, start + length).equals(await fallback.body()), `${tray}/${id}/${kind}: bundle retains exact fallback bytes`).toBe(true);
+      }
+    }));
   }
 });
 

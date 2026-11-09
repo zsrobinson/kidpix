@@ -430,6 +430,14 @@ export function createScene(root, surface, onChange) {
         }
       }
     },
+    get actionState() {
+      const object = current();
+      return { target: object?.id ?? null, cut: Boolean(object), copy: Boolean(object),
+        paste: Boolean(clipboard), front: Boolean(object), back: Boolean(object),
+        forward: Boolean(object), backward: Boolean(object),
+        textStyle: object?.kind === 'text' ? Object.fromEntries(
+          ['bold', 'italic', 'underline', 'align'].map(key => [key, object[key]])) : null };
+    },
     snapshot,
     restore(state) {
       objects = structuredClone(state);

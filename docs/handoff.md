@@ -7,37 +7,27 @@ profile is needed. The packaging command below uses Node built-ins and Git only.
 
 ## Release boundary
 
-The last documented public release at the start of this pass is **0.5.0**, source
-`8caa5334f6a4bc33e25b926c01709ae8245d79c5`, at
-<https://kidpix.zsrobinson.com>. Its recorded checks were 138 Node cases, 110 dev
-browser cases and 100 built/public browser cases, with ten accepted web regression
-captures showing no drift. These results describe that release, not the pending
-focused tool-control animation changes.
+The Ubuntu migration checkpoint was **0.6.0**, source
+`7717f68ffae02f26884cb3f17f886a9f4dd648e8`, at
+<https://kidpix.zsrobinson.com>. It enables all 16 primary tool actors plus 23
+secondary selector rows. Its 157 Node checks, 206 development browser cases and
+195 built-browser cases passed. Public verification passed 194 behavior cases
+plus the exhaustive media transport case in a separate targeted rerun.
+The Ubuntu migration is complete; development and credentials live on the server
+independently of the laptop. Later release and validation results belong in
+[releases.md](releases.md), not in this historical transfer procedure.
 
-Finish the Drawing, Painting, Bucket, Mixer and Eraser tool-control animation
-release before making the final transfer package. The release owner should:
+Before a future transfer, finish the release checks, stage referenced media,
+commit source and verify the public [version.json](https://kidpix.zsrobinson.com/version.json).
+Create and verify a media-inclusive package from a clean committed tree. Keep
+this machine/library until the receiver passes its own checks; credentials are
+configured independently and never bundled.
 
-1. Run the complete source checks, dev browser suite, built browser suite and
-   public browser suite after integration; inspect any changed comparison captures.
-2. Record the final version, source revision and check results in
-   [releases.md](releases.md). Verify the deployed
-   [version.json](https://kidpix.zsrobinson.com/version.json) agrees with that
-   release and About. The package records the local committed version/revision;
-   it does not assert they have been deployed.
-3. Complete the imported animation assets and their referenced backdrops/bundles,
-   stop import/export processes, commit the finalized source including these
-   handoff files, and confirm `git status --short` is empty.
-4. Create and verify the final package with `--include-media`. Keep the existing
-   machine/library until the receiving machine passes its checks.
-
-No animation-release deployment, build or browser verification was performed as
-part of preparing this document. Native reference captures remain absent; the
-expanded comparison suite has **17 static capture recipes and 0/17 original-runtime references**. The
-original 32-bit Intel/PowerPC application has **not run**. Resource extraction,
-disassembly, source-timeline tests and browser-controlled clocks establish source
-rules and web behavior; they do not verify original runtime timing, audio latency,
-palette installation or subjective feel. A compatible original runtime remains
-unavailable; moving this web checkout does not resolve that gap.
+The comparison suite has **17 static capture recipes and 0/17 original-runtime
+references**. Source extraction and browser checks do not establish native timing,
+audio latency or subjective feel. The unmodified Windows trial passes QuickTime
+initialization in Wine but rejects its elevated token; the original drawing UI
+has not run. A compatible original runtime is still required for native capture.
 
 ## Receiving-machine prerequisites
 

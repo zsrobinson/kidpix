@@ -168,6 +168,8 @@ export function createPaint(canvas, hooks = {}) {
   let lastSoundAt = 0
   let pendingShape = null
   let selection = null
+  const actionTargets = new WeakMap()
+  let actionTargetSequence = 0
   let clipboard = null
   let updateId = 0
   const movingPaint = createNativeMovingPaint({
@@ -1246,6 +1248,11 @@ export function createPaint(canvas, hooks = {}) {
       cancel()
       listeners.abort()
       paintAudio.destroy()
+    },
+    get actionState() {
+      if (selection && !actionTargets.has(selection)) actionTargets.set(selection, ++actionTargetSequence)
+      return { target: selection ? actionTargets.get(selection) : null,
+        cut: Boolean(selection), copy: Boolean(selection), paste: Boolean(clipboard) }
     },
     get canUndo() { return !!back.length },
     get canRedo() { return !!forward.length },

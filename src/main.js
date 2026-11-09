@@ -1,3 +1,5 @@
+import { createTextRangeKeeper } from './text-range.js';
+import { TEXT_FONTS, TEXT_STEPPERS, editedSize, textStep } from './text-values.js';
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 import './style.css';
 import { createPaint } from './paint.js';
@@ -436,52 +438,52 @@ const nativeSecondaryMotion = createNativeSecondaryMotion({
   onReady: () => showTray(), onActivate: action => activate(action),
 });
 
-let actionTextTarget;
 // Formatting chrome keeps the editor's caret/range during pointer activation.
 $('#tray-buttons').addEventListener('pointerdown', event => {
   const action = event.target.closest('[data-action]')?.dataset.action;
-  if (state.tray === 'text' && (['bold', 'italic', 'underline'].includes(action) || action?.startsWith('align:'))
+  if (state.tray === 'text' && (['bold', 'italic', 'underline'].includes(action) || action?.startsWith('align:') || action?.startsWith('font-step:') || action?.startsWith('font-size-step:'))
     && document.activeElement?.matches('.object-text')) event.preventDefault();
 }, { capture: true });
-function applyTextStyle() {
-  const editor = document.activeElement?.matches('.object-text') ? document.activeElement : null;
-  const selection = window.getSelection();
-  let offsets;
-  if (editor && selection.rangeCount && editor.contains(selection.anchorNode) && editor.contains(selection.focusNode)) {
-    const offset = (node, position) => {
-      const prefix = document.createRange();
-      prefix.selectNodeContents(editor); prefix.setEnd(node, position);
-      return prefix.toString().length;
-    };
-    offsets = [offset(selection.anchorNode, selection.anchorOffset), offset(selection.focusNode, selection.focusOffset)];
+// Static fallback also ignores held-key repeats; no native repeat cadence is known.
+$('#tray-buttons').addEventListener('keydown', event => {
+  if (event.repeat && ['Enter', ' '].includes(event.key)
+    && TEXT_STEPPERS.some(stepper => stepper.action === event.target.dataset.action)) event.preventDefault();
+});
+const textRange = createTextRangeKeeper($('#objects'));
+$('#tray-buttons').addEventListener('pointerdown', event => {
+  if (event.target.matches('#font, #font-size')) textRange.capture();
+}, { capture: true });
+$('#objects').addEventListener('focusin', event => {
+  if (event.target.matches('.object-text') && !event.target.matches(':active')) textRange.restore(event.target);
+});
+function applyTextStyle() { textRange.apply(() => scene.setTextStyle(textStyle())); }
+function syncTextValues() {
+  if (state.tray !== 'text') return;
+  for (const { action } of TEXT_STEPPERS) {
+    const control = $('#tray-buttons').querySelector(`[data-action="${action}"]`);
+    if (control) control.disabled = textStep(state, action) === null;
   }
-  const id = editor?.closest('[data-object]')?.dataset.object;
-  scene.setTextStyle(textStyle());
-  const replacement = id && [...$('#objects').children].find(node => node.dataset.object === id)?.querySelector('.object-text');
-  if (replacement && offsets) {
-    replacement.focus({ preventScroll: true });
-    const point = offset => {
-      const walker = document.createTreeWalker(replacement, NodeFilter.SHOW_TEXT);
-      let node;
-      while ((node = walker.nextNode())) {
-        if (offset <= node.length) return [node, offset];
-        offset -= node.length;
-      }
-      return [replacement, replacement.childNodes.length];
-    };
-    selection.setBaseAndExtent(...point(offsets[0]), ...point(offsets[1]));
+  for (const action of ['bold', 'italic', 'underline', 'align:left', 'align:right', 'align:center']) {
+    const control = $('#tray-buttons').querySelector(`[data-action="${action}"]`);
+    control?.setAttribute('aria-pressed', String(action.startsWith('align:') ? state.align === action.slice(6) : Boolean(state[action])));
   }
+  const font = $('#font'), size = $('#font-size');
+  if (font && document.activeElement !== font) {
+    if (![...font.options].some(option => option.value === state.font)) font.add(new Option(state.font, state.font));
+    font.value = state.font;
+  }
+  if (size && document.activeElement !== size) size.value = state.textSize;
 }
 function actionMotionState() {
   const capabilities = state.tray === 'grab' && state.tools.grab === 'scissors' ? paint.actionState : scene.actionState;
-  if (state.tray === 'text' && capabilities.target !== actionTextTarget) {
-    actionTextTarget = capabilities.target;
+  if (state.tray === 'text') {
     if (capabilities.textStyle) {
-      Object.assign(state, capabilities.textStyle);
-      queueMicrotask(() => showTray());
+      const { size, ...style } = capabilities.textStyle;
+      Object.assign(state, style, { textSize: size });
     }
+    syncTextValues();
   }
-  return { bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
+  return { font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
 }
 const nativeActionMotion = createNativeActionMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
@@ -612,15 +614,19 @@ function showTray() {
     }
     if (state.tray === 'text') {
       layer.innerHTML += `
-        <select class="text-value" id="font" aria-label="Font" style="${place(152, 658, 106, 27)}"><option value="Chalkboard, sans-serif">Chalkboard</option><option value="serif">Serif</option><option value="sans-serif">Sans Serif</option><option value="monospace">Monospace</option></select>
-        <input class="text-value" id="font-size" aria-label="Font size" style="${place(310, 660, 62, 28)}" type="number" min="8" max="160" value="${state.textSize}">
+        <select class="text-value" id="font" aria-label="Font" style="${place(152, 658, 103, 27)}">${TEXT_FONTS.map(font => `<option value="${escape(font.value)}">${escape(font.label)}</option>`).join('')}</select>
+        <input class="text-value" id="font-size" aria-label="Font size" style="${place(300, 660, 34, 28)}" type="number" min="7" max="336" value="${state.textSize}">
         <select class="text-value" id="text-voice" aria-label="Voice" style="${place(626, 671, 143, 28)}"><option value="">Default Voice</option></select>
+        ${TEXT_STEPPERS.map(({ action, label, x, y, symbol }) => button(action, label, x, y, 43, 31)
+          .replace('class="', 'class="text-step ').replace('</button>', `${symbol}</button>`)
+          .replace('title=', `${textStep(state, action) === null ? 'disabled' : ''} title=`)).join('')}
         ${button('bold', 'Bold', 153, 716, 30, 32).replace('title=', `aria-pressed="${state.bold}" title=`)}
         ${button('italic', 'Italic', 183, 716, 30, 32).replace('title=', `aria-pressed="${state.italic}" title=`)}
         ${button('underline', 'Underline', 212, 716, 30, 32).replace('title=', `aria-pressed="${state.underline}" title=`)}
         ${['left', 'center', 'right'].map((align, index) => button(`align:${align}`, `Align ${align}`, 252 + index * 38, 715, 33, 35).replace('title=', `aria-pressed="${state.align === align}" title=`)).join('')}
         ${button('speak', 'Read Aloud', 495, 648, 56, 82)}
       `;
+      if (!TEXT_FONTS.some(entry => entry.value === state.font)) $('#font').add(new Option(state.font, state.font));
       $('#font').value = state.font;
       const voiceSelect = $('#text-voice');
       for (const voice of window.speechSynthesis?.getVoices() || []) voiceSelect.add(new Option(voice.name, voice.voiceURI));
@@ -1390,6 +1396,9 @@ async function activate(action) {
   } else if (id === 'slide') {
     selectedSlide = Number(value);
     showSlides();
+  } else if (id === 'font-step' || id === 'font-size-step') {
+    const change = textStep(state, `${id}:${value}`);
+    if (change) { Object.assign(state, change); applyTextStyle(); showTray(); }
   } else if (id === 'align') { state.align = value; applyTextStyle(); showTray(); }
   else if (id === 'edit') doEdit(value);
   else commands[id]?.();
@@ -1443,8 +1452,13 @@ app.addEventListener('change', async event => {
   } else if (['font', 'font-size', 'text-voice'].includes(target.id)) {
     if (target.id === 'font') state.font = target.value;
     else if (target.id === 'text-voice') state.voice = target.value;
-    else state.textSize = Math.min(160, Math.max(8, Number(target.value) || 32));
-    scene.setTextStyle(textStyle());
+    else {
+      const size = editedSize(target.value);
+      if (size === null) return;
+      state.textSize = size; target.value = size;
+    }
+    applyTextStyle();
+    syncTextValues();
     syncTool();
   } else if (target.id === 'picture-file') {
     const file = target.files[0];

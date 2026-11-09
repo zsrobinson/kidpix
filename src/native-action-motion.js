@@ -1,9 +1,10 @@
+import { textStep } from './text-values.js';
 import { createActionStateController, policyFor } from './native-action-state.js';
 import { createNativeToolMotion } from './native-tool-motion.js';
 import { regionClipPath } from './native-control-regions.js';
 
 export function actionProfile({ tray, selected }) {
-  if (tray === 'text') return { table: 9383, rows: [6, 7, 8, 9, 10, 11] };
+  if (tray === 'text') return { table: 9383, rows: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11] };
   if (tray === 'grab') return { table: 926, rows: selected === 'grab' ? [2, 3, 4, 6, 7, 8, 9] : [2, 3, 4] };
   return null;
 }
@@ -18,7 +19,7 @@ export function actionManifest(data, profile) {
   const buttons = profile.rows.map(index => {
     const source = rows.find(row => row.index === index);
     const policy = policyFor(profile.table, index);
-    const allowed = { 9383: [6, 7, 8, 9, 10, 11], 926: [2, 3, 4, 6, 7, 8, 9],
+    const allowed = { 9383: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 926: [2, 3, 4, 6, 7, 8, 9],
       18700: [0, 1, 2, 3], 18202: [0, 1, 2] }[profile.table] ?? [];
     if (!allowed.includes(index) || !source || !policy.binding || !regionClipPath(source.region)
       || source.rolloverParameters?.join() !== (profile.table === 926 ? '1,0,0' : '0,0,0')) throw new Error('Unsupported action row');
@@ -36,9 +37,11 @@ export function actionManifest(data, profile) {
     }
     return { ...source, policy, name: policy.binding, action: policy.binding };
   });
-  // Grab's clipboard and ordering controls leave a column of unbound source
-  // navigation buttons between them. Restore only these independent footprints.
-  const restorationRects = profile.table === 926 ? [[2, 3, 4], [6, 7, 8, 9]].flatMap(rows => {
+  // Text's live font/number fields and Grab's unbound navigation column
+  // must stay outside the opaque restoration, including vacated pose pixels.
+  const restorationGroups = profile.table === 9383 ? [[2, 3], [4, 5], [6, 7, 8, 9, 10, 11]]
+    : profile.table === 926 ? [[2, 3, 4], [6, 7, 8, 9]] : null;
+  const restorationRects = restorationGroups?.flatMap(rows => {
     const parts = buttons.filter(button => rows.includes(button.index))
       .flatMap(button => [...button.stateScripts, button.rolloverScript].filter(Boolean))
       .flatMap(id => scripts[id].frames.flatMap(frame => frame.parts));
@@ -47,13 +50,17 @@ export function actionManifest(data, profile) {
     const right = Math.max(...parts.map(part => part.x + sprites[part.sprite].width));
     const bottom = Math.max(...parts.map(part => part.y + sprites[part.sprite].height));
     return [[left, top, right - left, bottom - top]];
-  }) : undefined;
+  });
   return { buttons, scripts, sprites, sounds: data.sounds, renderMode: 'ordinary', restorationRects };
 }
 
 export function actionStates(manifest, current) {
   return manifest.buttons.map(button => {
     const action = button.action;
+    if (button.policy?.kind === 'boundary') {
+      const boundary = textStep(current, action) === null;
+      return { active: false, boundary, disabled: boundary };
+    }
     return { active: action.startsWith('align:') ? current.align === action.slice(6)
       : ['bold', 'italic', 'underline'].includes(action) ? Boolean(current[action]) : false,
     disabled: action.startsWith('edit:') ? !current.capabilities?.[action.slice(5)] : false };

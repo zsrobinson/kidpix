@@ -451,7 +451,7 @@ export function createScene(root, surface, onChange) {
         paste: Boolean(clipboard), front: Boolean(object), back: Boolean(object),
         forward: Boolean(object), backward: Boolean(object),
         textStyle: object?.kind === 'text' ? Object.fromEntries(
-          ['bold', 'italic', 'underline', 'align'].map(key => [key, object[key]])) : null };
+          ['font', 'size', 'bold', 'italic', 'underline', 'align'].map(key => [key, object[key]])) : null };
     },
     destroy() {
       finishInactive();

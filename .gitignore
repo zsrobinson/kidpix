@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-cloudflare/
+.DS_Store
+*.dmg
+*.app/
+public/original/
+.vite-cache/
+
+__pycache__/
+.venv/
+.wrangler/
+.env*
+!.env.example
+.dev.vars*

@@ -1,0 +1,1143 @@
+import { brushOpacity, brushSpacing, drawBrushDab } from './paint-brushes.js'
+import { cutoutContours, makeFillRenderer, makeSurface, mixPixels } from './paint-pixels.js'
+import { drawOriginalDab, originalDab } from './paint-original.js'
+import { createPaintAudio } from './paint-audio.js'
+
+const shapes = new Set(['line', 'curve', 'rectangle', 'ellipse', 'polygon'])
+const drawingTools = new Set(['pencil', 'chalk', 'crayon', 'marker'])
+const toolAliases = {
+  draw: 'pencil',
+  paintbrush: 'brush',
+  fill: 'bucket',
+  eyeDropper: 'eyedropper',
+  picker: 'eyedropper',
+  rubber: 'stamp',
+  cutout: 'scissors',
+  grab: 'select',
+}
+const shapeAliases = {
+  straight: 'line',
+  'straight-line': 'line',
+  'curved-line': 'curve',
+  box: 'rectangle',
+  circle: 'ellipse',
+  'box-outline': 'rectangle',
+  'circle-outline': 'ellipse',
+  'shape-outline': 'polygon',
+  'filled-box': 'filled-rectangle',
+  'filled-circle': 'filled-ellipse',
+  'filled-shape': 'filled-polygon',
+  'big-eraser': 'big',
+  'mini-eraser': 'round',
+}
+const cursors = {
+  eyedropper: 'crosshair',
+  text: 'text',
+  select: 'grab',
+}
+
+function assetUrl(asset) {
+  return typeof asset === 'string' ? asset : asset?.url || asset?.src || asset?.path
+}
+
+function assetElement(asset) {
+  return asset?.image || asset?.element || (asset?.nodeType === 1 || asset instanceof ImageBitmap ? asset : null)
+}
+
+function mediaSize(source) {
+  return {
+    width: source.naturalWidth || source.videoWidth || source.width,
+    height: source.naturalHeight || source.videoHeight || source.height,
+  }
+}
+
+function distance(first, last) {
+  return Math.hypot(last.x - first.x, last.y - first.y)
+}
+
+function makeRandom(seed) {
+  return () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+    return seed / 4294967296
+  }
+}
+
+function constrain(start, end, shape, shift) {
+  if (!shift) return end
+  const x = end.x - start.x
+  const y = end.y - start.y
+  if (shape === 'line' || shape === 'curve') {
+    const step = Math.PI / 4
+    const angle = Math.round(Math.atan2(y, x) / step) * step
+    const length = x * Math.cos(angle) + y * Math.sin(angle)
+    return { x: start.x + length * Math.cos(angle), y: start.y + length * Math.sin(angle) }
+  }
+  const size = Math.max(Math.abs(x), Math.abs(y))
+  return { x: start.x + Math.sign(x || 1) * size, y: start.y + Math.sign(y || 1) * size }
+}
+
+function drawPath(context, shape, start, end, points, control) {
+  context.beginPath()
+  if (points) {
+    context.moveTo(points[0].x, points[0].y)
+    for (const point of points.slice(1)) context.lineTo(point.x, point.y)
+    if (shape === 'polygon' || shape === 'lasso') context.closePath()
+  } else if (shape === 'ellipse') {
+    context.ellipse(
+      (start.x + end.x) / 2,
+      (start.y + end.y) / 2,
+      Math.abs(start.x - end.x) / 2,
+      Math.abs(start.y - end.y) / 2,
+      0,
+      0,
+      Math.PI * 2,
+    )
+  } else if (shape === 'rectangle') {
+    context.rect(start.x, start.y, end.x - start.x, end.y - start.y)
+  } else {
+    context.moveTo(start.x, start.y)
+    if (control) context.quadraticCurveTo(control.x, control.y, end.x, end.y)
+    else context.lineTo(end.x, end.y)
+  }
+}
+
+function selectionBounds(selection) {
+  const points = selection.points || [selection.start, selection.end]
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const point of points) {
+    minX = Math.min(minX, point.x)
+    minY = Math.min(minY, point.y)
+    maxX = Math.max(maxX, point.x)
+    maxY = Math.max(maxY, point.y)
+  }
+  const x = Math.floor(minX)
+  const y = Math.floor(minY)
+  return { x, y, width: Math.ceil(maxX) - x, height: Math.ceil(maxY) - y }
+}
+
+function moveSelection(selection, dx, dy) {
+  const move = point => ({ x: point.x + dx, y: point.y + dy })
+  return {
+    ...selection,
+    start: move(selection.start),
+    end: move(selection.end),
+    points: selection.points?.map(move),
+    contours: selection.contours?.map(path => path.map(move)),
+  }
+}
+
+export function createPaint(canvas, hooks = {}) {
+  const { width, height } = canvas
+  const originalTools = hooks.originalTools ?? './original/tools/'
+  const paintAudio = createPaintAudio(hooks.soundEffects === false ? null : originalTools)
+  const display = canvas.getContext('2d', { willReadFrequently: true })
+  const art = makeSurface(width, height, true)
+  const preview = makeSurface(width, height)
+  const work = makeSurface(width, height)
+  const sample = makeSurface(width, height, true)
+  const imageCache = new Map()
+  const contourCache = new WeakMap()
+  const paperMasks = new WeakMap()
+  const back = []
+  const forward = []
+  const historyLimit = hooks.historyLimit ?? 32
+  const listeners = new AbortController()
+
+  let options = { tool: 'pencil', variant: 'freehand', color: '#000000', size: 3 }
+  let background = null
+  let foreground = null
+  let paper = null
+  let gesture = null
+  let soundStroke = null
+  let settlingSpray = null
+  let cutoutRegions = null
+  let cutoutRequest = null
+  let lastSoundAt = 0
+  let pendingShape = null
+  let selection = null
+  let clipboard = null
+  let updateId = 0
+
+  function brushAsset(brush) {
+    if (brush.asset) return brush.asset
+    if (!originalTools) return null
+    const dab = originalDab(brush)
+    if (dab) return `${originalTools}brushes/${dab.id}.png`
+    if (brush.tool === 'spray') {
+      const moving = ['moving', 'moving-spray'].includes(brush.mode)
+      const id = 24000 + 100 * ((brush.effectIndex ?? 0) % (moving ? 20 : 15))
+      return `${originalTools}${moving ? 'moving-spray' : 'spray'}/${id}.png`
+    }
+    return null
+  }
+
+  function sprayFrames(brush) {
+    if (brush.frames?.length) return brush.frames
+    if (!originalTools || brush.tool !== 'spray') return []
+    const fallback = assetUrl(brushAsset({ ...brush, asset: null }))
+    return Array.from({ length: 8 }, (_, index) => fallback.replace(/\.png$/, `-${index}.png`))
+  }
+
+  function loadAsset(asset) {
+    const element = assetElement(asset)
+    if (element) return Promise.resolve(element)
+    const url = assetUrl(asset)
+    if (!url) return Promise.resolve(null)
+    if (!imageCache.has(url)) {
+      const image = new Image()
+      const entry = {}
+      entry.ready = new Promise((resolve, reject) => {
+        image.onload = () => {
+          entry.image = image
+          resolve(image)
+        }
+        image.onerror = () => {
+          imageCache.delete(url)
+          reject(new Error(`Couldn't load ${url}`))
+        }
+        image.src = url
+      })
+      imageCache.set(url, entry)
+    }
+    return imageCache.get(url).ready
+  }
+
+  function cachedAsset(asset) {
+    return assetElement(asset) || imageCache.get(assetUrl(asset))?.image
+  }
+
+  function snapshot() {
+    return { image: art.getImageData(0, 0, width, height), background, foreground, paper }
+  }
+
+  function loadSnapshot(state) {
+    art.putImageData(state.image, 0, 0)
+    background = state.background
+    foreground = state.foreground
+    paper = state.paper
+    selection = null
+  }
+
+  function clearPreview() {
+    preview.clearRect(0, 0, width, height)
+  }
+
+  function cancel() {
+    if (gesture?.type === 'move-selection') {
+      loadSnapshot(gesture.before)
+      selection = gesture.original
+    }
+    gesture = null
+    paintAudio.stop()
+    soundStroke = null
+    settlingSpray = null
+    pendingShape = null
+    clearPreview()
+    render()
+  }
+
+  function notify(kind) {
+    render()
+    hooks.onChange?.({ kind, canUndo: !!back.length, canRedo: !!forward.length })
+  }
+
+  function remember(before, kind) {
+    back.push(before)
+    if (back.length > historyLimit) back.shift()
+    forward.length = 0
+    notify(kind)
+  }
+
+  function undo() {
+    cancel()
+    if (!back.length) return false
+    updateId++
+    forward.push(snapshot())
+    loadSnapshot(back.pop())
+    notify('undo')
+    return true
+  }
+
+  function redo() {
+    cancel()
+    if (!forward.length) return false
+    updateId++
+    back.push(snapshot())
+    loadSnapshot(forward.pop())
+    notify('redo')
+    return true
+  }
+
+  function drawLayer(context, layer) {
+    if (!layer?.image) return
+    const { width: sourceWidth, height: sourceHeight } = mediaSize(layer.image)
+    if (sourceWidth && sourceHeight) context.drawImage(layer.image, 0, 0, width, height)
+  }
+
+  function renderForegroundTo(context) {
+    drawLayer(context, foreground)
+  }
+
+  function compose(context, { includeForeground = true, includePreview = false } = {}) {
+    context.save()
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, width, height)
+    drawLayer(context, background)
+    const active = gesture || pendingShape || soundStroke || settlingSpray
+    if (includePreview && active?.type === 'stroke' && active.options.tool === 'eraser' && !background) {
+      work.clearRect(0, 0, width, height)
+      work.drawImage(art.canvas, 0, 0)
+      work.globalCompositeOperation = 'destination-out'
+      work.drawImage(preview.canvas, 0, 0)
+      work.globalCompositeOperation = 'source-over'
+      context.drawImage(work.canvas, 0, 0)
+    } else {
+      context.drawImage(includePreview && settlingSpray ? settlingSpray.base.canvas : art.canvas, 0, 0)
+      if (includePreview && active) overlayStrokeTo(context, active)
+    }
+    if (includeForeground) renderForegroundTo(context)
+    context.restore()
+  }
+
+  function render() {
+    compose(display, { includePreview: true, includeForeground: hooks.includeForeground !== false })
+    const activeSelection = gesture?.type === 'select' ? gesture.selection : selection
+    if (!activeSelection) return
+    drawSelectionPath(display, activeSelection)
+    display.save()
+    display.strokeStyle = '#ffffff'
+    display.lineWidth = 2
+    display.stroke()
+    display.strokeStyle = '#1364d8'
+    display.lineWidth = 1.5
+    display.setLineDash([4, 3])
+    display.stroke()
+    display.restore()
+  }
+
+  function paperMask() {
+    if (!paper?.image || paper.url?.endsWith('/12300.png')) return null
+    const { image } = paper
+    if (paperMasks.has(image)) return paperMasks.get(image)
+    const dimensions = mediaSize(image)
+    const mask = makeSurface(dimensions.width, dimensions.height, true)
+    mask.drawImage(image, 0, 0)
+    const pixels = mask.getImageData(0, 0, dimensions.width, dimensions.height)
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      const light = (pixels.data[i] + pixels.data[i + 1] + pixels.data[i + 2]) / 765
+      pixels.data[i + 3] = Math.round(255 * (0.25 + 0.75 * light))
+    }
+    mask.putImageData(pixels, 0, 0)
+    paperMasks.set(image, mask.canvas)
+    return mask.canvas
+  }
+
+  function overlayStrokeTo(context, current) {
+    const { options: brush } = current
+    let source = preview.canvas
+    const usePaper = ['chalk', 'crayon', 'marker', 'brush', 'paint'].includes(brush.tool)
+    const mask = usePaper && paperMask()
+    if (mask) {
+      work.clearRect(0, 0, width, height)
+      work.drawImage(source, 0, 0)
+      work.globalCompositeOperation = 'destination-in'
+      work.fillStyle = work.createPattern(mask, 'repeat')
+      work.fillRect(0, 0, width, height)
+      work.globalCompositeOperation = 'source-over'
+      source = work.canvas
+    }
+    context.save()
+    context.globalAlpha = brushOpacity(brush)
+    if (brush.tool === 'eraser' && !background) context.globalCompositeOperation = 'destination-out'
+    context.drawImage(source, 0, 0)
+    context.restore()
+  }
+
+  function commitPreview(current, kind = current.options.tool) {
+    const before = snapshot()
+    overlayStrokeTo(art, current)
+    clearPreview()
+    remember(before, kind)
+  }
+
+  function finishSound() {
+    if (!soundStroke) return
+    const current = soundStroke
+    soundStroke = null
+    commitPreview(current, 'sound')
+  }
+
+  function respondToSound() {
+    const now = performance.now()
+    const level = Number(options.level) || 0
+    if (level < 0.018) {
+      if (soundStroke && now - lastSoundAt > 230) finishSound()
+      return
+    }
+    if (now - lastSoundAt < 42) return
+    const mouseStroke = gesture?.type === 'sound' ? gesture : null
+    if (!mouseStroke && (gesture || options.mode !== 'hands-free')) return
+    lastSoundAt = now
+    const brush = mouseStroke?.options || activeOptions({})
+    const pitch = Math.max(0, Math.min(1, options.pitch ?? 0.35))
+    const size = Math.min(86, Math.max(4, brush.size + level * 115))
+    if (!mouseStroke && !soundStroke) {
+      const random = makeRandom(Math.round(now))
+      soundStroke = { options: brush, random, step: 0, end: { x: width / 2, y: height / 2 } }
+    }
+    const current = mouseStroke || soundStroke
+    const point = { ...current.end }
+    if (!mouseStroke) {
+      const angle = pitch * 6 + current.step * 0.17
+      point.x = (point.x + Math.cos(angle) * size * 0.8 + width) % width
+      point.y = (point.y + Math.sin(angle) * size * 0.8 + height) % height
+      current.end = point
+    }
+    const variant = ['rainbow', 'bubbles', 'confetti'].includes(brush.variant) ? brush.variant : 'wacky'
+    drawBrushDab(preview, point, {
+      ...brush, tool: 'wacky', variant, size, effectIndex: brush.effectIndex % 4,
+    }, null, current.random, current.step++)
+    render()
+  }
+
+  function pointFor(event) {
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: (event.clientX - rect.left) * width / rect.width,
+      y: (event.clientY - rect.top) * height / rect.height,
+    }
+  }
+
+  function pixelFor(point) {
+    return {
+      x: Math.max(0, Math.min(width - 1, Math.floor(point.x))),
+      y: Math.max(0, Math.min(height - 1, Math.floor(point.y))),
+    }
+  }
+
+  function getColorAt(point) {
+    compose(sample)
+    const { x, y } = pixelFor(point)
+    const pixels = sample.getImageData(x, y, 1, 1).data
+    return `#${[...pixels.slice(0, 3)].map(channel => channel.toString(16).padStart(2, '0')).join('')}`
+  }
+
+  function placeImage(context, image, placement) {
+    const dimensions = mediaSize(image)
+    const x = placement.x ?? width / 2
+    const y = placement.y ?? height / 2
+    const scale = placement.size ? placement.size / Math.max(dimensions.width, dimensions.height) : 1
+    const drawWidth = placement.width || dimensions.width * scale
+    const drawHeight = placement.height || (placement.width ? dimensions.height * placement.width / dimensions.width : dimensions.height * scale)
+    context.save()
+    context.translate(x, y)
+    context.rotate(placement.rotation || 0)
+    context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
+    context.restore()
+  }
+
+  function drawStamp(point, brush, image) {
+    if (image) {
+      placeImage(art, image, { ...point, size: brush.size })
+    } else if (brush.text) {
+      art.save()
+      art.fillStyle = brush.color
+      art.font = `${brush.size}px ${brush.font || 'sans-serif'}`
+      art.textAlign = 'center'
+      art.textBaseline = 'middle'
+      art.fillText(brush.text, point.x, point.y)
+      art.restore()
+    }
+  }
+
+  function drawShape(current, end, points, control) {
+    clearPreview()
+    const { start, shape, options: brush } = current
+    preview.save()
+    preview.lineWidth = brush.size
+    preview.lineCap = 'round'
+    preview.lineJoin = 'round'
+    preview.strokeStyle = brush.color
+    preview.fillStyle = brush.color
+    drawPath(preview, shape, start, end, points, control)
+    if (brush.fill && (shape === 'rectangle' || shape === 'ellipse' || shape === 'polygon')) preview.fill()
+    else if (distance(start, end) === 0 && !points && !control) {
+      preview.beginPath()
+      preview.arc(start.x, start.y, brush.size / 2, 0, Math.PI * 2)
+      preview.fill()
+    } else if (current.dab && current.image) {
+      drawMaterialOutline(current, end, points, control)
+    } else preview.stroke()
+    preview.restore()
+  }
+
+  function drawMaterialOutline(current, end, points, control) {
+    const { start, shape } = current
+    const brush = { ...current, last: start, remainder: 0, step: 1, random: makeRandom(53) }
+    if (shape === 'ellipse') brush.last = { x: end.x, y: (start.y + end.y) / 2 }
+    drawDab(brush, brush.last)
+    if (points) {
+      for (const point of points.slice(1)) strokeTo(brush, point)
+      if (shape === 'polygon') strokeTo(brush, points[0])
+    } else if (shape === 'rectangle') {
+      strokeTo(brush, { x: end.x, y: start.y })
+      strokeTo(brush, end)
+      strokeTo(brush, { x: start.x, y: end.y })
+      strokeTo(brush, start)
+    } else if (shape === 'ellipse') {
+      const radiusX = (end.x - start.x) / 2
+      const radiusY = (end.y - start.y) / 2
+      for (let index = 1; index <= 64; index++) {
+        const angle = index * Math.PI / 32
+        strokeTo(brush, {
+          x: start.x + radiusX * (1 + Math.cos(angle)),
+          y: start.y + radiusY * (1 + Math.sin(angle)),
+        })
+      }
+    } else if (control) {
+      for (let index = 1; index <= 32; index++) {
+        const t = index / 32
+        const a = (1 - t) ** 2
+        const b = 2 * (1 - t) * t
+        const c = t ** 2
+        strokeTo(brush, { x: a * start.x + b * control.x + c * end.x, y: a * start.y + b * control.y + c * end.y })
+      }
+    } else strokeTo(brush, end)
+  }
+
+  function drawDab(current, point) {
+    const { options: brush, dab, image, random } = current
+    if (current.particles) {
+      current.particles.push({ point, seed: Math.round(random() * 4294967295), start: performance.now() })
+      return
+    }
+    if (dab && image) drawOriginalDab(preview, point, brush, dab, image, random, current.step++)
+    else if (current.frames?.length) {
+      const frame = current.frames[Math.floor(random() * current.frames.length)]
+      drawBrushDab(preview, point, brush, frame, random, current.step++)
+    } else drawBrushDab(preview, point, brush, image, random, current.step++)
+  }
+
+  function renderMovingSpray(current, now) {
+    clearPreview()
+    for (const particle of current.particles) {
+      const age = Math.max(0, now - particle.start)
+      const index = Math.floor(age / 65) % current.frames.length
+      const fadeMotion = Math.min(1, age / 420)
+      const point = { x: particle.point.x, y: particle.point.y - fadeMotion * 7 }
+      drawBrushDab(preview, point, current.options, current.frames[index], makeRandom(particle.seed), index)
+    }
+  }
+
+  function sprayWhileHeld(current) {
+    let lastDab = performance.now()
+    let lastFrame = 0
+    function tick(now) {
+      if (gesture !== current) return
+      if (now - lastDab >= 130) {
+        drawDab(current, current.end)
+        lastDab = now
+        if (!current.particles) render()
+      }
+      if (current.particles && now - lastFrame >= 45) {
+        renderMovingSpray(current, now)
+        render()
+        lastFrame = now
+      }
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  }
+
+  function settleMovingSpray(current) {
+    const base = makeSurface(width, height)
+    base.drawImage(art.canvas, 0, 0)
+    const finishAt = performance.now() + 320
+    renderMovingSpray(current, finishAt)
+    commitPreview(current)
+    const animation = { ...current, base }
+    settlingSpray = animation
+    let lastFrame = 0
+    function tick(now) {
+      if (settlingSpray !== animation) return
+      if (now >= finishAt) {
+        settlingSpray = null
+        clearPreview()
+        render()
+        return
+      }
+      if (now - lastFrame >= 45) {
+        renderMovingSpray(current, now)
+        render()
+        lastFrame = now
+      }
+      requestAnimationFrame(tick)
+    }
+    tick(performance.now())
+  }
+
+  function strokeTo(current, end) {
+    const { options: brush } = current
+    const length = distance(current.last, end)
+    const spacing = current.dab && current.image
+      ? Math.max(0.7, current.dab.spacing * brush.scale)
+      : brush.tool === 'spray' ? 12 : brushSpacing(brush)
+    let offset = spacing - current.remainder
+    while (offset <= length) {
+      const fraction = offset / length
+      const point = {
+        x: current.last.x + (end.x - current.last.x) * fraction,
+        y: current.last.y + (end.y - current.last.y) * fraction,
+      }
+      if (current.type === 'mixer') {
+        compose(sample, { includeForeground: false, includePreview: true })
+        mixPixels(sample, preview, point, brush)
+      } else {
+        drawDab(current, point)
+      }
+      offset += spacing
+    }
+    current.remainder = (current.remainder + length) % spacing
+    current.last = end
+  }
+
+  function drawSelectionPath(context, item) {
+    if (item.contours?.length) {
+      context.beginPath()
+      for (const path of item.contours) {
+        context.moveTo(path[0].x, path[0].y)
+        for (const point of path.slice(1)) context.lineTo(point.x, point.y)
+        context.closePath()
+      }
+      return
+    }
+    drawPath(context, item.shape, item.start, item.end, item.points)
+  }
+
+  function selectCookieCutter(point, brush, image) {
+    const id = assetUrl(brush.asset)?.match(/(13\d{3})\.png$/)?.[1]
+    const region = brush.cutout || cutoutRegions?.[id]
+    const source = region || image
+    if (!source) return
+    if (!contourCache.has(source)) contourCache.set(source, cutoutContours(region, image))
+    const contour = contourCache.get(source)
+    if (!contour.paths.length) return
+    const scale = region ? width / 720 : width / 360
+    const start = { x: point.x - contour.width * scale / 2, y: point.y - contour.height * scale / 2 }
+    const end = { x: start.x + contour.width * scale, y: start.y + contour.height * scale }
+    const contours = contour.paths.map(path => path.map(position => ({
+      x: start.x + position.x * scale,
+      y: start.y + position.y * scale,
+    })))
+    selection = { shape: 'cookie-cutter', start, end, contours }
+  }
+
+  function selectionImage(item) {
+    const bounds = selectionBounds(item)
+    if (!bounds.width || !bounds.height) return null
+    const result = makeSurface(bounds.width, bounds.height)
+    const translated = moveSelection(item, -bounds.x, -bounds.y)
+    drawSelectionPath(result, translated)
+    result.clip()
+    compose(sample, { includeForeground: false })
+    result.drawImage(sample.canvas, -bounds.x, -bounds.y)
+    return { canvas: result.canvas, bounds }
+  }
+
+  function eraseSelection(item) {
+    art.save()
+    drawSelectionPath(art, item)
+    art.fillStyle = '#ffffff'
+    if (!background) art.globalCompositeOperation = 'destination-out'
+    art.fill()
+    art.restore()
+  }
+
+  function containsSelection(point) {
+    if (!selection) return false
+    drawSelectionPath(display, selection)
+    return display.isPointInPath(point.x, point.y)
+  }
+
+  function copy() {
+    if (!selection) return null
+    clipboard = selectionImage(selection)
+    return clipboard?.canvas.toDataURL() || null
+  }
+
+  function cut() {
+    const data = copy()
+    if (!data) return null
+    const before = snapshot()
+    eraseSelection(selection)
+    selection = null
+    remember(before, 'cut')
+    return data
+  }
+
+  function paste() {
+    if (!clipboard) return false
+    const before = snapshot()
+    art.drawImage(clipboard.canvas, clipboard.bounds.x + 12, clipboard.bounds.y + 12)
+    remember(before, 'paste')
+    return true
+  }
+
+  function clear() {
+    cancel()
+    updateId++
+    const before = snapshot()
+    art.clearRect(0, 0, width, height)
+    background = null
+    foreground = null
+    selection = null
+    remember(before, 'clear')
+    return true
+  }
+
+  function reset() {
+    cancel()
+    updateId++
+    art.clearRect(0, 0, width, height)
+    background = null
+    foreground = null
+    paper = null
+    selection = null
+    back.length = 0
+    forward.length = 0
+    notify('reset')
+  }
+
+  function placeText(text, placement = {}) {
+    if (!text?.trim()) return false
+    const before = snapshot()
+    const size = placement.size || 28
+    const x = placement.x ?? width / 2
+    const y = placement.y ?? height / 2
+    art.save()
+    art.fillStyle = placement.color || options.color
+    art.font = `${placement.italic ? 'italic ' : ''}${placement.bold ? 'bold ' : ''}${size}px ${placement.font || 'sans-serif'}`
+    art.textAlign = placement.align || 'left'
+    art.textBaseline = 'top'
+    const lines = text.split('\n')
+    lines.forEach((line, index) => {
+      const lineY = y + index * size * 1.25
+      art.fillText(line, x, lineY)
+      if (placement.underline) {
+        const lineWidth = art.measureText(line).width
+        const offset = art.textAlign === 'center' ? lineWidth / 2 : art.textAlign === 'right' ? lineWidth : 0
+        art.fillRect(x - offset, lineY + size, lineWidth, Math.max(1, size / 16))
+      }
+    })
+    art.restore()
+    remember(before, 'text')
+    return true
+  }
+
+  function activeOptions(event) {
+    const size = Math.max(1, Math.min(Math.max(width, height), Number(options.size) || 1))
+    let tool = toolAliases[options.tool] || options.tool
+    let variant = shapeAliases[options.variant] || options.variant
+    let fill = options.fill || variant.startsWith('filled-')
+    if (shapes.has(tool) || tool.startsWith('filled-')) {
+      variant = tool
+      fill ||= variant.startsWith('filled-')
+      tool = 'pencil'
+    }
+    if (fill) variant = variant.replace(/^filled-/, '')
+    if (event.altKey && drawingTools.has(tool)) tool = 'eyedropper'
+    return { ...options, size, tool, variant, fill, scale: width / 720 }
+  }
+
+  function finishPolygon(point) {
+    const current = pendingShape
+    if (current.points.length > 2 && distance(current.start, point) <= 12) {
+      pendingShape = null
+      if (current.type === 'polygon-select') {
+        selection = { shape: 'polygon', start: current.start, end: point, points: current.points }
+        clearPreview()
+        render()
+      } else {
+        drawShape(current, point, current.points)
+        commitPreview(current)
+      }
+    } else {
+      current.points.push(point)
+    }
+  }
+
+  function handleDown(event) {
+    if (event.button !== 0 || gesture) return
+    if (settlingSpray) {
+      settlingSpray = null
+      clearPreview()
+      render()
+    }
+    const point = pointFor(event)
+    const brush = activeOptions(event)
+    const { tool, variant } = brush
+    if (tool === 'none') return
+    if (tool === 'sound' && brush.mode === 'hands-free') return
+    const image = cachedAsset(brushAsset(brush))
+    const dab = originalDab(brush)
+
+    if (pendingShape?.type === 'curve') {
+      const current = pendingShape
+      pendingShape = null
+      drawShape(current, current.end, null, point)
+      commitPreview(current)
+      return
+    }
+    if (pendingShape?.points) {
+      finishPolygon(point)
+      return
+    }
+
+    if (tool !== 'select' && tool !== 'scissors') selection = null
+    if (tool === 'eyedropper') {
+      const color = getColorAt(point)
+      options.color = color
+      hooks.onSample?.(color)
+      return
+    }
+    hooks.onSound?.(tool, brush)
+
+    if (tool === 'eraser' && (variant === 'big' || brush.mode === 'big')) {
+      if (hooks.onBigErase) hooks.onBigErase(brush)
+      else clear()
+      return
+    }
+    if (tool === 'text') {
+      event.preventDefault()
+      if (hooks.onText) {
+        Promise.resolve(hooks.onText(point, brush)).then(text => {
+          if (typeof text === 'string') placeText(text, { ...brush, ...point, size: brush.fontSize || 28 })
+        }).catch(error => hooks.onError?.(error))
+      } else {
+        placeText(brush.text, { ...brush, ...point, size: brush.fontSize || 28 })
+      }
+      return
+    }
+    if (tool === 'stamp') {
+      if (image || brush.text) {
+        const before = snapshot()
+        drawStamp(point, brush, image)
+        remember(before, 'stamp')
+      }
+      return
+    }
+
+    event.preventDefault()
+    canvas.setPointerCapture(event.pointerId)
+    paintAudio.start(brush)
+    clearPreview()
+    const common = { start: point, end: point, options: brush, pointerId: event.pointerId, image, dab }
+
+    if (tool === 'sound') {
+      gesture = { ...common, type: 'sound', random: makeRandom(Math.round(performance.now())), step: 0 }
+      respondToSound()
+    } else if (tool === 'bucket') {
+      compose(sample, { includeForeground: false })
+      const fillAt = makeFillRenderer(sample, pixelFor(point), brush, image)
+      gesture = { ...common, type: 'fill', fillAt }
+      fillAt(preview, pixelFor(point))
+    } else if (tool === 'select' || tool === 'scissors') {
+      if (containsSelection(point)) {
+        gesture = { ...common, type: 'move-selection', original: selection, before: snapshot() }
+      } else if (variant === 'cookie-cutter') {
+        selectCookieCutter(point, brush, image)
+      } else if (tool === 'scissors' && variant === 'polygon') {
+        selection = null
+        pendingShape = { ...common, type: 'polygon-select', points: [point] }
+      } else {
+        selection = null
+        const shape = variant === 'freehand' && tool === 'scissors' ? 'lasso'
+          : variant === 'ellipse' ? 'ellipse' : 'rectangle'
+        gesture = {
+          ...common,
+          type: 'select',
+          selection: { shape, start: point, end: point, points: shape === 'lasso' ? [point] : null },
+        }
+      }
+    } else if (drawingTools.has(tool) && shapes.has(variant)) {
+      const current = { ...common, type: 'shape', shape: variant }
+      if (variant === 'polygon') pendingShape = { ...current, points: [point] }
+      else gesture = current
+    } else if (tool === 'mixer') {
+      compose(sample, { includeForeground: false })
+      mixPixels(sample, preview, point, brush)
+      if (brush.mode === 'mega' || variant === 'mega') commitPreview(common)
+      else gesture = { ...common, type: 'mixer', last: point, remainder: 0 }
+    } else {
+      if (tool === 'eraser') brush.color = '#ffffff'
+      const random = makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))
+      gesture = { ...common, type: 'stroke', last: point, remainder: 0, random, step: 0 }
+      if (tool === 'spray') {
+        gesture.frames = sprayFrames(brush).map(cachedAsset).filter(Boolean)
+        if (gesture.frames.length && ['moving', 'moving-spray'].includes(brush.mode)) gesture.particles = []
+        sprayWhileHeld(gesture)
+      }
+      drawDab(gesture, point)
+      if (gesture.particles) renderMovingSpray(gesture, performance.now())
+    }
+    render()
+  }
+
+  function handleMove(event) {
+    const point = pointFor(event)
+    if (!gesture) {
+      if (pendingShape?.type === 'curve') {
+        drawShape(pendingShape, pendingShape.end, null, point)
+        render()
+      } else if (pendingShape?.type === 'polygon-select') {
+        render()
+        display.save()
+        display.strokeStyle = '#1364d8'
+        display.setLineDash([4, 3])
+        drawPath(display, 'lasso', pendingShape.start, point, [...pendingShape.points, point])
+        display.stroke()
+        display.restore()
+      } else if (pendingShape?.points) {
+        drawShape(pendingShape, point, [...pendingShape.points, point])
+        render()
+      } else if (options.tool === 'eyedropper') {
+        hooks.onSamplePreview?.(getColorAt(point))
+      }
+      return
+    }
+
+    if (gesture.pointerId !== event.pointerId) return
+    const current = gesture
+    paintAudio.move(current.end, point)
+    current.end = point
+    if (current.type === 'shape') {
+      current.end = constrain(current.start, point, current.shape, event.shiftKey)
+      drawShape(current, current.end)
+    } else if (current.type === 'fill') {
+      current.fillAt(preview, pixelFor(point))
+    } else if (current.type === 'select') {
+      const item = current.selection
+      item.end = constrain(item.start, point, item.shape, event.shiftKey)
+      if (item.points) item.points.push(point)
+    } else if (current.type === 'move-selection') {
+      if (!current.piece && distance(current.start, point) >= 1) {
+        current.piece = selectionImage(current.original)
+        if (current.piece) eraseSelection(current.original)
+      }
+      if (current.piece) {
+        const dx = Math.round(point.x - current.start.x)
+        const dy = Math.round(point.y - current.start.y)
+        selection = moveSelection(current.original, dx, dy)
+        clearPreview()
+        preview.drawImage(current.piece.canvas, current.piece.bounds.x + dx, current.piece.bounds.y + dy)
+      }
+    } else if (current.type === 'sound') {
+      respondToSound()
+    } else {
+      const events = event.getCoalescedEvents?.()
+      if (events?.length) events.forEach(entry => strokeTo(current, pointFor(entry)))
+      else strokeTo(current, point)
+      if (current.particles) renderMovingSpray(current, performance.now())
+    }
+    render()
+  }
+
+  function handleUp(event) {
+    if (!gesture || gesture.pointerId !== event.pointerId) return
+    const current = gesture
+    handleMove(event)
+    gesture = null
+    paintAudio.stop(true)
+    if (current.type === 'select') {
+      const bounds = selectionBounds(current.selection)
+      if (bounds.width > 2 && bounds.height > 2) selection = current.selection
+      render()
+    } else if (current.type === 'move-selection') {
+      if (current.piece) {
+        art.drawImage(preview.canvas, 0, 0)
+        clearPreview()
+        remember(current.before, 'move')
+      }
+    } else if (current.type === 'shape' && current.shape === 'curve' && distance(current.start, current.end) > 1) {
+      pendingShape = { ...current, type: 'curve' }
+      render()
+    } else if (current.particles) {
+      settleMovingSpray(current)
+    } else if (current.type !== 'sound' || current.step) {
+      commitPreview(current)
+    } else {
+      render()
+    }
+  }
+
+  async function setLayer(name, asset, settings = {}) {
+    const request = ++updateId
+    const image = await loadAsset(asset)
+    const frontAsset = settings.foreground
+    const frontImage = frontAsset ? await loadAsset(frontAsset) : null
+    if (request !== updateId) return false
+    cancel()
+    const before = snapshot()
+    const layer = image ? { image, url: assetUrl(asset) || null } : null
+    if (name === 'background') {
+      if (settings.clearArt) art.clearRect(0, 0, width, height)
+      background = layer
+      foreground = frontImage ? { image: frontImage, url: assetUrl(frontAsset) || null } : null
+    } else if (name === 'foreground') foreground = layer
+    else paper = layer
+    remember(before, name)
+    return true
+  }
+
+  async function placeAsset(asset, placement = {}) {
+    const request = updateId
+    const image = await loadAsset(asset)
+    if (request !== updateId || !image) return false
+    cancel()
+    const before = snapshot()
+    placeImage(art, image, placement)
+    remember(before, 'asset')
+    return true
+  }
+
+  async function loadImage(asset) {
+    const request = ++updateId
+    const image = await loadAsset(asset)
+    if (request !== updateId || !image) return false
+    cancel()
+    const before = snapshot()
+    const dimensions = mediaSize(image)
+    const scale = Math.min(width / dimensions.width, height / dimensions.height)
+    placeImage(art, image, { width: dimensions.width * scale, height: dimensions.height * scale })
+    remember(before, 'import')
+    return true
+  }
+
+  function save() {
+    return {
+      version: 1,
+      width,
+      height,
+      art: art.canvas.toDataURL(),
+      background: background?.url || null,
+      foreground: foreground?.url || null,
+      paper: paper?.url || null,
+    }
+  }
+
+  async function restore(state) {
+    if (typeof state === 'string' && state.startsWith('{')) state = JSON.parse(state)
+    if (!state || state.version !== 1) throw new Error('Unsupported picture file')
+    const request = ++updateId
+    const [ink, base, front, texture] = await Promise.all([
+      loadAsset(state.art),
+      loadAsset(state.background),
+      loadAsset(state.foreground),
+      loadAsset(state.paper),
+    ])
+    if (request !== updateId) return false
+    cancel()
+    art.clearRect(0, 0, width, height)
+    if (ink) art.drawImage(ink, 0, 0, width, height)
+    background = base ? { image: base, url: state.background } : null
+    foreground = front ? { image: front, url: state.foreground } : null
+    paper = texture ? { image: texture, url: state.paper } : null
+    selection = null
+    back.length = 0
+    forward.length = 0
+    notify('restore')
+    return true
+  }
+
+  function setOptions(next) {
+    const changed = ['tool', 'variant', 'mode'].some(key => key in next && next[key] !== options[key])
+    if (changed) {
+      finishSound()
+      cancel()
+    }
+    if (next.variant === 'cookie-cutter' && 'asset' in next && next.asset !== options.asset) {
+      selection = null
+      render()
+    }
+    if (next.tool && next.tool !== options.tool && !('asset' in next)) options.asset = null
+    options = { ...options, ...next }
+    options.variant ||= 'freehand'
+    canvas.style.cursor = cursors[toolAliases[options.tool] || options.tool] || 'crosshair'
+    if (options.tool === 'sound' && 'level' in next) respondToSound()
+    if (Object.keys(next).every(key => key === 'level' || key === 'pitch')) return
+    const asset = brushAsset(activeOptions({}))
+    const frames = sprayFrames(activeOptions({}))
+    if (frames.length) frames.forEach(frame => loadAsset(frame).catch(() => {}))
+    if (options.variant === 'cookie-cutter' && originalTools && !cutoutRequest) {
+      cutoutRequest = fetch(`${originalTools}cutouts/regions.json`).then(response => {
+        if (!response.ok) throw new Error('Cutout shapes unavailable')
+        return response.json()
+      }).then(regions => { cutoutRegions = regions }).catch(() => {})
+    }
+    if (asset) {
+      const ready = loadAsset(asset).catch(error => {
+        hooks.onError?.(error)
+        return null
+      })
+      return options.variant === 'cookie-cutter' ? Promise.all([ready, cutoutRequest]) : ready
+    }
+  }
+
+  function download(filename = 'Kid Pix Picture.png') {
+    compose(sample)
+    const link = document.createElement('a')
+    link.download = filename
+    link.href = sample.canvas.toDataURL()
+    link.click()
+  }
+
+  const listenerOptions = { signal: listeners.signal }
+  canvas.style.touchAction = 'none'
+  canvas.style.cursor = 'crosshair'
+  canvas.addEventListener('pointerdown', handleDown, listenerOptions)
+  canvas.addEventListener('pointermove', handleMove, listenerOptions)
+  canvas.addEventListener('pointerup', handleUp, listenerOptions)
+  canvas.addEventListener('pointercancel', event => {
+    if (gesture?.pointerId === event.pointerId) cancel()
+  }, listenerOptions)
+  canvas.addEventListener('lostpointercapture', event => {
+    if (gesture?.pointerId === event.pointerId) cancel()
+  }, listenerOptions)
+  render()
+
+  return {
+    canvas,
+    setOptions,
+    setBackground: (asset, settings) => setLayer('background', asset, settings),
+    setForeground: asset => setLayer('foreground', asset),
+    setPaper: asset => setLayer('paper', asset),
+    placeAsset,
+    loadImage,
+    placeText,
+    getColorAt,
+    renderTo: compose,
+    renderForegroundTo,
+    render,
+    undo,
+    redo,
+    clear,
+    reset,
+    cancel,
+    copy,
+    cut,
+    paste,
+    save,
+    restore,
+    download,
+    destroy() {
+      cancel()
+      listeners.abort()
+      paintAudio.destroy()
+    },
+    get canUndo() { return !!back.length },
+    get canRedo() { return !!forward.length },
+  }
+}

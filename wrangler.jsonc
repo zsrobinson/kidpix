@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kidpix",
+  "main": "worker/index.js",
+  "account_id": "5ac179a21ac475108b47f1269748424b",
+  "compatibility_date": "2026-11-09",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "kidpix.zsrobinson.com", "custom_domain": true }
+  ],
+  "assets": {
+    "directory": "./dist-cloudflare",
+    "binding": "ASSETS",
+    "run_worker_first": ["/original/*"],
+    "not_found_handling": "none"
+  },
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "kidpix-media" }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  }
+}

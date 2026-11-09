@@ -1,0 +1,29 @@
+{
+  "name": "kid-pix-3d-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "import:original": "bash scripts/import-trial.sh",
+    "verify:assets": "node scripts/verify-assets.mjs",
+    "prebuild": "npm run verify:assets",
+    "build:cloudflare": "vite build --mode cloudflare",
+    "test": "node --test worker/*.test.js scripts/sync-media.test.mjs",
+    "check": "npm test && npm run build:cloudflare && wrangler deploy --dry-run",
+    "deploy": "npm run build:cloudflare && wrangler deploy",
+    "deploy:dry-run": "npm run build:cloudflare && wrangler deploy --dry-run",
+    "media:sync": "node scripts/sync-media.mjs",
+    "media:plan": "node scripts/sync-media.mjs --dry-run"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "3.1164.0",
+    "vite": "8.3.6",
+    "wrangler": "4.158.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

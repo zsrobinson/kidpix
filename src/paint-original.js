@@ -34,6 +34,14 @@ const materialBrushes = {
   crayon: [1001, 1, 0, 0, 0, 0, 0, 0],
   marker: [1010, 2, 0, 0, 0, 1, 0, 0],
 }
+// CFG shadowBias/glintBias, separate from the geometric offsets above.
+// CustomBrush1–16 follow the first four built-in paint classes.
+const paintBiases = [
+  [0, 0], [7, 0], [10, 0], [0, 0],
+  [12, 1], [7, 2], [30, 3], [1, 1], [2, 0], [3, 0],
+  [5, 1], [3, 2], [15, 1], [7, 1], [3, 1], [20, 3],
+  [0, 0], [2, 0], [4, 1], [0, 0],
+]
 const fallbackNames = {
   oil: 'oil-paint',
   airbrush: 'air-brush',
@@ -50,40 +58,90 @@ export function paintBrushIndex({ variant, effectIndex }) {
 export function originalDab(options) {
   const { tool, mode, variant, sizeIndex, size } = options
   const realistic = ['brush', 'paint', 'paintbrush'].includes(tool) && mode !== 'wacky' && variant !== 'wacky'
-  const data = realistic ? paintBrushes[paintBrushIndex(options)] : materialBrushes[tool]
+  const index = paintBrushIndex(options)
+  const data = realistic ? paintBrushes[index] : materialBrushes[tool]
   if (!data) return null
   const [baseId, spacing, jitter, shadow, glint, density, spatter, dryOut] = data
+  const [shadowBias, glintBias] = realistic ? paintBiases[index] : [0, 0]
+  const blendClass = tool === 'marker' ? 'marker' : realistic && index === 1 ? 'airbrush' : 'generic'
   const tier = sizeIndex ?? (size <= 4 ? 0 : size <= 8 ? 1 : 2)
-  return { id: baseId + Math.max(0, Math.min(2, tier)), spacing, jitter, shadow, glint, density, spatter, dryOut }
+  return { id: baseId + Math.max(0, Math.min(2, tier)), spacing, jitter, shadow, glint, density, spatter, dryOut, shadowBias, glintBias, blendClass }
 }
 
 const colorMasks = new WeakMap()
-const cssColor = makeSurface(1, 1, true)
+const dynamicMasks = new WeakMap()
+let cssColor
 
-function tintMask(image, color, spatter) {
+// Native generic pixel blend: 0x123ecc normalizes mask 255 to 254 and
+// divides by 254*densityBias (0x12231e). Airbrush overrides the divisor
+// per pixel at 0x11b876. These are untextured mask pixels; texture, smear,
+// dry-out and stroke-mask accumulation remain separate renderer behavior.
+export function nativeBrushMaskPixels(source, rgba, dab, pass = 'paint', random = Math.random) {
+  const pixels = new Uint8ClampedArray(source.length)
+  for (let offset = 0; offset < source.length; offset += 4) {
+    const mask = Math.min(source[offset], 254)
+    if (!mask || !source[offset + 3]) continue
+    // RRealMedia +0x100 (0x124246): keep a nonzero mask pixel only
+    // when rounded random*spatter is zero. Airbrush has the same predicate.
+    if (dab.spatter && roundedRandom(dab.spatter, random)) continue
+    const bias = pass === 'shadow' ? dab.shadowBias : pass === 'glint' ? dab.glintBias : dab.density || 1
+    const divisor = pass === 'paint' && dab.blendClass === 'airbrush'
+      ? 255 * (1 + roundedRandom(dab.density, random))
+      : 254 * bias
+    const alpha = divisor > 0 ? Math.fround(mask / divisor) : 0
+    pixels[offset] = rgba[0]
+    pixels[offset + 1] = rgba[1]
+    pixels[offset + 2] = rgba[2]
+    pixels[offset + 3] = alpha * source[offset + 3] * rgba[3] / 255
+  }
+  return pixels
+}
+
+function roundedRandom(bias, random) {
+  return Math.trunc(Math.fround(Math.fround(Math.fround(random()) * bias) + .5))
+}
+
+function tintMask(image, color, dab, pass, random) {
   if (!colorMasks.has(image)) colorMasks.set(image, new Map())
   const variants = colorMasks.get(image)
-  const key = `${color}:${spatter}`
-  if (variants.has(key)) return variants.get(key)
+  const { spatter } = dab
+  const dynamic = spatter || dab.blendClass === 'airbrush'
+  const key = `${color}:${dab.blendClass}:${pass}:${dab.density}:${dab.shadowBias}:${dab.glintBias}`
+  if (!dynamic && variants.has(key)) return variants.get(key)
 
   const width = image.naturalWidth || image.width
   const height = image.naturalHeight || image.height
-  const mask = makeSurface(width, height, true)
+  let mask = dynamic && dynamicMasks.get(image)
+  if (!mask) {
+    mask = makeSurface(width, height, true)
+    if (dynamic) dynamicMasks.set(image, mask)
+  }
+  // Reuse the surface while sampling fresh pixels on every dynamic dab.
+  mask.clearRect(0, 0, width, height)
   mask.drawImage(image, 0, 0)
   const pixels = mask.getImageData(0, 0, width, height)
+  cssColor ??= makeSurface(1, 1, true)
   cssColor.clearRect(0, 0, 1, 1)
   cssColor.fillStyle = color
   cssColor.fillRect(0, 0, 1, 1)
   const rgba = cssColor.getImageData(0, 0, 1, 1).data
 
-  for (let i = 0; i < pixels.data.length; i += 4) {
-    const alpha = pixels.data[i]
-    const scatter = spatter && ((i * 113 + Math.floor(i / width) * 55) % 100) < spatter * 11
-    pixels.data.set([rgba[0], rgba[1], rgba[2], scatter ? alpha * 0.1 : alpha * rgba[3] / 255], i)
+  if (dab.blendClass === 'marker') {
+    // Native Marker has a destination-dependent darken-only override at
+    // 0x121500. The transparent stroke preview has no underlying art pixels;
+    // retain its existing approximation rather than apply the generic blend.
+    for (let offset = 0; offset < pixels.data.length; offset += 4) {
+      const alpha = pixels.data[offset]
+      pixels.data.set([rgba[0], rgba[1], rgba[2], alpha * rgba[3] / 255], offset)
+    }
+  } else {
+    pixels.data.set(nativeBrushMaskPixels(pixels.data, rgba, dab, pass, random))
   }
   mask.putImageData(pixels, 0, 0)
-  if (variants.size >= 18) variants.delete(variants.keys().next().value)
-  variants.set(key, mask.canvas)
+  if (!dynamic) {
+    if (variants.size >= 18) variants.delete(variants.keys().next().value)
+    variants.set(key, mask.canvas)
+  }
   return mask.canvas
 }
 
@@ -95,19 +153,17 @@ export function drawOriginalDab(context, point, options, dab, image, random, ste
   const height = image.height * drawScale
   const x = point.x - width / 2 + (random() - 0.5) * jitter
   const y = point.y - height / 2 + (random() - 0.5) * jitter
-  const spatter = tool === 'chalk' ? 2 : dab.spatter
   const faded = dab.dryOut ? 1 / (1 + step * dab.dryOut / 18000) : 1
   context.save()
+  context.globalAlpha = faded
   if (dab.shadow) {
-    context.globalAlpha = 0.18 * faded
-    context.drawImage(tintMask(image, '#312022', spatter), x + dab.shadow * scale / 3, y + dab.shadow * scale / 2, width, height)
+    context.drawImage(tintMask(image, '#000000', dab, 'shadow', random), x + dab.shadow * scale, y + dab.shadow * scale, width, height)
   }
-  context.globalAlpha = faded * 1 / (1 + dab.density * 0.13)
-  context.drawImage(tintMask(image, color, spatter), x, y, width, height)
   if (dab.glint) {
-    context.globalAlpha = 0.28 * faded
-    context.drawImage(tintMask(image, '#ffffff', spatter), x - dab.glint * scale / 2, y - dab.glint * scale / 2, width, height)
+    context.drawImage(tintMask(image, '#ffffff', dab, 'glint', random), x - dab.glint * scale, y - dab.glint * scale, width, height)
   }
+  if (dab.blendClass === 'marker') context.globalAlpha = faded / (1 + dab.density * .13)
+  context.drawImage(tintMask(image, color, dab, 'paint', random), x, y, width, height)
   context.restore()
 }
 

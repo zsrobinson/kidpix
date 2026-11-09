@@ -2,7 +2,16 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.4.0
+
+- Replaced sampled Moving Paints loops with all authored clips, registered placement, source holds and sound-gated finite completion. Stationary spraying emits every 150 ms; releasing stops emission while live particles continue.
+- Included live paint in snapshots, saving and PNG export; tool cleanup freezes the current pose and stops owned sounds. Fixed unified undo history when undoing a held moving stroke.
+- Corrected verified grayscale mask density, random per-pixel Airbrush coverage, spatter rejection and CFG shadow/glint offsets, biases and pass order. Marker, texture, smear and stroke interpolation remain documented gaps.
+- Added actual-app moving-paint and brush pixel comparisons, reusable public-site browser checks and a full-layout resize wait for Stamp Editor tests.
+
 ## 0.3.0
+
+- Source revision `d452afb928f93d442a719d06992fda1829fdc485`; all 25 browser checks passed against the public site.
 
 - Restored the complete Paint Shapes banks and native selection, dimensions, registration, stationary spraying and reset behavior. Removed procedural rotation/scaling from that renderer.
 - Restored source button rollover sequences, timing, looping and cancellation.

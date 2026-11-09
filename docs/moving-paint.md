@@ -1,6 +1,6 @@
 # Recovering complete native spray motion
 
-The current browser engine uses up to eight sampled images per spray choice. For Moving Paints it cycles those images every 65 ms, adds a procedural seven-pixel upward drift and settles after an arbitrary 320 ms. Those values and the sampled frame order are not the authored motion in the trial.
+The earlier browser engine used up to eight sampled images per spray choice. For Moving Paints it cycled those images every 65 ms, added a procedural seven-pixel upward drift and settled after an arbitrary 320 ms. Those values and the sampled frame order were not the authored motion in the trial. The integrated renderer now uses complete source banks and timelines.
 
 ## Recovered source
 
@@ -81,3 +81,11 @@ PYTHONPATH=scripts python3 -m unittest scripts/test_native_spray.py
 ```
 
 They cover source registration versus unregistered placements, repeated holds, interval changes, sound onset, terminal frames, storage-stride padding, missing references, unknown commands, complete asset export and exact atlas pixel round-trips. The companion Node tests in `scripts/parity/native-spray.test.mjs` cover rounded source distributions, original dimensions, pointer anchoring, source holds and atlas rectangles. They do not replace a running-original comparison.
+
+## Application integration and limits
+
+`src/native-moving-paint.js` owns live particles and their source audio channels. `src/paint.js` loads the selected bank, emits immediately and then every 150 ms at the current pointer, composites live actors above settled ink, and blits each particle into ink when it completes. Releasing the pointer stops emission while existing particles continue. Pointer positions outside the drawing area suppress emission without consuming a variant choice. Delayed browser callbacks emit one current particle rather than replaying a burst of missed timer events.
+
+Tool cleanup flattens the current authored pose and stops only owned sounds. Saving, PNG export, sampling and snapshots include live particles. Each stroke adds one history checkpoint; natural particle completion adds none. Undo/redo restores frozen visible snapshots and stops live playback. A canceled or interrupted held stroke is checkpointed before cleanup, so its visible paint remains undoable. These are explicit web history policies; matching native undo serialization and interruption behavior still requires a running-original comparison.
+
+The source sound cues are WAV files played through browser audio. First-use network/decode latency, browser autoplay policy, heavy-spray channel allocation and simultaneous-completion layering remain comparison gaps. The sound-channel lifecycle tests use controlled handles; browser pixel tests use controlled time/audio to inspect authored poses. Neither establishes measured native sound onset or platform event-loop timing.

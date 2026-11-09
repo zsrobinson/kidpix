@@ -1,6 +1,6 @@
 # Native brush configuration and blending
 
-Static evidence from the supplied trial's i386 executable; executable identity is recorded in [reverse-engineering.md](reverse-engineering.md). These findings establish individual rendering rules. They do not establish complete reproduction of the brush engine, including paper textures, mask accumulation, dry-out and every subclass override.
+Static evidence from the supplied trial's i386 executable; executable identity is recorded in [reverse-engineering.md](reverse-engineering.md). The browser now implements the scoped mask, density and offset rules described below. This does not establish complete reproduction of the brush engine, including paper textures, mask accumulation, dry-out and every subclass override.
 
 ## Configuration fields
 
@@ -94,4 +94,49 @@ The generic spatter predicate at `0x00124246` obtains a normalized random float 
 
 CFG spacing is copied to tool `+0x60` when nonzero at `0x00123eb1`–`0x00123ebd`; zero uses a separate tracking branch at `0x0012242c`–`0x001224ba`, including stationary painting. For nonzero spacing, the tracking handler first compares absolute x/y displacement against the threshold (`0x0012243a`–`0x00122462`) and calls line helper `0x00137556` when due. That helper follows an integer line path and measures steps along the dominant axis: it compares accumulated signed dominant-axis distance with `+0x60` at `0x001376b5`–`0x001376e9` or `0x0013778d`–`0x001377be`. This differs from uniformly stepping Euclidean arc length. Endpoint and stroke-boundary behavior should be retained if porting this helper; replacing only its distance formula would not reproduce the complete native interpolation.
 
-No application code was changed as part of this investigation.
+## Implemented scope and remaining differences
+
+[paint-original.js](../src/paint-original.js) now uses source mask normalization and the generic density divisor; its Airbrush path samples the verified random divisor for each accepted mask pixel. Dynamic Airbrush/spatter masks are not cached. It applies the verified random pixel-acceptance predicate, including the CFG Chalk value 1 rather than the previous hardcoded value 2.
+
+The generic offset passes now draw black shadow at `(offset, offset)` and white glint at `(-offset, -offset)`, with source bias opacity. Their order is shadow, glint, then ordinary paint, matching native routine `0x00122f7c`. All examined built-in/material and CustomBrush1–16 vtables retain generic black/white providers at slots `+0xd8/+0xdc`.
+
+The formerly omitted bias fields are copied from the supplied **KPD3.cfg**, with no fitted opacity constants:
+
+| CFG section | Shadow bias | Glint bias |
+| --- | --- | --- |
+| RealBrush | 0 | 0 |
+| Airbrush | 7 | 0 |
+| BristleBrush | 10 | 0 |
+| ExtrusionBrush | 0 | 0 |
+| CustomBrush1 | 12 | 1 |
+| CustomBrush2 | 7 | 2 |
+| CustomBrush3 | 30 | 3 |
+| CustomBrush4 | 1 | 1 |
+| CustomBrush5 | 2 | 0 |
+| CustomBrush6 | 3 | 0 |
+| CustomBrush7 | 5 | 1 |
+| CustomBrush8 | 3 | 2 |
+| CustomBrush9 | 15 | 1 |
+| CustomBrush10 | 7 | 1 |
+| CustomBrush11 | 3 | 1 |
+| CustomBrush12 | 20 | 3 |
+| CustomBrush13 | 0 | 0 |
+| CustomBrush14 | 2 | 0 |
+| CustomBrush15 | 4 | 1 |
+| CustomBrush16 | 0 | 0 |
+
+Zero entries above are omitted CFG keys retaining the native constructor's zero bias defaults (`0x001245e9`–`0x001245f3`); their corresponding offset pass is absent. Every active shadow/glint pass in these records has an explicit positive source bias.
+
+The renderer still paints into a transparent preview and lets Canvas composite its colored masks. It therefore quantizes coverage into an 8-bit alpha channel rather than duplicating the native floating-point RGB loop byte for byte. The native destination-dependent Marker override is explicitly excluded from the generic mask path: it retains its previous approximation until the renderer can access the underlying artwork for darken-only blending. Marker should not be described as fixed by this change.
+
+Other remaining differences include texture input and inversion, smear feedback, RealBrush coverage accumulation, Bristle-specific smear/setup, exact dry-out dissipation, native circular oscillation instead of existing rectangular jitter, native random-number-stream consumption, material-size scaling, and dominant-axis integer stroke interpolation. Existing dry-out and jitter approximations were not changed. The masked blend correction does not make a paper-textured brush equivalent to its untextured rendering.
+
+Run the focused source-fixture checks with:
+
+```sh
+node --test scripts/parity/native-brush.test.mjs
+```
+
+They exercise mixed grayscale masks and expected RGBA pixels, density-zero fallback, separate shadow/glint bias, Airbrush random coverage, spatter rejection, real CFG entries, pass ordering/geometry, and fresh random masks on successive Airbrush dabs. The raster-surface fixture copies source pixels without implementing density/bias/spatter formulas, so the real draw entry point is checked as well as the pure mask conversion.
+
+The actual-application browser case in [brush.spec.js](../tests/browser/brush.spec.js) also passed: the real Painting Tools → Dry Brush → Small flow requests source bitmap 1022, supplied by a deterministic 2×2 grayscale fixture. Its committed pixels match the expected half-coverage/opaque/zero-mask samples exactly, only three page pixels change, and undo/redo restores exact canvas snapshots. This checks the implemented mask-coverage path; it does not validate total native Dry Brush behavior.

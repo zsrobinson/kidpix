@@ -159,6 +159,26 @@ test('a delayed callback emits one current particle instead of inventing a catch
   controller.discard();
 });
 
+test('captured pointers outside the canvas suppress emission without consuming a variant choice', () => {
+  const time = clock();
+  let choices = 0;
+  const controller = createNativeMovingPaint({ ...time, random: () => { choices++; return 0; }, playSound: () => null,
+    containsPoint: point => point.x >= 0 && point.y >= 0 && point.x < 720 && point.y < 542,
+  });
+  controller.begin({ x: 100, y: 100 }, bundle());
+  controller.move({ x: -0.5, y: 100 });
+  time.at(150);
+  assert.equal(choices, 1);
+  controller.move({ x: 800, y: 100 });
+  time.at(300);
+  assert.equal(choices, 1);
+  controller.move({ x: 400, y: 200 });
+  time.at(450);
+  assert.equal(choices, 2);
+  assert.equal(controller.drawTo({ drawImage() {} }), 1);
+  controller.discard();
+});
+
 test('rejected owned audio finishes the channel and invalid clips do not leave emission active', async () => {
   const time = clock();
   const controller = createNativeMovingPaint({ ...time, random: () => 0,

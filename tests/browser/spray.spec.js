@@ -129,7 +129,7 @@ test('later Paint Shapes use the complete native bank and rounded endpoint rule,
   await expect.poll(() => ink(page)).toBe(both);
 });
 
-test('reactivating Spray and selecting its current effect restart the authored bank at its first image', async ({ page }) => {
+test('reactivating Spray, reselecting its effect and returning from Moving Paints restart the authored bank', async ({ page }) => {
   const { bank, images } = await nativeBank(page);
   const forcedRandom = .999999;
   const next = Math.trunc(forcedRandom * (bank.frameCount - 2) + .5);
@@ -157,5 +157,14 @@ test('reactivating Spray and selecting its current effect restart the authored b
   const reselected = { frame: bank.frames[0], point: [120, 300] };
   await clickPaper(page, reselected.point);
   marks.push(reselected);
+  expectNativeMarks(await ink(page), marks, images);
+
+  await page.getByRole('button', { name: 'Moving Paints', exact: true }).click();
+  await expect(page.locator('#paper-canvas')).toHaveAttribute('data-paint-ready', 'ready');
+  await page.getByRole('button', { name: 'Paint Shapes', exact: true }).click();
+  await expect(page.locator('#paper-canvas')).toHaveAttribute('data-paint-ready', 'ready');
+  const returned = { frame: bank.frames[0], point: [285, 420] };
+  await clickPaper(page, returned.point);
+  marks.push(returned);
   expectNativeMarks(await ink(page), marks, images);
 });

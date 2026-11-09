@@ -247,6 +247,9 @@ const paint = createPaint(canvas, {
 
 function history(direction, fromFace = false) {
   if (!fromFace) undoFaceRedo = false;
+  // A held moving-paint stroke becomes a history entry during cleanup. Finish
+  // it before selecting the unified entry so the two history stacks agree.
+  paint.cancel();
   const source = direction === 'undo' ? undoStack : redoStack;
   const target = direction === 'undo' ? redoStack : undoStack;
   const entry = source.pop();

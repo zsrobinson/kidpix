@@ -86,6 +86,24 @@ async function clickPixel(page, dialog, x, y) {
   await page.mouse.click(position.x, position.y);
 }
 
+// A resize can preserve the canvas width while its centered position changes.
+// Wait for the whole recovered panel layout before sending pointer coordinates.
+async function expectEditorBounds(canvas, width, height) {
+  const [fx, fy, fw, fh] = manifest.frame.rect;
+  const scale = Math.min(1, (width - 16) / fw, (height - 16) / fh);
+  const expected = [
+    width / 2 + (manifest.canvas[0] - fx - fw / 2) * scale,
+    height / 2 + (manifest.canvas[1] - fy - fh / 2) * scale,
+    manifest.canvas[2] * scale,
+    manifest.canvas[3] * scale,
+  ];
+  await expect.poll(async () => {
+    const bounds = await canvas.boundingBox();
+    return [bounds.x, bounds.y, bounds.width, bounds.height]
+      .every((value, index) => Math.abs(value - expected[index]) < .02);
+  }).toBe(true);
+}
+
 test('native Stamp Editor uses source geometry and distinct rollover/tracking artwork at both viewport sizes', async ({ page }) => {
   const dialog = await openEditor(page);
   const canvas = dialog.locator('.native-stamp-pixels');
@@ -105,11 +123,11 @@ test('native Stamp Editor uses source geometry and distinct rollover/tracking ar
   await page.mouse.move(1000, 750);
   await expect.poll(() => imagePath(image)).toBe(`/original/ui/${states.rest.image}`);
   await page.setViewportSize({ width: 800, height: 600 });
-  await expect.poll(async () => (await canvas.boundingBox()).width).toBe(manifest.canvas[2]);
+  await expectEditorBounds(canvas, 800, 600);
   await clickPixel(page, dialog, 10, 10);
   expect(await pixel(dialog, 10, 10)).toEqual([0, 0, 0, 255]);
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(async () => (await canvas.boundingBox()).width).toBeCloseTo(manifest.canvas[2] * (390 - 16) / manifest.frame.rect[2], 2);
+  await expectEditorBounds(canvas, 390, 844);
   await clickPixel(page, dialog, 20, 20);
   expect(await pixel(dialog, 20, 20)).toEqual([0, 0, 0, 255]);
 });

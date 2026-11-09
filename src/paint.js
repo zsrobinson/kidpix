@@ -3,7 +3,8 @@ import { cutoutContours, makeFillRenderer, makeSurface, mixPixels } from './pain
 import { drawOriginalDab, originalDab } from './paint-original.js'
 import { createPaintAudio } from './paint-audio.js'
 import { createNativeSprayAssets } from './native-spray-assets.js'
-import { selectNativeShape, drawNativeShape } from './native-spray-runtime.js'
+import { selectNativeShape, drawNativeShape, drawNativeSprayFrame } from './native-spray-runtime.js'
+import { createNativeMovingPaint } from './native-moving-paint.js'
 
 const shapes = new Set(['line', 'curve', 'rectangle', 'ellipse', 'polygon'])
 const drawingTools = new Set(['pencil', 'chalk', 'crayon', 'marker'])
@@ -140,6 +141,7 @@ export function createPaint(canvas, hooks = {}) {
   const preview = makeSurface(width, height)
   const work = makeSurface(width, height)
   const sample = makeSurface(width, height, true)
+  const snapshotInk = makeSurface(width, height, true)
   const imageCache = new Map()
   const nativeSprayAssets = createNativeSprayAssets()
   let shapeBankId = null
@@ -157,7 +159,6 @@ export function createPaint(canvas, hooks = {}) {
   let paper = null
   let gesture = null
   let soundStroke = null
-  let settlingSpray = null
   let cutoutRegions = null
   let cutoutRequest = null
   let lastSoundAt = 0
@@ -165,25 +166,21 @@ export function createPaint(canvas, hooks = {}) {
   let selection = null
   let clipboard = null
   let updateId = 0
+  const movingPaint = createNativeMovingPaint({
+    containsPoint: point => point.x >= 0 && point.y >= 0 && point.x < width && point.y < height,
+    ...(hooks.soundEffects === false ? { playSound: () => null } : {}),
+    onFrame: () => render(),
+    onCommit(actor, frame) {
+      drawNativeSprayFrame(art, actor.point, actor.clip, actor.bundle.bank, frame, actor.bundle.imageFor)
+    },
+  })
 
   function brushAsset(brush) {
     if (brush.asset) return brush.asset
     if (!originalTools) return null
     const dab = originalDab(brush)
     if (dab) return `${originalTools}brushes/${dab.id}.png`
-    if (brush.tool === 'spray') {
-      const moving = ['moving', 'moving-spray'].includes(brush.mode)
-      const id = 24000 + 100 * ((brush.effectIndex ?? 0) % (moving ? 20 : 15))
-      return `${originalTools}${moving ? 'moving-spray' : 'spray'}/${id}.png`
-    }
     return null
-  }
-
-  function sprayFrames(brush) {
-    if (brush.frames?.length) return brush.frames
-    if (!originalTools || brush.tool !== 'spray') return []
-    const fallback = assetUrl(brushAsset({ ...brush, asset: null }))
-    return Array.from({ length: 8 }, (_, index) => fallback.replace(/\.png$/, `-${index}.png`))
   }
 
   function loadAsset(asset) {
@@ -214,11 +211,20 @@ export function createPaint(canvas, hooks = {}) {
     return assetElement(asset) || imageCache.get(assetUrl(asset))?.image
   }
 
+  function visibleInk() {
+    if (!movingPaint.active) return art
+    snapshotInk.clearRect(0, 0, width, height)
+    snapshotInk.drawImage(art.canvas, 0, 0)
+    movingPaint.drawTo(snapshotInk)
+    return snapshotInk
+  }
+
   function snapshot() {
-    return { image: art.getImageData(0, 0, width, height), background, foreground, paper }
+    return { image: visibleInk().getImageData(0, 0, width, height), background, foreground, paper }
   }
 
   function loadSnapshot(state) {
+    movingPaint.discard()
     art.putImageData(state.image, 0, 0)
     background = state.background
     foreground = state.foreground
@@ -231,17 +237,27 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function cancel() {
+    const current = gesture
     if (gesture?.type === 'move-selection') {
       loadSnapshot(gesture.before)
       selection = gesture.original
     }
     gesture = null
+    if (current?.type === 'native-moving') finishMovingStroke(current)
+    movingPaint.flush()
     paintAudio.stop()
     soundStroke = null
-    settlingSpray = null
     pendingShape = null
     clearPreview()
     render()
+  }
+
+  function finishMovingStroke(current) {
+    movingPaint.end()
+    if (!current.remembered) {
+      current.remembered = true
+      remember(current.before, 'spray')
+    }
   }
 
   function notify(kind) {
@@ -291,7 +307,7 @@ export function createPaint(canvas, hooks = {}) {
     context.fillStyle = '#ffffff'
     context.fillRect(0, 0, width, height)
     drawLayer(context, background)
-    const active = gesture || pendingShape || soundStroke || settlingSpray
+    const active = gesture || pendingShape || soundStroke
     if (includePreview && active?.type === 'stroke' && active.options.tool === 'eraser' && !background) {
       work.clearRect(0, 0, width, height)
       work.drawImage(art.canvas, 0, 0)
@@ -300,9 +316,10 @@ export function createPaint(canvas, hooks = {}) {
       work.globalCompositeOperation = 'source-over'
       context.drawImage(work.canvas, 0, 0)
     } else {
-      context.drawImage(includePreview && settlingSpray ? settlingSpray.base.canvas : art.canvas, 0, 0)
-      if (includePreview && active) overlayStrokeTo(context, active)
+      context.drawImage(art.canvas, 0, 0)
+      if (includePreview && active && active.type !== 'native-moving') overlayStrokeTo(context, active)
     }
+    movingPaint.drawTo(context)
     if (includeForeground) renderForegroundTo(context)
     context.restore()
   }
@@ -524,73 +541,22 @@ export function createPaint(canvas, hooks = {}) {
       current.lastNativeShapeAt = performance.now()
       return
     }
-    if (current.particles) {
-      current.particles.push({ point, seed: Math.round(random() * 4294967295), start: performance.now() })
-      return
-    }
     if (dab && image) drawOriginalDab(preview, point, brush, dab, image, random, current.step++)
-    else if (current.frames?.length) {
-      const frame = current.frames[Math.floor(random() * current.frames.length)]
-      drawBrushDab(preview, point, brush, frame, random, current.step++)
-    } else drawBrushDab(preview, point, brush, image, random, current.step++)
-  }
-
-  function renderMovingSpray(current, now) {
-    clearPreview()
-    for (const particle of current.particles) {
-      const age = Math.max(0, now - particle.start)
-      const index = Math.floor(age / 65) % current.frames.length
-      const fadeMotion = Math.min(1, age / 420)
-      const point = { x: particle.point.x, y: particle.point.y - fadeMotion * 7 }
-      drawBrushDab(preview, point, current.options, current.frames[index], makeRandom(particle.seed), index)
-    }
+    else drawBrushDab(preview, point, brush, image, random, current.step++)
   }
 
   function sprayWhileHeld(current) {
     let lastDab = performance.now()
-    let lastFrame = 0
     function tick(now) {
       if (gesture !== current) return
       if (now - (current.nativeShapes ? current.lastNativeShapeAt ?? lastDab : lastDab) >= (current.nativeShapes ? 100 : 130)) {
         drawDab(current, current.end)
         lastDab = now
-        if (!current.particles) render()
-      }
-      if (current.particles && now - lastFrame >= 45) {
-        renderMovingSpray(current, now)
         render()
-        lastFrame = now
       }
       requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
-  }
-
-  function settleMovingSpray(current) {
-    const base = makeSurface(width, height)
-    base.drawImage(art.canvas, 0, 0)
-    const finishAt = performance.now() + 320
-    renderMovingSpray(current, finishAt)
-    commitPreview(current)
-    const animation = { ...current, base }
-    settlingSpray = animation
-    let lastFrame = 0
-    function tick(now) {
-      if (settlingSpray !== animation) return
-      if (now >= finishAt) {
-        settlingSpray = null
-        clearPreview()
-        render()
-        return
-      }
-      if (now - lastFrame >= 45) {
-        renderMovingSpray(current, now)
-        render()
-        lastFrame = now
-      }
-      requestAnimationFrame(tick)
-    }
-    tick(performance.now())
   }
 
   function strokeTo(current, end) {
@@ -785,19 +751,16 @@ export function createPaint(canvas, hooks = {}) {
 
   function handleDown(event) {
     if (event.button !== 0 || gesture) return
-    if (settlingSpray) {
-      settlingSpray = null
-      clearPreview()
-      render()
-    }
     const point = pointFor(event)
     const brush = activeOptions(event)
     const { tool, variant } = brush
     if (tool === 'none') return
-    const nativeShapes = tool === 'spray' && !['moving', 'moving-spray'].includes(brush.mode)
-      ? nativeSprayAssets.peek('spray', 24000 + 100 * ((brush.effectIndex ?? 0) % 15)) : null
-    if (tool === 'spray' && !['moving', 'moving-spray'].includes(brush.mode) && !nativeShapes) {
-      hooks.onError?.(new Error('Loading the original spray shapes. Try again in a moment.'))
+    const moving = ['moving', 'moving-spray'].includes(brush.mode)
+    const sprayBundle = tool === 'spray'
+      ? nativeSprayAssets.peek(moving ? 'moving-spray' : 'spray', 24000 + 100 * ((brush.effectIndex ?? 0) % (moving ? 20 : 15))) : null
+    const nativeShapes = !moving ? sprayBundle : null
+    if (tool === 'spray' && !sprayBundle) {
+      hooks.onError?.(new Error(`Loading the original ${moving ? 'moving paints' : 'spray shapes'}. Try again in a moment.`))
       return
     }
     if (tool === 'sound' && brush.mode === 'hands-free') return
@@ -856,7 +819,10 @@ export function createPaint(canvas, hooks = {}) {
     clearPreview()
     const common = { start: point, end: point, options: brush, pointerId: event.pointerId, image, dab, nativeShapes }
 
-    if (tool === 'sound') {
+    if (tool === 'spray' && moving) {
+      gesture = { ...common, type: 'native-moving', before: snapshot(), remembered: false }
+      movingPaint.begin(point, sprayBundle)
+    } else if (tool === 'sound') {
       gesture = { ...common, type: 'sound', random: makeRandom(Math.round(performance.now())), step: 0 }
       respondToSound()
     } else if (tool === 'bucket') {
@@ -896,14 +862,9 @@ export function createPaint(canvas, hooks = {}) {
       const random = makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))
       gesture = { ...common, type: 'stroke', last: point, remainder: 0, random, step: 0 }
       if (tool === 'spray') {
-        if (!nativeShapes) {
-          gesture.frames = sprayFrames(brush).map(cachedAsset).filter(Boolean)
-          if (gesture.frames.length && ['moving', 'moving-spray'].includes(brush.mode)) gesture.particles = []
-        }
         sprayWhileHeld(gesture)
       }
       drawDab(gesture, point)
-      if (gesture.particles) renderMovingSpray(gesture, performance.now())
     }
     render()
   }
@@ -935,7 +896,9 @@ export function createPaint(canvas, hooks = {}) {
     const current = gesture
     paintAudio.move(current.end, point)
     current.end = point
-    if (current.type === 'shape') {
+    if (current.type === 'native-moving') {
+      movingPaint.move(point)
+    } else if (current.type === 'shape') {
       current.end = constrain(current.start, point, current.shape, event.shiftKey)
       drawShape(current, current.end)
     } else if (current.type === 'fill') {
@@ -966,7 +929,6 @@ export function createPaint(canvas, hooks = {}) {
       const events = event.getCoalescedEvents?.()
       if (events?.length) events.forEach(entry => strokeTo(current, pointFor(entry)))
       else strokeTo(current, point)
-      if (current.particles) renderMovingSpray(current, performance.now())
     }
     render()
   }
@@ -977,7 +939,9 @@ export function createPaint(canvas, hooks = {}) {
     handleMove(event)
     gesture = null
     paintAudio.stop(true)
-    if (current.type === 'select') {
+    if (current.type === 'native-moving') {
+      finishMovingStroke(current)
+    } else if (current.type === 'select') {
       const bounds = selectionBounds(current.selection)
       if (bounds.width > 2 && bounds.height > 2) selection = current.selection
       render()
@@ -990,8 +954,6 @@ export function createPaint(canvas, hooks = {}) {
     } else if (current.type === 'shape' && current.shape === 'curve' && distance(current.start, current.end) > 1) {
       pendingShape = { ...current, type: 'curve' }
       render()
-    } else if (current.particles) {
-      settleMovingSpray(current)
     } else if (current.type !== 'sound' || current.step) {
       commitPreview(current)
     } else {
@@ -1047,7 +1009,7 @@ export function createPaint(canvas, hooks = {}) {
       version: 1,
       width,
       height,
-      art: art.canvas.toDataURL(),
+      art: visibleInk().canvas.toDataURL(),
       background: background?.url || null,
       foreground: foreground?.url || null,
       paper: paper?.url || null,
@@ -1079,7 +1041,8 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function setOptions(next) {
-    const changed = ['tool', 'variant', 'mode'].some(key => key in next && next[key] !== options[key])
+    const changed = ['tool', 'variant', 'mode'].some(key => key in next && next[key] !== options[key]) ||
+      movingPaint.active && 'effectIndex' in next && next.effectIndex !== options.effectIndex
     if (changed) {
       finishSound()
       cancel()
@@ -1095,15 +1058,15 @@ export function createPaint(canvas, hooks = {}) {
     if (options.tool === 'sound' && 'level' in next) respondToSound()
     if (Object.keys(next).every(key => key === 'level' || key === 'pitch')) return
     const brush = activeOptions({})
-    if (brush.tool === 'spray' && !['moving', 'moving-spray'].includes(brush.mode)) {
-      const id = 24000 + 100 * ((brush.effectIndex ?? 0) % 15)
-      if (shapeBankId !== id) { shapeBankId = id; nextNativeShape = null }
-      return nativeSprayAssets.load('spray', id)
+    if (brush.tool === 'spray') {
+      const moving = ['moving', 'moving-spray'].includes(brush.mode)
+      const id = 24000 + 100 * ((brush.effectIndex ?? 0) % (moving ? 20 : 15))
+      if (moving) { shapeBankId = null; nextNativeShape = null }
+      else if (shapeBankId !== id) { shapeBankId = id; nextNativeShape = null }
+      return nativeSprayAssets.load(moving ? 'moving-spray' : 'spray', id)
     }
     if (brush.tool !== 'eyedropper') { shapeBankId = null; nextNativeShape = null }
     const asset = brushAsset(brush)
-    const frames = sprayFrames(brush)
-    if (frames.length) frames.forEach(frame => loadAsset(frame).catch(() => {}))
     if (options.variant === 'cookie-cutter' && originalTools && !cutoutRequest) {
       cutoutRequest = fetch(`${originalTools}cutouts/regions.json`).then(response => {
         if (!response.ok) throw new Error('Cutout shapes unavailable')

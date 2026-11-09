@@ -3,9 +3,8 @@ import base from './playwright.config.js';
 
 export default defineConfig({
   ...base,
-  // Module-isolated experiments are exercised in dev; this suite covers the
-  // shipped entry points and catches asset URLs resolved from built CSS.
-  testMatch: ['parity.spec.js', 'fidelity.spec.js', 'stamp-editor.spec.js', 'button-rollovers.spec.js', 'spray.spec.js'],
+  // Exercise shipped entry points, including URLs resolved from built CSS.
+  testMatch: ['parity.spec.js', 'fidelity.spec.js', 'stamp-editor.spec.js', 'button-rollovers.spec.js', 'spray.spec.js', 'moving-spray.spec.js', 'brush.spec.js'],
   outputDir: 'artifacts/browser-build',
   reporter: [['list']],
   use: { ...base.use, baseURL: 'http://127.0.0.1:4175' },

@@ -64,8 +64,8 @@ The [setup guide](https://rea.tools/get-started/) documents the registration wor
 
 ## Next focused investigations
 
-1. Use the same script decoder on button hover/press routines and paper-canister routines. Preserve the extracted event order and the source interval command, then test interruption and pointer transitions in the browser.
-2. Follow native `MBTN` state-script references through `RButton::LoadFromCDATA`/`RButton::Draw` to distinguish idle, hover, selected, pressed and disabled behavior. Sprite numbering alone does not establish those semantics.
+1. Extend the [button rollover work](button-animation.md) to unsupported compound scripts and paper-canister routines. Preserve the extracted event order and source intervals, then test interruption and pointer transitions in the browser.
+2. Follow dynamic replacements of native `MBTN` state-script slots to resolve remaining selected/pressed behavior. Ordinary rollover dispatch and its repeat/cancellation flags are established; sprite numbering alone does not establish the remaining mappings.
 3. Map the original `General.MHK` cursor IDs to tool constructors, retaining cursor hotspots. Disassembly currently shows cursor ID 10017 at calls `0x00117e50` and `0x00134cac` through virtual method offset `+0x98`; those two call sites alone do not identify every tool-to-cursor mapping.
 4. Use a decompiler for brush stepping, mixer formulas, animation interrupt rules and path interpolation when resource scripts and configuration no longer answer the question. Retain raw addresses and byte evidence alongside any renamed pseudocode.
 5. Eventually compare against a running original. Static analysis establishes rules and constants; native recordings are still needed to validate event-loop delays, sound onset, animation cancellation, cursor feel and platform rendering.

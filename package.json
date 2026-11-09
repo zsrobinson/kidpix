@@ -1,6 +1,6 @@
 {
   "name": "kid-pix-3d-web",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,7 +25,8 @@
     "test:import": "PYTHONPATH=scripts python3 -m unittest discover -s scripts -p \"test_*.py\"",
     "test:browser:build": "playwright test -c playwright.build.config.js",
     "import:ui": "python3 scripts/import-ui.py",
-    "import:tools": "python3 scripts/import-original.py --paint-tools --tools-only"
+    "import:tools": "python3 scripts/import-original.py --paint-tools --tools-only",
+    "test:browser:live": "playwright test -c playwright.production.config.js"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1164.0",

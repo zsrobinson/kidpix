@@ -3,7 +3,9 @@ import { drawNativeSprayFrame, nativeSprayFrameAt, selectNativeSprayClip } from 
 
 function integerPoint(point) {
   if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) throw new RangeError('Moving-paint point must be finite');
-  return { x: Math.trunc(point.x), y: Math.trunc(point.y) };
+  // Browser coordinates can be fractional; floor into native page pixels so
+  // a pointer just outside the left/top edge cannot become an in-bounds -0.
+  return { x: Math.floor(point.x), y: Math.floor(point.y) };
 }
 
 function playSourceSound(cue) {
@@ -36,6 +38,7 @@ export function createNativeMovingPaint({
   schedule = callback => requestAnimationFrame(callback),
   cancel = handle => cancelAnimationFrame(handle),
   random = Math.random,
+  containsPoint = () => true,
   playSound = playSourceSound,
   onFrame = () => {},
   onCommit = () => {},
@@ -119,12 +122,14 @@ export function createNativeMovingPaint({
   }
 
   function emit(point, bundle, time) {
+    const position = integerPoint(point);
+    if (!containsPoint(position)) return null;
     const clipId = selectNativeSprayClip(bundle.bank, random);
     const clip = bundle.clips[clipId];
     if (!clip?.frames?.length || !Number.isFinite(clip.minimumCompletionMs)) {
       throw new Error('Native moving-paint clip is missing source timing');
     }
-    const actor = { id: nextId++, bundle, clip, point: integerPoint(point), startedAt: time,
+    const actor = { id: nextId++, bundle, clip, point: position, startedAt: time,
       audio: new Map(), soundCursor: 0, frame: null, removed: false };
     actors.push(actor);
     updateActor(actor, time);
@@ -135,11 +140,11 @@ export function createNativeMovingPaint({
     const time = now();
     let changed = false;
     if (held && time >= held.nextEmission) {
-      emit(held.point, held.bundle, time);
+      const emitted = emit(held.point, held.bundle, time);
       // Native timers deliver current events. Do not invent a burst of old
       // particles at one pointer position after a delayed browser callback.
       held.nextEmission = time + 150;
-      changed = true;
+      changed = Boolean(emitted);
     }
     for (const actor of [...actors]) {
       if (actor.removed) continue;

@@ -35,6 +35,7 @@ test.afterEach(async ({ page }) => {
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 const ink = page => page.locator('#paper-canvas').evaluate(canvas => canvas.toDataURL());
 const swatch = page => page.locator('#color-chip').evaluate(canvas => canvas.toDataURL());
+const uiSource = (page, file) => new URL(`original/ui/${file}${page.uiQuery}`, page.url()).href;
 const pixel = (page, x, y) => page.locator('#paper-canvas').evaluate((canvas, point) => [...canvas.getContext('2d').getImageData(point.x, point.y, 1, 1).data], { x, y });
 
 async function pointOnPage(page, x, y) {
@@ -99,10 +100,10 @@ test('native selection artwork follows the selected tool, size and paint effect'
   const painting = button(page, 'Painting Tools');
   const drawImage = page.locator('#native-buttons [data-native-part="draw"]');
   const paintImage = page.locator('#native-buttons [data-native-part="paint"]');
-  await expect(drawImage).toHaveAttribute('src', `/original/ui/${page.nativeUi.buttons.draw.images[3]}${page.uiQuery}`);
+  await expect(drawImage).toHaveJSProperty('src', uiSource(page, page.nativeUi.buttons.draw.images[3]));
   await drawing.hover();
   await page.mouse.move(1023, 767);
-  await expect(drawImage).toHaveAttribute('src', `/original/ui/${page.nativeUi.buttons.draw.images[3]}${page.uiQuery}`);
+  await expect(drawImage).toHaveJSProperty('src', uiSource(page, page.nativeUi.buttons.draw.images[3]));
 
   await button(page, 'Straight Line').click();
   await button(page, 'Small').click();
@@ -123,16 +124,16 @@ test('native selection artwork follows the selected tool, size and paint effect'
 
   await painting.click();
   await page.mouse.move(1023, 767);
-  await expect(paintImage).toHaveAttribute('src', `/original/ui/${page.nativeUi.buttons.paint.images[3]}${page.uiQuery}`);
-  await expect(drawImage).toHaveAttribute('src', `/original/ui/${page.nativeUi.buttons.draw.images[0]}${page.uiQuery}`);
+  await expect(paintImage).toHaveJSProperty('src', uiSource(page, page.nativeUi.buttons.paint.images[3]));
+  await expect(drawImage).toHaveJSProperty('src', uiSource(page, page.nativeUi.buttons.draw.images[0]));
   await button(page, 'Air Brush').click();
   await button(page, 'Large').click();
   await page.mouse.move(1023, 767);
   await expect(page.locator('#tray-buttons .native-option[aria-pressed="true"]')).toHaveCount(1);
   await expect(button(page, 'Air Brush')).toHaveAttribute('aria-pressed', 'true');
   await expect(button(page, 'Oil Paint')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('#tray-buttons [data-native-part="size-large"]')).toHaveAttribute('src', `/original/ui/${page.nativeUi.drawingOptions['size-large'].images[2]}${page.uiQuery}`);
-  await expect(page.locator('#tray-buttons [data-native-part="size-medium"]')).toHaveAttribute('src', `/original/ui/${page.nativeUi.drawingOptions['size-medium'].images[0]}${page.uiQuery}`);
+  await expect(page.locator('#tray-buttons [data-native-part="size-large"]')).toHaveJSProperty('src', uiSource(page, page.nativeUi.drawingOptions['size-large'].images[2]));
+  await expect(page.locator('#tray-buttons [data-native-part="size-medium"]')).toHaveJSProperty('src', uiSource(page, page.nativeUi.drawingOptions['size-medium'].images[0]));
 
   // The selected effect must not leave a second, baked-in red frame around
   // the first thumbnail. Check its opaque border against the recovered frame.

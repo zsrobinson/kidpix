@@ -27,7 +27,9 @@ export function nativeCursor(manifest, id, fallback = 'crosshair') {
   const cursor = manifest?.cursors?.items[String(id)];
   const frame = cursor?.frames[manifest.cursors.preferredFrame ?? 0];
   if (!frame || frame.width > 128 || frame.height > 128 || frame.greenPixels) return fallback;
-  return `url("${source(frame.image)}") ${cursor.hotspot.join(' ')}, ${fallback}`;
+  // CSS variables resolve relative URLs at the consuming stylesheet's URL.
+  // Built styles live under assets/, so resolve against the page explicitly.
+  return `url("${new URL(source(frame.image), document.baseURI).href}") ${cursor.hotspot.join(' ')}, ${fallback}`;
 }
 
 function bindSprite(control, image, part, selectedFrame, disabledFrame) {

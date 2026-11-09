@@ -17,6 +17,8 @@ On a headless Ubuntu machine, install the browser's system dependencies with `np
 
 The suite starts its own Vite server on `127.0.0.1:4174` and stops it afterward. It refuses to reuse a server on that port. It uses real imported media without contacting production, and does not copy the media library into a build. Missing local assets produce an import instruction. Run `npm run verify:assets` if the import appears incomplete.
 
+Before publishing, also run `npm run test:browser:build`. It builds the actual Cloudflare bundle and serves it on `127.0.0.1:4175`, with original media streamed separately from the local import. This catches differences between development and built URLs, including cursor URLs consumed by stylesheets under `assets/`. It does not copy the media library into the build. Results stay under `artifacts/browser-build/` and do not replace the comparison report.
+
 `npm run test:browser:headed` shows the browser as it runs. Failure screenshots, downloads and Playwright traces are in `artifacts/browser/`. Open a failure trace with `npx playwright show-trace /path/to/trace.zip`. `artifacts/parity/results.json` records the revision, uncommitted-change flag, browser/OS environment, successful captures, comparison errors and pixel counts. Filter a test with `npm run test:browser -- --grep pencil-line`; a filtered run produces a partial report and cannot be accepted as a complete baseline.
 
 The browser suite covers:

@@ -1,6 +1,6 @@
 {
   "name": "kid-pix-3d-web",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
     "verify:assets": "node scripts/verify-assets.mjs",
     "prebuild": "npm run verify:assets",
     "build:cloudflare": "vite build --mode cloudflare",
-    "test": "node --test worker/*.test.js scripts/sync-media.test.mjs scripts/parity/*.test.mjs",
+    "test": "node --test worker/*.test.js scripts/sync-media.test.mjs scripts/parity/*.test.mjs scripts/serve-browser-build.test.mjs",
     "check": "npm test && npm run build:cloudflare && wrangler deploy --dry-run",
     "deploy": "npm run build:cloudflare && wrangler deploy",
     "deploy:dry-run": "npm run build:cloudflare && wrangler deploy --dry-run",
@@ -22,7 +22,8 @@
     "parity": "playwright test",
     "parity:reference": "node scripts/parity/manage.mjs reference",
     "parity:baseline": "node scripts/parity/manage.mjs baseline",
-    "test:import": "PYTHONPATH=scripts python3 -m unittest discover -s scripts -p \"test_*.py\""
+    "test:import": "PYTHONPATH=scripts python3 -m unittest discover -s scripts -p \"test_*.py\"",
+    "test:browser:build": "playwright test -c playwright.build.config.js"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1164.0",

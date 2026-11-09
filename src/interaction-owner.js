@@ -5,19 +5,28 @@ const owners = new WeakMap();
 export function interactionOwner(document = globalThis.document) {
   if (owners.has(document)) return owners.get(document);
   let active = null;
+  // Browser dblclick is a MouseEvent, even after PointerEvent clicks. Retain
+  // the physical sequence's disposition when that activation has no identity.
+  let lastPhysicalClickRejected = false;
   const rejected = new Map();
   const window = document.defaultView;
   const block = event => { event.preventDefault(); event.stopImmediatePropagation(); };
   function guard(event) {
     const id = event.pointerId;
+    if (event.type === 'dblclick' && event.detail > 0 && lastPhysicalClickRejected) { block(event); return; }
+    if (event.type === 'click' && event.detail > 0) {
+      lastPhysicalClickRejected = rejected.has(id)
+        || Boolean(event.pointerType === 'touch' && active && id !== active.pointerId);
+    }
     if (event.type === 'pointerdown') {
       // Pointer IDs can be reused, but never rehabilitate a still-held contact.
-      if (rejected.get(id)?.down) { block(event); return; }
+      if (rejected.get(id)?.down) { lastPhysicalClickRejected = true; block(event); return; }
       rejected.delete(id);
       if (active && id !== active.pointerId) {
         rejected.set(id, { down: true });
+        lastPhysicalClickRejected = true;
         block(event);
-      }
+      } else lastPhysicalClickRejected = false;
       return;
     }
     if (rejected.has(id)) {

@@ -202,3 +202,55 @@ test('paint → scene drag → paint maintains complete shared undo/redo checkpo
   for(let i=0;i<4;i++) await page.keyboard.press('ControlOrMeta+Shift+z');
   expect(await ink()).toBe(last);expect(await left()).toBe(moved);
 });
+
+for (const options of [
+  {tool:'pencil',variant:'polygon'}, {tool:'scissors',variant:'polygon'},
+  {tool:'select',variant:'cookie-cutter'}, {tool:'mixer',variant:'mega',mode:'mega'},
+]) test(`${options.tool}/${options.variant} releases a contact without a retained gesture @module`, async ({ page }) => {
+  await harness(page);
+  const results = await page.evaluate(async options => {
+    const {createPaint} = await import('/src/paint.js');
+    const {interactionOwner} = await import('/src/interaction-owner.js');
+    const owner = interactionOwner();
+    const independent = document.createElement('div');
+    const results = [];
+    for (const termination of ['pointerup','pointercancel','lostpointercapture','blur','pagehide','hidden','destroy']) {
+      const canvas = document.createElement('canvas'); canvas.width=720; canvas.height=542; document.body.append(canvas);
+      const api = createPaint(canvas,{originalTools:'',soundEffects:false}); api.setOptions(options);
+      emit(canvas,'pointerdown',17);
+      if (termination === 'destroy') api.destroy();
+      else if (termination.startsWith('pointer') || termination === 'lostpointercapture') emit(canvas,termination,17);
+      else inactive(termination);
+      const released = owner.claim({pointerId:99,pointerType:'touch'},independent);
+      if (released) owner.release(independent,99);
+      if (termination !== 'destroy') {
+        api.setOptions({tool:'pencil',variant:'freehand',size:8});
+        emit(canvas,'pointerdown',1,100,100,'mouse'); emit(canvas,'pointermove',1,140,100,'mouse'); emit(canvas,'pointerup',1,140,100,'mouse');
+        results.push({termination,released,mouseWorks:api.canUndo}); api.destroy();
+      } else results.push({termination,released,mouseWorks:true});
+      canvas.remove();
+    }
+    return results;
+  }, options);
+  expect(results.every(result=>result.released && result.mouseWorks),JSON.stringify(results)).toBe(true);
+});
+
+test('browser double-tap from a rejected contact stays blocked after owner release @module', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('[data-action="tray:stickers"]').evaluate(button=>button.click());
+  const tile = page.locator('#library-tray [data-asset]').first();
+  await expect(tile).toBeVisible();
+  await page.evaluate(async () => {
+    const {interactionOwner} = await import('/src/interaction-owner.js');
+    interactionOwner().claim({pointerId:17,pointerType:'pen'},document.querySelector('#paper-canvas'));
+  });
+  const bounds=await tile.boundingBox(),cdp=await page.context().newCDPSession(page);
+  const tap=()=>cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2,id:3}]});
+  await tap();await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await tap();
+  await page.evaluate(async()=>{const{interactionOwner}=await import('/src/interaction-owner.js');interactionOwner().release(document.querySelector('#paper-canvas'),17);});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await expect(page.locator('.scene-object')).toHaveCount(0);
+  await tile.dblclick();await expect(page.locator('.scene-object')).toHaveCount(1);
+  await tile.evaluate(button=>button.click());await expect(page.locator('.scene-object')).toHaveCount(2);
+});

@@ -164,6 +164,14 @@ export function createPaint(canvas, hooks = {}) {
   let paper = null
   const inputOwner = interactionOwner(canvas.ownerDocument)
   let gesture = null
+  // A held contact can create a discrete action or pending polygon vertex
+  // without a retained drawing gesture. It still needs a terminal lifecycle.
+  let contact = null
+  function releaseContact() {
+    const pointer = contact
+    contact = null
+    if (pointer !== null) inputOwner.release(canvas, pointer)
+  }
   let soundStroke = null
   let cutoutRegions = null
   let cutoutRequest = null
@@ -253,7 +261,7 @@ export function createPaint(canvas, hooks = {}) {
       selection = gesture.original
     }
     gesture = null
-    if (current) inputOwner.release(canvas, current.pointerId)
+    releaseContact()
     // Native media writes into the picture as it paints. Preserve delivered
     // dabs when interrupted, with one undo checkpoint before tool cleanup.
     if (current?.nativeTracking && current.type === 'stroke') commitPreview(current)
@@ -909,6 +917,7 @@ export function createPaint(canvas, hooks = {}) {
     }
 
     if (!inputOwner.claim(event, canvas)) return
+    contact = event.pointerId
     event.preventDefault()
     canvas.setPointerCapture(event.pointerId)
     paintAudio.start(brush)
@@ -1037,13 +1046,17 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function handleUp(event) {
-    if (!gesture || gesture.pointerId !== event.pointerId) return
+    if (!gesture) {
+      if (contact === event.pointerId) { releaseContact(); paintAudio.stop(true) }
+      return
+    }
+    if (gesture.pointerId !== event.pointerId) return
     const current = gesture
     stopNativeBrushPolling(current)
     if (current.nativeTracking) current.nativeTracking.end()
     else handleMove(event)
     gesture = null
-    inputOwner.release(canvas, current.pointerId)
+    releaseContact()
     paintAudio.stop(true)
     if (current.type === 'native-moving') {
       finishMovingStroke(current)
@@ -1204,10 +1217,10 @@ export function createPaint(canvas, hooks = {}) {
   canvas.addEventListener('pointermove', handleMove, listenerOptions)
   canvas.addEventListener('pointerup', handleUp, listenerOptions)
   canvas.addEventListener('pointercancel', event => {
-    if (gesture?.pointerId === event.pointerId) cancel()
+    if (contact === event.pointerId) cancel()
   }, listenerOptions)
   canvas.addEventListener('lostpointercapture', event => {
-    if (gesture?.pointerId === event.pointerId) cancel()
+    if (contact === event.pointerId) cancel()
   }, listenerOptions)
   onInteractionInactive(canvas, cancel, listeners.signal)
   render()

@@ -35,6 +35,7 @@ export function createScene(root, surface, onChange) {
   const listeners = new AbortController();
   const inputOptions = { signal: listeners.signal };
   let pathPointer = null;
+  let pathTarget = null;
   let objects = [];
   let selected = null;
   let clipboard = null;
@@ -192,6 +193,7 @@ export function createScene(root, surface, onChange) {
   function cancelPath() {
     const pointer = pathPointer;
     pathPointer = null;
+    pathTarget = null;
     path = null;
     if (pointer !== null) inputOwner.release(surface, pointer);
     mode = 'grab';
@@ -324,12 +326,14 @@ export function createScene(root, surface, onChange) {
     pathStart(event) {
       if (event.button !== 0 || path || mode !== 'path' || !current() || !inputOwner.claim(event, surface)) return false;
       pathPointer = event.pointerId;
+      pathTarget = current();
       pathStarted = event.timeStamp;
       path = [coordinates(event)];
       return true;
     },
     pathMove(event) {
       if (!path || event.pointerId !== pathPointer) return false;
+      if (current() !== pathTarget) { cancelPath(); return false; }
       const point = coordinates(event);
       const last = path.at(-1);
       if (Math.hypot(last.x - point.x, last.y - point.y) > 5) path.push(point);
@@ -337,9 +341,10 @@ export function createScene(root, surface, onChange) {
     },
     pathEnd(event) {
       if (!path || event.pointerId !== pathPointer) return false;
+      const object = current();
+      if (object !== pathTarget) { cancelPath(); return false; }
       const prior = snapshot();
       path.push(coordinates(event));
-      const object = current();
       const moved = path.some(point => Math.hypot(point.x - path[0].x, point.y - path[0].y) > 5);
       if (moved) {
         object.path = path;

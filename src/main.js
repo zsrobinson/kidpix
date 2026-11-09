@@ -262,6 +262,7 @@ const paint = createPaint(canvas, {
 });
 
 function history(direction, fromFace = false) {
+  cancelRecordedPathInput();
   if (!fromFace) undoFaceRedo = false;
   // A held moving-paint stroke becomes a history entry during cleanup. Finish
   // it before selecting the unified entry so the two history stacks agree.
@@ -1185,6 +1186,7 @@ function playSlides() {
 }
 
 function doEdit(command) {
+  if (['cut', 'delete', 'paste'].includes(command)) cancelRecordedPathInput();
   if (state.tray === 'grab' && state.tools.grab === 'scissors') {
     if (['cut', 'copy', 'paste'].includes(command)) paint[command]();
   } else scene.edit(command);
@@ -1561,6 +1563,7 @@ document.addEventListener('keydown', event => {
   } else if (state.tray === 'grab' && scene.hasSelection()) {
     if (['Delete', 'Backspace'].includes(event.key)) {
       event.preventDefault();
+      cancelRecordedPathInput();
       scene.edit('delete');
     }
     const shift = event.shiftKey ? 10 : 1;

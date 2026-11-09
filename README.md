@@ -52,7 +52,7 @@ To populate or update R2, first run `npm run verify:assets` and `npm run media:p
 
 For the first deployment, create the `kidpix-media` bucket, sync the media, and run `npm run deploy` with an authenticated Wrangler session. The custom domain, R2 binding, compatibility date, and observability settings live in `wrangler.jsonc`.
 
-Connect the repository to [Cloudflare Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) with these settings:
+[Cloudflare Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) connects the repository with these settings:
 
 - Production branch: `main`; root directory: `/`.
 - Build command: `npm test && npm run build:cloudflare`.
@@ -60,7 +60,9 @@ Connect the repository to [Cloudflare Workers Builds](https://developers.cloudfl
 - Node.js: 24, matching `.node-version`.
 - Non-production branch deployments: disabled until an isolated preview configuration is added.
 
-GitHub Actions runs `npm run check` for pushes to `main` and pull requests. Cloudflare Workers Builds handles production deployments after the repository connection is configured; GitHub Actions does not need Cloudflare credentials. Build and deploy credentials are separate from the bucket-scoped key used for local media uploads. A fresh GitHub checkout never needs the trial installer or media library.
+GitHub Actions runs `npm run check` for pushes to `main` and pull requests. Cloudflare Workers Builds handles production deployments from `main`; GitHub Actions does not need Cloudflare credentials. Build and deploy credentials are separate from the bucket-scoped key used for local media uploads. A fresh GitHub checkout never needs the trial installer or media library.
+
+The application receives only its static-assets and R2 bindings, with no Cloudflare API credentials in the browser or Worker environment. Keep R2 public access disabled: the Worker exposes the imported library through read-only routes. Saved pictures, imported personal media, and recordings stay in the browser or downloaded project files; this deployment has no upload endpoint.
 
 After deployment, check `/`, `/original/catalog.json`, a library thumbnail, and a movie byte-range request. Missing media must return 404, and media writes must return 405. Smoke-test drawing, media placement, save/reopen, PNG/stereo export, video seeking, and camera/microphone recording over HTTPS. Media cache lifetimes are one hour, with five minutes for JSON manifests; allow those periods or purge caches when replacing existing files. Worker rollbacks do not roll back R2 objects.
 

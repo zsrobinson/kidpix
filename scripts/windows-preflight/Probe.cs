@@ -34,6 +34,8 @@ class Probe {
  [DllImport("user32.dll")] static extern IntPtr GetProcessWindowStation();
  [DllImport("user32.dll")] static extern IntPtr GetThreadDesktop(uint id);
  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+ [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
+ [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(IntPtr process,uint access,out IntPtr token);
  [DllImport("user32.dll", SetLastError=true)] static extern IntPtr OpenInputDesktop(uint f, bool inherit, uint access);
  [DllImport("user32.dll")] static extern bool CloseDesktop(IntPtr h);
  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern bool GetUserObjectInformation(IntPtr h,int i,StringBuilder b,int n,out int needed);
@@ -63,9 +65,11 @@ class Probe {
  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
  [DllImport("userenv.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool DeleteProfile(string sid,string path,string computer);
  static string Name(IntPtr h) { var b=new StringBuilder(256); int n; return GetUserObjectInformation(h,2,b,512,out n)? b.ToString():"unavailable"; }
- static int TokenInt(IntPtr t,int cls) { IntPtr b=Marshal.AllocHGlobal(16); try { int n; if(!GetTokenInformation(t,cls,b,16,out n)) throw new System.ComponentModel.Win32Exception(); return Marshal.ReadInt32(b); } finally { Marshal.FreeHGlobal(b); } }
+ static int TokenInt(IntPtr t,int cls) { IntPtr b=Marshal.AllocHGlobal(16); try { int n; if(!GetTokenInformation(t,cls,b,16,out n)) { int code=Marshal.GetLastWin32Error(); report["failedTokenQueryClass"]=cls; report["failedTokenQueryError"]=code; throw new System.ComponentModel.Win32Exception(code); } return Marshal.ReadInt32(b); } finally { Marshal.FreeHGlobal(b); } }
  static bool Identity() {
-  var id=WindowsIdentity.GetCurrent(); var t=id.Token;
+  using(var id=WindowsIdentity.GetCurrent()) {
+  IntPtr t; if(!OpenProcessToken(GetCurrentProcess(),8,out t)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+  try {
   report["identity"]=id.Name; report["sid"]=id.User.Value; report["clr"]=Environment.Version.ToString(); report["pointerBits"]=IntPtr.Size*8;
   report["session"]=Process.GetCurrentProcess().SessionId; report["activeConsoleSession"]=WTSGetActiveConsoleSessionId();
   int type=TokenInt(t,8), elevationType=TokenInt(t,18), elevated=TokenInt(t,20); report["tokenType"]=type; report["elevationType"]=elevationType; report["elevated"]=elevated;
@@ -77,6 +81,8 @@ class Probe {
    for(int i=0;i<count;i++) { IntPtr item=IntPtr.Add(b,offset+i*stride); var sid=new SecurityIdentifier(Marshal.ReadIntPtr(item)); uint attrs=(uint)Marshal.ReadInt32(item,IntPtr.Size); string name; try { name=sid.Translate(typeof(NTAccount)).Value; } catch { name=sid.Value; } groups.Add(new {sid=sid.Value,name=name,attributes=attrs}); if(sid.Value=="S-1-5-32-544") admin=true; if(sid.Value=="S-1-5-32-545" && (attrs&4)!=0) users=true; }
   } finally { Marshal.FreeHGlobal(b); }
   report["groups"]=groups; bool standard=!admin&&users&&elevated==0&&elevationType!=2&&integrity=="S-1-16-8192"; report["verifiedStandardUser"]=standard; return standard;
+  } finally { CloseHandle(t); }
+  }
  }
  static void Audio() {
   uint n=waveOutGetNumDevs(); var devices=new List<object>(); for(uint i=0;i<n;i++) { WAVEOUTCAPS c; uint r=waveOutGetDevCaps((UIntPtr)i,out c,(uint)Marshal.SizeOf(typeof(WAVEOUTCAPS))); devices.Add(new {index=i,result=r,name=c.name,channels=c.channels,formats=c.formats}); } report["waveOut"]=devices;
@@ -123,7 +129,7 @@ class Probe {
  [STAThread] static int Main(string[] args) {
   bool child=args.Length==2&&args[0]=="--child"; output=child?args[1]:args[0]; Directory.CreateDirectory(output); SetProcessDPIAware();
   try { bool standard=Identity(); if(child&&!standard) { report["blocker"]="Independent child token is not verified standard medium user"; return 2; } if(!child)Audio(); bool desktop=Desktop(child?"child-window":"parent-window"); report["desktopGate"]=desktop; if(!desktop) {report["blocker"]="Harmless desktop/input/screenshot gate failed";return 2;} if(!child)StandardChild(); return 0; }
-  catch(Exception e) { report["blocker"]=e.GetType().Name+":"+e.HResult; return 2; }
+  catch(Exception e) { report["blocker"]=e.GetType().Name+":"+e.HResult; if(e is System.ComponentModel.Win32Exception) report["nativeErrorCode"]=((System.ComponentModel.Win32Exception)e).NativeErrorCode; return 2; }
   finally { Save(child?"child.json":"parent.json"); }
  }
 }

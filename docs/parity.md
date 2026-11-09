@@ -39,6 +39,8 @@ The browser suite covers:
 - Real Stamp Editor entry, source layout/palette, pixel transformations, edited-stamp persistence/placement, cancellation, keyboard isolation, failed-load retry and prevention of duplicate modals.
 - Text alignment and independent formatting source programs, selection-direction preservation, Grab clipboard/ordering capabilities, target changes before release, disjoint restoration around unbound navigation art, and Stamp boundary arrows/sizes/editor ownership.
 
+Tablet ownership/pressure checks include module fixtures plus built/public studio cases; their scope, WebKit command/Docker route and hardware acceptance boundary are in [tablet-input.md](tablet-input.md).
+
 Browser exceptions, failed asset requests and HTTP errors fail the tests. Captures wait for manifests, library rendering, visible images, backgrounds and fonts. Screenshots use a 1024×768 frame at device scale 1, a fixed locale/timezone and a seeded web random generator. The seed makes our own captures repeatable; it does not reproduce the original's random effects. The first scenarios deliberately use static states.
 
 The cursor and scripted-animation checks require the updated UI import. With the trial mounted, run `python3 scripts/import-ui.py` using the Python environment configured for the original import. `npm run test:import` checks the standalone animation command and cursor decoders; the cursor tests require Pillow. These local import tests are separate from the asset-free Node/Cloudflare checks.

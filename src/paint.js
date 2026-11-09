@@ -168,6 +168,13 @@ export function createPaint(canvas, hooks = {}) {
   // A held contact can create a discrete action or pending polygon vertex
   // without a retained drawing gesture. It still needs a terminal lifecycle.
   let contact = null
+  function claimContact(event) {
+    if (!inputOwner.claim(event, canvas)) return false
+    contact = event.pointerId
+    event.preventDefault()
+    canvas.setPointerCapture(event.pointerId)
+    return true
+  }
   function releaseContact() {
     const pointer = contact
     contact = null
@@ -889,6 +896,7 @@ export function createPaint(canvas, hooks = {}) {
     const image = cachedAsset(brushAsset(brush))
     const dab = originalDab(brush)
 
+    if ((pendingShape?.type === 'curve' || pendingShape?.points) && !claimContact(event)) return
     if (pendingShape?.type === 'curve') {
       const current = pendingShape
       pendingShape = null
@@ -935,10 +943,7 @@ export function createPaint(canvas, hooks = {}) {
       return
     }
 
-    if (!inputOwner.claim(event, canvas)) return
-    contact = event.pointerId
-    event.preventDefault()
-    canvas.setPointerCapture(event.pointerId)
+    if (!claimContact(event)) return
     paintAudio.start(brush)
     clearPreview()
     const common = { start: point, end: point, options: brush, pointerId: event.pointerId, image, dab, nativeShapes }
@@ -1006,6 +1011,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function handleMove(event) {
+    if (contact !== null && event.pointerId !== contact) return
     const point = pointFor(event)
     if (!gesture) {
       if (pendingShape?.type === 'curve') {

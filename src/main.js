@@ -895,6 +895,7 @@ function endPath(event) {
   pathPointer = null;
   const added = event.type === 'pointerup' && scene.pathEnd(event);
   if (event.type !== 'pointerup') scene.cancelPath();
+  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   effects.clearRect(0, 0, canvas.width, canvas.height);
   syncTool();
   showStatus(added ? 'Path added. Press Play Picture to see it move.' : '');
@@ -902,7 +903,7 @@ function endPath(event) {
 canvas.addEventListener('pointerup', endPath, { capture: true });
 canvas.addEventListener('pointercancel', endPath, { capture: true });
 canvas.addEventListener('lostpointercapture', endPath, { capture: true });
-onInteractionInactive(canvas, () => {
+function cancelRecordedPathInput() {
   if (pathPointer === null) return;
   const pointerId = pathPointer;
   if (pointerId === 'pending') {
@@ -911,7 +912,8 @@ onInteractionInactive(canvas, () => {
     effects.clearRect(0, 0, canvas.width, canvas.height);
     syncTool();
   } else endPath({ type: 'pointercancel', pointerId });
-});
+}
+onInteractionInactive(canvas, cancelRecordedPathInput);
 
 function importFile(kind) {
   importKind = kind;
@@ -1521,12 +1523,7 @@ document.addEventListener('keydown', event => {
     $('#menu-items').hidden = true;
     $('#menu-trigger').setAttribute('aria-expanded', 'false');
     state.extendedHelp = false;
-    if (pathPointer !== null) {
-      pathPointer = null;
-      scene.cancelPath();
-      effects.clearRect(0, 0, canvas.width, canvas.height);
-      syncTool();
-    }
+    cancelRecordedPathInput();
     stopSlides();
     if (state.playing) playPicture(false);
     else paint.cancel();

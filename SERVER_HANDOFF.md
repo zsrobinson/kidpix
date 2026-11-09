@@ -189,7 +189,9 @@ checks pass182 cases with6 asset-dependent skips. All17 Ubuntu web captures were
 reviewed and accepted; zero comparison/regression errors, native0/17. Only the
 secondary manifest and clean Stamp PNG changed in media; both were uploaded and
 verified before publication. Evidence and receipts: `artifacts/t3/release-070/`.
-The code is ready for its main push/automatic build; public verification follows.
+Published0.7.0 source is `799cbd8e31e96d89b7419042d98b27e3e386ab70`.
+Cloudflare/GitHub checks succeeded and all226 public browser cases passed.
+The public release is independently verified at version.json.
 
 The user requested iPad/Apple Pencil support and accepted modern Safari as the
 baseline. Isolated, unpushed branches hold the upcoming input work:
@@ -207,8 +209,39 @@ baseline. Isolated, unpushed branches hold the upcoming input work:
   Stamp, input/history, pressure, dev/built/live release checks before publication.
   Branch checkout paths and full evidence remain in ignored tablet artifacts.
 
-WebKit downloaded successfully, but additional Ubuntu libraries are unavailable;
-the private setup card was cancelled. Do not claim WebKit or iPad hardware tested.
-Chromium automation checks pointer behavior and pressure response, not actual
-Pencil delivery, OS palm rejection, latency or subjective feel. Actual iPad
-acceptance remains separate. Original-runtime references are still0/17.
+The initial native WebKit launch was blocked by missing host libraries and its
+private setup card was cancelled. A later actual local Docker connection test
+succeeded; the pinned official Playwright1.65.0 image now runs WebKit27.2 without
+changing host OS packages. All41 WebKit input/editor cases pass, with1 explicit
+Chromium-only delivery skip. See playwright.webkit.config.js and tablet-input.md.
+Actual iPad hardware delivery, OS palm rejection, latency and subjective feel are
+still unverified. Original-runtime references remain0/17.
+
+## Integrated0.8 candidate — current local state
+
+Local main includes the two tablet branches through `ffcd5d8`, atop published
+0.7. Root resolved scene's actionState/destroy conflict and the two paint imports
+by retaining both intents; no history was rewritten. The package is0.8.0 and
+current uncommitted changes finish later polygon/curve contact ownership, foreign
+preview-move rejection and shared recorded-path cleanup for blur/up/Escape.
+All prior review objections are covered by tracked red/green regressions.
+
+Final focused integration passed99 cases. Additional Chromium DPR2 cases passed
+4/4: rendered pen/finger pixels in landscape, portrait and split-sized viewports,
+and resize interruption/recontact. Root check passes191 Node cases/build/dry run;
+assets remain9,751 references with no new media delta. Final full dev277 and built
+236 browser suites passed with zero web drift; use `artifacts/t3/release-080/` and final logs,
+not interrupted earlier attempts. The0.8 candidate is ready for its main push and public verification; preserve
+the unchanged0.7 accepted web baselines.
+
+An isolated Text-stepper implementation completed at965f8b5, following the source
+audit `artifacts/t3/text-controls-next/README.md`. It owns no root source/media and
+starts atffcd5d8, excluding current uncommitted tablet cleanup. Its future merge
+must retain all0.8 paint/path changes, package version, range helpers and tests.
+The planned scope is four font/size arrows with existing browser fonts; no font
+media publication, voice or native popup expansion is authorized by that task.
+
+Native host WebKit libraries remain uninstalled; the verified Docker route is
+available and documented. Actual iPad testing remains pending. Do not request
+another host password in response to automatic completion notices. Native references
+remain0/17 and full original-runtime feel remains unverified.

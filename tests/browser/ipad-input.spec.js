@@ -135,7 +135,8 @@ for (const module of ['native-stamp-editor', 'stamp-editor']) {
         send('pointerdown',31,2,2); inactive(type); const before=c.toDataURL();
         send('pointerdown',32,8+i,8); send('pointerup',32,8+i,8); fresh &&= before!==c.toDataURL();
       }
-      send('pointerdown',41,12,12); dialog.close(); await new Promise(r=>setTimeout(r,0)); await session;
+      const closed = new Promise(resolve => dialog.addEventListener('close', resolve, {once:true}));
+      send('pointerdown',41,12,12); dialog.close(); await closed; await session;
       const {interactionOwner}=await import('/src/interaction-owner.js'); const released=interactionOwner().claim({pointerId:99},source); interactionOwner().release(source,99);
       return {ignored,continued,undone,released,fresh,cancelPolicy,lossKeepsPixels,fillStays};
     }, module);
@@ -258,4 +259,54 @@ test('browser double-tap from a rejected contact stays blocked after owner relea
   await expect(page.locator('.scene-object')).toHaveCount(0);
   await tile.dblclick();await expect(page.locator('.scene-object')).toHaveCount(1);
   await tile.evaluate(button=>button.click());await expect(page.locator('.scene-object')).toHaveCount(2);
+});
+
+for (const termination of ['blur','Escape']) test(`recorded path releases its actual canvas capture on ${termination}`, async ({ page }) => {
+  await page.goto('/'); await expect(page.locator('#paint-chrome')).toHaveClass(/native/);
+  await page.getByRole('button',{name:'Stickers',exact:true}).click();
+  await page.locator('#library-tray [data-asset]').first().dblclick();
+  await page.locator('[data-action="path"]').evaluate(button=>button.click());
+  const canvas=page.locator('#paper-canvas'),box=await canvas.boundingBox();
+  await page.evaluate(()=>window.addEventListener('pointerdown',event=>{window.recordedPathPointer=event.pointerId;},{capture:true,once:true}));
+  await page.mouse.move(box.x+100,box.y+100);await page.mouse.down();await page.mouse.move(box.x+160,box.y+120);
+  expect(await canvas.evaluate(canvas=>canvas.hasPointerCapture(window.recordedPathPointer))).toBe(true);
+  if (termination==='Escape') await page.keyboard.press('Escape');
+  else await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+  expect(await canvas.evaluate(canvas=>canvas.hasPointerCapture(window.recordedPathPointer))).toBe(false);
+  await page.mouse.up();
+});
+
+for (const options of [{tool:'pencil',variant:'polygon'},{tool:'scissors',variant:'polygon'},{tool:'pencil',variant:'curve'}]) {
+ test(`${options.tool}/${options.variant} later contacts retain ownership through release @module`,async({page})=>{
+  await harness(page);
+  const result=await page.evaluate(async options=>{
+   const{createPaint}=await import('/src/paint.js');const canvas=document.createElement('canvas');canvas.width=720;canvas.height=542;document.body.append(canvas);
+   const api=createPaint(canvas,{originalTools:'',soundEffects:false});api.setOptions(options);
+   const button=document.createElement('button');document.body.append(button);let clicks=0;button.onclick=()=>clicks++;
+   emit(canvas,'pointerdown',11,50,50);emit(canvas,'pointermove',11,100,50);emit(canvas,'pointerup',11,100,50);
+   const previews=[];
+   for(const [x,y] of options.variant==='curve'?[[110,100]]:[[110,100],[160,50]]){
+    emit(canvas,'pointerdown',11,x,y);
+    const before=canvas.toDataURL();emit(canvas,'pointermove',33,500,300,'mouse');previews.push(canvas.toDataURL()===before);
+    emit(button,'pointerdown',22,0,0,'touch');emit(canvas,'pointerup',11,x,y);emit(button,'pointerup',22,0,0,'touch');emit(button,'click',22,0,0,'touch');
+   }
+   if(options.variant==='polygon'){emit(canvas,'pointerdown',11,50,50);emit(canvas,'pointerup',11,50,50);}
+   api.setOptions({tool:'pencil',variant:'freehand',size:8});const before=canvas.toDataURL();
+   emit(canvas,'pointerdown',1,250,200,'mouse');emit(canvas,'pointermove',1,300,200,'mouse');emit(canvas,'pointerup',1,300,200,'mouse');
+   const recovered=canvas.toDataURL()!==before;api.destroy();return{clicks,previews,recovered};
+  },options);
+  expect(result).toEqual({clicks:0,previews:options.variant==='curve'?[true]:[true,true],recovered:true});
+ });
+}
+
+test('later polygon pen contact blocks real secondary touch chrome until its release',async({page})=>{
+ await page.goto('/');await expect(page.locator('[data-native-tool-motion="draw"]')).toBeVisible();
+ const style=page.locator('#tray-buttons [data-action="style:polygon"]');await style.evaluate(button=>button.click());await expect(style).toHaveAttribute('aria-pressed','true');
+ const canvas=page.locator('#paper-canvas');await expect(canvas).toHaveAttribute('data-paint-ready','ready');
+ const box=await canvas.boundingBox(),target=page.locator('[data-action="tray:eraser"]'),chrome=await target.boundingBox(),cdp=await page.context().newCDPSession(page);
+ const pen=(type,x)=>cdp.send('Input.dispatchMouseEvent',{type,x:box.x+x,y:box.y+100,button:'left',buttons:type==='mouseReleased'?0:1,clickCount:1,pointerType:'pen',force:type==='mouseReleased'?0:.5});
+ await pen('mousePressed',100);await pen('mouseReleased',100);await pen('mousePressed',150);
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:chrome.x+chrome.width/2,y:chrome.y+chrome.height/2,id:8}]});
+ await pen('mouseReleased',150);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await expect(target).toHaveAttribute('aria-pressed','false');await cdp.detach();
 });

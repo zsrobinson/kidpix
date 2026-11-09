@@ -1,6 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rolloverFrameAtTick, rolloverEndTick, rolloverEndReady } from '../../src/native-rollovers.js';
+import { rolloverFrameAtTick, rolloverEndTick, rolloverEndReady, rolloverCleanupRequired } from '../../src/native-rollovers.js';
+
+test('Firehose word 12 retains its actor on ordinary leave/tracking but forced cleanup wins', () => {
+  const firehose = { rolloverParameters: [1, 294, 0], rolloverCancelsOnLeave: false };
+  assert.equal(rolloverCleanupRequired(firehose), false);
+  assert.equal(rolloverCleanupRequired(firehose, 1), false);
+  assert.equal(rolloverCleanupRequired(firehose, 3), true);
+  assert.equal(rolloverCleanupRequired({ rolloverParameters: [1, 294, 0] }), false);
+  assert.equal(rolloverCleanupRequired({ rawWords: Array(12).fill(0).concat(294) }), false);
+});
+
+test('ordinary Backgrounds policy and old manifests still cancel, independent of word-13 events', () => {
+  assert.equal(rolloverCleanupRequired({ rolloverParameters: [1, 0, 294] }), true);
+  assert.equal(rolloverCleanupRequired({}), true);
+  assert.equal(rolloverCleanupRequired({ rolloverCancelsOnLeave: true, rolloverParameters: [1, 294, 0] }), true);
+});
 
 const clip = { tickMs: 100, endCheckTick: 6, frames: [
   { image: 'first.png', ticks: 1 },

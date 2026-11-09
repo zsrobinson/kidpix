@@ -10,6 +10,8 @@ import { loadNativeUi, nativeButtonParts, nativeCursor, renderNativeDrawing, ren
 import { commandButtons, libraryGroups, optionTitle, place, toolGroups, trayState } from './trays.js';
 import { createNativeAnimation } from './native-animation.js';
 import { attachNativeRollovers } from './native-rollovers.js';
+import { applyNativeControlRegions } from './native-control-regions.js';
+import { createNativePaperPicker } from './native-paper.js';
 
 const app = document.querySelector('#app');
 const state = {
@@ -33,6 +35,7 @@ let objectPlacement = null;
 let pathPointer = null;
 let nativeUi;
 let nativeSprites;
+let nativeRollovers;
 let nativeTrays = {};
 let disconnectTraySprites;
 let libraryManifest;
@@ -41,6 +44,7 @@ const importedAssets = new Map();
 let paperPage = 0;
 let paperOpen = false;
 let selectedPaper = 12300;
+let nativePaperPicker;
 let gradientDefinitions = [];
 let backgroundRequest = 0;
 const undoStack = [];
@@ -155,7 +159,7 @@ function showDialog(heading, message, actions) {
     });
     area.append(control);
   }
-  if (!dialog.open) dialog.showModal();
+  if (!dialog.open) { nativeRollovers?.cancel(); dialog.showModal(); }
 }
 
 function showPicker(heading, items, onChoose) {
@@ -182,7 +186,7 @@ function showPicker(heading, items, onChoose) {
     control.onclick = () => { dialog.close(); Promise.resolve(onChoose(item)).catch(() => showStatus('Could not open that item.')); };
     body.lastElementChild.append(control);
   }
-  if (!dialog.open) dialog.showModal();
+  if (!dialog.open) { nativeRollovers?.cancel(); dialog.showModal(); }
 }
 
 function scaleStudio() {
@@ -221,7 +225,8 @@ const scene = createScene($('#objects'), surface, (before, after) => remember({ 
 const paint = createPaint(canvas, {
   includeForeground: false,
   onBigErase: () => clearPicture(),
-  onChange({ kind }) {
+  onChange({ kind, paperSource }) {
+    syncPaperSelection(paperSource);
     if (!['undo', 'redo', 'reset', 'restore'].includes(kind)) remember({ kind: 'paint' });
     drawForeground();
   },
@@ -308,11 +313,20 @@ function playUiSound(id) {
   uiSound.play().catch(() => {});
 }
 
+function playAnimationSound(id) {
+  const audio = new Audio(original(`ui/easel-${id}.wav`));
+  audio.volume = .65;
+  // The actor owns this handle. Rejection must release its completion slot.
+  audio.play().catch(() => audio.dispatchEvent(new Event('error')));
+  return audio;
+}
+
 function animateUndoGuy() {
   if (!nativeUi || !nativeSprites) return;
   if (undoAnimation && nativeUi.undoAnimations?.clips.length) {
     const { clips } = nativeUi.undoAnimations;
-    const clip = clips[Math.floor(Math.random() * clips.length)];
+    const index = Math.trunc(Math.fround(Math.fround(Math.fround(Math.random()) * (clips.length - 1)) + .5));
+    const clip = clips[index];
     undoAnimation.play(clip, clip.tickMs);
     return;
   }
@@ -564,10 +578,43 @@ function chooseColor(color) {
 }
 
 function openPaper(open) {
+  const wasOpen = paperOpen;
   paperOpen = open;
   const picker = $('#paper-picker');
-  picker.hidden = !open;
-  if (!open) return;
+  const control = $('#hit-layer [data-action="paper"]');
+  control.setAttribute('aria-expanded', String(open));
+  control.setAttribute('aria-controls', 'paper-picker');
+  if (!open) {
+    picker.hidden = true;
+    if (wasOpen || nativePaperPicker?.state !== 'closed') nativePaperPicker?.close();
+    return;
+  }
+  if (nativePaperPicker) {
+    if (wasOpen && !picker.hidden) {
+      renderPaperPicker();
+      return;
+    }
+    paperPage = Math.floor((selectedPaper - 12300) / 7);
+    picker.hidden = true;
+    void nativePaperPicker.open(selectedPaper, () => { if (paperOpen) renderPaperPicker(); });
+  } else renderPaperPicker();
+}
+
+function syncPaperSelection(source) {
+  const match = /\/paper\/(123\d{2})\.png(?:[?#]|$)/.exec(source ?? '');
+  const id = match ? Number(match[1]) : 12300;
+  const next = id >= 12300 && id <= 12320 ? id : 12300;
+  if (next === selectedPaper) return;
+  selectedPaper = next;
+  nativePaperPicker?.setSelected(next);
+  if (paperOpen) openPaper(false);
+}
+
+function renderPaperPicker() {
+  const picker = $('#paper-picker');
+  picker.hidden = false;
+  picker.setAttribute('role', 'group');
+  picker.setAttribute('aria-label', 'Paper textures');
   const page = nativeUi?.paperTextures?.[paperPage];
   if (page) {
     picker.innerHTML = `<img alt="" src="${original(`ui/${page.image}`)}" style="${place(...page.rect)}">`
@@ -956,6 +1003,7 @@ function showSlides() {
 }
 
 function openSlides(open) {
+  if (open) nativeRollovers?.cancel();
   if (state.playing) playPicture(false);
   stopSlides();
   $('#slides').hidden = !open;
@@ -1024,7 +1072,7 @@ function doEdit(command) {
 const commands = {
   undo: () => { animateUndoGuy(); history('undo'); },
   'undo-face': () => { animateUndoGuy(); history(undoFaceRedo ? 'redo' : 'undo', true); },
-  redo: () => history('redo'),
+  redo: () => { animateUndoGuy(); history('redo'); },
   new: () => showDialog('Create a new picture?', 'Save your picture first if you want to keep it.', [['Cancel'], ['New Picture', freshPicture]]),
   quit: () => showDialog('Close this picture?', 'Save your picture first if you want to keep it.', [['Cancel'], ['Close Picture', freshPicture]]),
   save: () => showDialog('Save Picture', 'Save an editable web picture or export an image.', [
@@ -1098,7 +1146,7 @@ const commands = {
   about: () => showDialog('KID PIX 3D', `Version ${__APP_VERSION__}. Paint Zone and Slide Show with artwork and libraries from the Mac trial.`, [['OK']]),
   palette: () => openPalette(true),
   eyedropper: () => { state.pickColor = true; openPalette(false); syncTool(); },
-  paper: () => { playUiSound(1006); openPaper(!paperOpen); },
+  paper: () => { if (!nativePaperPicker) playUiSound(1006); openPaper(!paperOpen); },
   'stamp-edit': () => {
     if (!state.stamp) { showStatus('Choose a stamp to edit.'); return; }
     editStamp(state.stamp, state.color, stamp => {
@@ -1227,9 +1275,8 @@ async function activate(action) {
   } else if (id === 'texture') {
     try {
       const texture = Number(value);
-      await paint.setPaper(texture === 12300 ? null : original(`tools/paper/${texture}.png`));
-      selectedPaper = texture;
-      openPaper(false);
+      const applied = await paint.setPaper(texture === 12300 ? null : original(`tools/paper/${texture}.png`));
+      if (applied) openPaper(false);
     } catch { showStatus('Could not load the paper texture.'); }
   } else if (id === 'slide') {
     selectedSlide = Number(value);
@@ -1342,6 +1389,9 @@ app.addEventListener('change', async event => {
 });
 
 $('#color-button').addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') openPalette(true); });
+app.addEventListener('pointerdown', event => {
+  if (paperOpen && !event.target.closest('#paper-picker, [data-action="paper"]')) openPaper(false);
+}, { capture: true });
 canvas.addEventListener('pointerleave', () => { if (state.pickColor) drawSwatch(state.color); });
 studio.addEventListener('pointermove', event => {
   const palette = $('#palette');
@@ -1362,6 +1412,7 @@ document.addEventListener('keydown', event => {
     openPalette(false);
     openPaper(false);
     $('#menu-items').hidden = true;
+    $('#menu-trigger').setAttribute('aria-expanded', 'false');
     state.extendedHelp = false;
     if (pathPointer !== null) {
       pathPointer = null;
@@ -1403,10 +1454,26 @@ loadNativeUi().then(manifest => {
   studio.style.setProperty('--cursor-text', nativeCursor(manifest, 10019, 'text'));
   $('#paint-chrome').classList.add('native');
   $('#paint-chrome').style.backgroundImage = `url("${original('ui/paint-empty.png')}")`;
-  nativeSprites = nativeButtonParts(manifest, $('#hit-layer'));
+  const paperOptions = { excludeNames: manifest.paperAnimations ? ['paper-texture'] : [] };
+  nativeSprites = nativeButtonParts(manifest, $('#hit-layer'), paperOptions);
+  applyNativeControlRegions(manifest, $('#hit-layer'));
+  nativeRollovers?.();
   $('#native-buttons').replaceChildren(...[...nativeSprites].filter(([name]) => name !== 'swatch').map(([, image]) => image));
-  if (manifest.undoAnimations) undoAnimation = createNativeAnimation($('#native-buttons'), nativeSprites.get('undo-face'), playUiSound);
-  attachNativeRollovers(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'));
+  if (manifest.undoAnimations) undoAnimation = createNativeAnimation($('#native-buttons'), nativeSprites.get('undo-face'), playAnimationSound);
+  nativeRollovers = attachNativeRollovers(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), paperOptions);
+  if (manifest.paperAnimations) {
+    nativePaperPicker = createNativePaperPicker({
+      manifest: manifest.paperAnimations,
+      control: $('#hit-layer [data-action="paper"]'),
+      layer: $('#native-buttons'),
+      staticSprite: nativeSprites.get('paper-texture'),
+      onError() {
+        showStatus('Could not load the paper animation.');
+        if (paperOpen) renderPaperPicker();
+      },
+    });
+    nativePaperPicker.setSelected(selectedPaper);
+  }
   if (manifest.slideShow) {
     $('#slides').classList.add('native-slides');
     $('#slides').style.setProperty('--slide-slot', originalCssUrl('ui/slide-slot.png'));

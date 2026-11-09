@@ -2,6 +2,15 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.5.0
+
+- Restored the paper canister's selected-texture artwork, six authored opening poses, clipping and control readiness. Delayed updates preserve every pose and its terminal hold; canceled texture loads and failed-animation fallback navigation stay coherent with history.
+- Recovered native bitmap-brush spacing, integer placement, paper sampling and Marker destination-pixel math. Removed per-pixel allocations from Marker strokes; three local sparse-input trials reduced dispatch p95 from 31–44 ms to 4.5–8.8 ms while preserving tested pixels.
+- Corrected source control hit regions and Firehose rollover retention, reentry and owner cleanup. Undo Guy retains every authored update, owns its cues independently, uses source rounded selection and also animates redo.
+- Prevented accidental chrome text selection and native image dragging, preserved editable text selection, stopped object movement after lost capture or blur, and synchronized menu accessibility state on Escape.
+- Added source-pixel and interaction regression coverage. Recovered standalone Color Picker, drawing-control and Big Eraser helpers, cursor metadata and bundled-font extraction are retained for subsequent integration; those new helpers are not enabled by this release.
+- Native runtime captures remain unavailable. Resource/binary reconstruction and browser checks establish the implemented source rules, while original-app timing, palette installation and subjective feel still need a compatible running Mac environment.
+
 ## 0.4.0
 
 - Replaced sampled Moving Paints loops with all authored clips, registered placement, source holds and sound-gated finite completion. Stationary spraying emits every 150 ms; releasing stops emission while live particles continue.

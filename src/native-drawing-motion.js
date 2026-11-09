@@ -1,0 +1,303 @@
+// Standalone Tp.MHK MBTN18400 adapter. No DOM bindings or shared ui.json writes.
+const f = Math.fround;
+const reciprocal255 = f(1 / 255); // i386 float at0x002603a0
+
+/** Native mode9 consumes raw A/shade/tintWeight/coverage, not ordinary RGBA. */
+export function blendDrawingMode9(destination, offset, argb, sourceOffset, color) {
+  const coverage = argb[sourceOffset + 3];
+  if (!coverage) return;
+  const weight = argb[sourceOffset + 2];
+  const shade = argb[sourceOffset + 1];
+  const alpha = f(coverage * reciprocal255);
+  for (let channel = 0; channel < 3; channel++) {
+    const paint = f(color[channel] * reciprocal255);
+    const target = f(f(paint * weight) + shade);
+    const delta = f(target - destination[offset + channel]);
+    const value = Math.trunc(f(f(delta * alpha) + destination[offset + channel]));
+    destination[offset + channel] = Math.min(255, value);
+  }
+  // Source0x001ca9eb retains destination alpha; source alpha is unused.
+}
+
+export function drawingFrameAtTick(clip, tick) {
+  let index = 0;
+  while (index + 1 < clip.frames.length && clip.frames[index + 1].tick <= tick) index++;
+  return index;
+}
+
+/** Load before starting the controller; rejection is retryable by calling again.
+ * resolve receives manifest paths relative to public/original/ui, including
+ * drawing-motion/. Pass the app's original(`ui/${path}`) URL resolver.
+ */
+export async function loadDrawingMotionAssets(manifest, {
+  resolve = path => path, fetch: fetchAsset = globalThis.fetch,
+  createImage = () => new globalThis.Image(), signal,
+} = {}) {
+  const entries = await Promise.all(Object.entries(manifest.sprites).map(async ([id, sprite]) => {
+    const image = createImage();
+    image.src = resolve(sprite.image);
+    const [response] = await Promise.all([
+      fetchAsset(resolve(sprite.argb), { signal }), image.decode(),
+    ]);
+    if (!response.ok) throw new Error(`Drawing motion asset ${sprite.argb}: ${response.status}`);
+    const argb = new Uint8Array(await response.arrayBuffer());
+    if (argb.length !== sprite.width * sprite.height * 4
+      || image.naturalWidth !== sprite.width || image.naturalHeight !== sprite.height) {
+      throw new Error(`Drawing motion asset dimensions differ: ${id}`);
+    }
+    return [id, { image, argb }];
+  }));
+  if (signal?.aborted) throw signal.reason ?? new Error('Drawing motion load aborted');
+  return new Map(entries);
+}
+
+/** Paint one source callback into a native1024x768 canvas, after the owner has
+ * restored the tray/backdrop. Caller owns clearing, clipping and layer order.
+ * Coordinates and bitmap registrations are already resolved by the extractor.
+ */
+export function paintDrawingMotionFrame(context, manifest, frame, assets, color, { clipRect = null } = {}) {
+  if (color.length !== 3 || color.some(value => !Number.isInteger(value) || value < 0 || value > 255)) {
+    throw new RangeError('Drawing motion color must be three byte values');
+  }
+  const [base, tint] = frame.parts;
+  const baseInfo = manifest.sprites[String(base.sprite)];
+  const tintInfo = manifest.sprites[String(tint.sprite)];
+  const baseAsset = assets.get(String(base.sprite));
+  const tintAsset = assets.get(String(tint.sprite));
+  if (!baseAsset || !tintAsset) throw new Error('Drawing motion assets must be loaded before painting');
+  if (clipRect) {
+    context.save();
+    context.beginPath();
+    context.rect(...clipRect);
+    context.clip();
+    context.drawImage(baseAsset.image, base.x, base.y);
+    context.restore();
+  } else context.drawImage(baseAsset.image, base.x, base.y);
+  // 0x000f742a–0x000f74c3 allocates min(part dimensions), copying the
+  // destination at part0's registered origin. Mode9's source is part1.
+  const left = Math.max(0, base.x, tint.x, clipRect?.[0] ?? 0);
+  const top = Math.max(0, base.y, tint.y, clipRect?.[1] ?? 0);
+  const right = Math.min(context.canvas.width, tint.x + tintInfo.width,
+    base.x + Math.min(baseInfo.width, tintInfo.width),
+    clipRect ? clipRect[0] + clipRect[2] : Infinity);
+  const bottom = Math.min(context.canvas.height, tint.y + tintInfo.height,
+    base.y + Math.min(baseInfo.height, tintInfo.height),
+    clipRect ? clipRect[1] + clipRect[3] : Infinity);
+  if (right <= left || bottom <= top) return;
+  const pixels = context.getImageData(left, top, right - left, bottom - top);
+  for (let y = top; y < bottom; y++) {
+    for (let x = left; x < right; x++) {
+      const offset = ((y - top) * (right - left) + x - left) * 4;
+      const source = ((y - tint.y) * tintInfo.width + x - tint.x) * 4;
+      blendDrawingMode9(pixels.data, offset, tintAsset.argb, source, color);
+    }
+  }
+  context.putImageData(pixels, left, top);
+}
+
+/** State/timing engine with explicit source dispatch and browser pointer helpers.
+ * Call step(now) from the owner's RAF. render(snapshot) must restore and repaint
+ * all four visible controls, using snapshot[].frame/clip. No internal timers.
+ * playSound(cue, owner) -> { stop(), isComplete() }; a missing handle means
+ * unavailable audio and does not deadlock source completion. Channels1/2 gate
+ * end processing. Hooks are synchronous; preload assets before construction.
+ */
+export function createDrawingMotionController(manifest, {
+  render = () => {}, playSound = () => null, now = () => performance.now(),
+  selected = 0,
+} = {}) {
+  if (manifest.buttons.length !== 4 || manifest.buttons.some(button => button.mode !== 2)) {
+    throw new Error('Drawing motion requires the four recovered mode2 controls');
+  }
+  let disposed = false;
+  let hovered = null;
+  let tracking = null;
+  let ownerId = 0;
+  const actors = [];
+
+  function makeStream(script, time, kind, button) {
+    const clip = manifest.scripts[String(script)];
+    if (!clip) throw new Error(`Missing drawing motion program ${script}`);
+    const stream = { clip, tick: 0, next: time + clip.tickMs, finished: false,
+      soundIndex: 0, handles: new Map(), owner: `drawing-motion:${button}:${kind}:${++ownerId}` };
+    emitSounds(stream);
+    return stream;
+  }
+
+  function emitSounds(stream) {
+    while (stream.soundIndex < stream.clip.sounds.length
+      && stream.clip.sounds[stream.soundIndex].tick <= stream.tick) {
+      const cue = stream.clip.sounds[stream.soundIndex++];
+      stream.handles.get(cue.channel)?.stop?.();
+      const handle = playSound({ ...cue, src: manifest.sounds?.[String(cue.sound)]?.src }, stream.owner);
+      if (handle) stream.handles.set(cue.channel, handle);
+    }
+  }
+
+  function stopStream(stream) {
+    stream?.handles.forEach(handle => handle.stop?.());
+    stream?.handles.clear();
+  }
+
+  function blockedBySound(stream) {
+    return [1, 2].some(channel => {
+      const handle = stream.handles.get(channel);
+      return handle && !handle.isComplete();
+    });
+  }
+
+  function advance(stream, time) {
+    if (stream.finished || time < stream.next) return false;
+    // Native scheduler requests now+interval; a late delivery advances once.
+    // It never replays a burst of missed updates or repeated sound cues.
+    stream.next = time + stream.clip.tickMs;
+    if (stream.tick + 1 >= stream.clip.endCheckTick) {
+      if (!blockedBySound(stream)) stream.finished = true;
+    } else {
+      stream.tick++;
+      emitSounds(stream);
+    }
+    return true;
+  }
+
+  function snapshot() {
+    return actors.map((actor, index) => {
+      const stream = actor.aux ?? actor.base;
+      const frameIndex = drawingFrameAtTick(stream.clip, stream.tick);
+      return { index, name: manifest.buttons[index].name, state: actor.state,
+        disabled: actor.disabled, auxiliary: Boolean(actor.aux), script: stream.clip.script,
+        clipRect: actor.aux ? manifest.buttons[index].auxiliaryClipRect : null,
+        tick: stream.tick, finished: stream.finished, clip: stream.clip, frameIndex,
+        frame: stream.clip.frames[frameIndex] };
+    });
+  }
+
+  function paint() { if (!disposed) render(snapshot()); }
+
+  function cleanupAux(index, time) {
+    const actor = actors[index];
+    if (!actor.aux) return;
+    stopStream(actor.aux);
+    actor.aux = null;
+    // Native0x001591c2 unhides the backing without changing its deadline.
+    // The next delivered step may therefore be immediately eligible.
+  }
+
+  function setState(index, state, time) {
+    const actor = actors[index];
+    const script = manifest.buttons[index].stateScripts[state];
+    if (!script) throw new Error(`Drawing state ${state} has no source program`);
+    // 0x00030b25–0x00030b47 preserves shared-script progress, including1→3.
+    if (actor.base.clip.script !== script) {
+      stopStream(actor.base);
+      actor.base = makeStream(script, time, 'state', index);
+    }
+    actor.state = state;
+    actor.disabled = state === 3;
+  }
+
+  function dispatchInternal(index, event, time) {
+    cleanupAux(index, time);
+    if (event === 0x2000 || event === 0x2005) setState(index, 1, time);
+    else if ([0x2001, 0x2003, 0x2004, 0x2008].includes(event)) setState(index, 0, time);
+    else if ([0x2002, 0x2006, 0x2007].includes(event)) {
+      setState(index, 3, time);
+      if (event !== 0x2007) {
+        for (let peer = 0; peer < actors.length; peer++) {
+          if (peer !== index) {
+            cleanupAux(peer, time);
+            setState(peer, 0, time);
+          }
+        }
+      }
+    } else throw new RangeError(`Unsupported drawing state event ${event}`);
+  }
+
+  const start = now();
+  for (let index = 0; index < manifest.buttons.length; index++) {
+    const button = manifest.buttons[index];
+    actors.push({ state: 0, disabled: false, aux: null,
+      base: makeStream(button.stateScripts[0], start, 'state', index) });
+  }
+  // RPencilPanel restore sends0x2007 to the selected row (default0).
+  if (selected !== null) dispatchInternal(selected, 0x2007, start);
+  paint();
+
+  return {
+    snapshot,
+    step(time = now()) {
+      if (disposed) return;
+      let changed = false;
+      actors.forEach((actor, index) => {
+        const stream = actor.aux ?? actor.base;
+        changed = advance(stream, time) || changed;
+        if (actor.aux?.finished) {
+          cleanupAux(index, time);
+          changed = true;
+        }
+      });
+      if (changed) paint();
+    },
+    dispatch(index, event, time = now()) {
+      if (disposed) return;
+      dispatchInternal(index, event, time);
+      paint();
+    },
+    enter(index, time = now()) {
+      if (disposed || hovered === index) return;
+      if (hovered !== null) cleanupAux(hovered, time);
+      hovered = index;
+      if (tracking !== null) {
+        if (tracking === index) setState(index, 1, time);
+      } else if (!actors[index].disabled) {
+        const actor = actors[index];
+        // Auxiliary setup calls0x00159280 on backing; that calls owned
+        // sound cleanup0x00152aee even though its script progress survives.
+        stopStream(actor.base);
+        actor.aux = makeStream(manifest.buttons[index].rolloverScript, time, 'hover', index);
+      }
+      paint();
+    },
+    leave(index, time = now()) {
+      if (disposed) return;
+      if (hovered === index) hovered = null;
+      cleanupAux(index, time);
+      if (tracking === index) setState(index, 0, time);
+      paint();
+    },
+    press(index, time = now()) {
+      if (disposed || actors[index].disabled || tracking !== null) return false;
+      if (hovered !== null) cleanupAux(hovered, time);
+      hovered = index;
+      tracking = index;
+      dispatchInternal(index, 0x2005, time);
+      paint();
+      return true;
+    },
+    release(inside, time = now()) {
+      if (disposed || tracking === null) return null;
+      const index = tracking;
+      tracking = null;
+      dispatchInternal(index, inside ? 0x2002 : 0x2003, time);
+      hovered = inside ? index : null;
+      paint();
+      return inside ? manifest.buttons[index].commandArgument : null;
+    },
+    cancel(time = now()) {
+      if (disposed) return;
+      actors.forEach((_, index) => cleanupAux(index, time));
+      if (tracking !== null) dispatchInternal(tracking, 0x2003, time);
+      tracking = null;
+      hovered = null;
+      // Window deactivation is a browser adaptation; stop every owned cue.
+      actors.forEach(actor => stopStream(actor.base));
+      paint();
+    },
+    repaint: paint,
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      actors.forEach(actor => { stopStream(actor.base); stopStream(actor.aux); });
+    },
+  };
+}

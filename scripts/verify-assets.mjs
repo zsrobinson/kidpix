@@ -48,6 +48,24 @@ try {
     }
   }
   for (const paper of ui.paperTextures) check(join('ui', paper.image));
+  if (ui.paperAnimations) {
+    const paper = read('ui/paper-canister.json');
+    if (JSON.stringify(paper) !== JSON.stringify(ui.paperAnimations)) throw new Error('Paper animation index differs from embedded UI metadata');
+    const ids = new Set([...paper.pageSprites, ...paper.textureSprites]);
+    for (const [name, clip] of [['opening', paper], ...Object.entries(paper.states)]) {
+      for (const frame of clip.frames) {
+        frame.parts.forEach((part, index) => {
+          const replaced = name === 'opening' ? [paper.substitutionParts.page, paper.substitutionParts.texture].includes(index) : index === clip.texturePart;
+          if (!replaced) ids.add(part.sprite);
+        });
+      }
+      for (const cue of clip.sounds ?? []) check(join('ui', `easel-${cue.sound}.wav`));
+    }
+    for (const id of ids) {
+      if (!paper.sprites[String(id)]) throw new Error(`Missing paper animation sprite ${id}`);
+      check(join('ui', paper.sprites[String(id)].image));
+    }
+  }
   if (ui.undoAnimations) {
     for (const clip of [ui.undoAnimations.idle, ...ui.undoAnimations.clips]) {
       for (const frame of clip.frames) check(join('ui', frame.image));

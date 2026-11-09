@@ -32,6 +32,9 @@ The browser suite covers:
 - Scripted button rollover timing, repeat policy, pointer continuity and cancellation on leave, press, selection and disable.
 - Paint Shapes source pixels, dimensions, registration and complete-bank selection, compared across the entire canvas rather than only checking for non-white pixels.
 - Moving Paints authored poses and holds, audio-gated completion, stationary/current-pointer emission, outside-page suppression, tool cleanup, live PNG export and held-stroke undo/redo.
+- Native paper opening and resting canister source pixels, selected-page/history synchronization, canceled image requests and persistent decode-failure recovery.
+- All 20 Undo Guy routines with complete source-pixel sequences, repeated holds, cue ownership, finite completion and redo selection.
+- Pointer-capture loss, blur, editable text selection, protected chrome, popup dismissal and retained rollover owner cleanup.
 - Native grayscale brush-mask coverage through the actual painting tool and exact undo/redo, with separate synthetic-pixel tests for density, spatter and shadow/glint rules.
 - Real Stamp Editor entry, source layout/palette, pixel transformations, edited-stamp persistence/placement, cancellation, keyboard isolation, failed-load retry and prevention of duplicate modals.
 

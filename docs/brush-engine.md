@@ -22,7 +22,43 @@ The `RRealMedia` family reads the named CFG keys into signed 16-bit fields. Pars
 | `glintOffset` | `+0x198` |
 | `glintBias` | `+0x19a` |
 
-This distinction matters: a CFG shadow offset is a geometric displacement, while shadow bias is its blend divisor. The current browser's fixed shadow/glint opacity constants do not represent these source bias fields.
+This distinction matters: a CFG shadow offset is a geometric displacement, while shadow bias is its blend divisor. The browser uses the separate source fields for each.
+
+## Bitmap sizes and registration
+
+Stroke setup `0x00123d34`–`0x00123d87` truncates the incoming size ordinal, stores it at `+0x15c`, and loads resource `brushID + ordinal - 1`. The three size choices select existing bitmaps; they do not scale a material bitmap to a fitted UI diameter. The examined Marker, Chalk and Crayon classes inherit this setup and loader.
+
+Loader `0x00122b52`–`0x00122bcb` sets pad side `+0x3a` to `max(bitmapWidth, bitmapHeight)` and allocates that square. It copies the bitmap with destination `(0,0)` at `0x00122c3a`–`0x00122c55`; decoder `0x001ca573` forwards these offsets to bitmap draw wrapper `0x001c8b90`. The shorter bitmap axis is therefore aligned with the pad's top or left edge. Setup `0x00123df7`–`0x00123e19` subtracts the signed integer half of the square side from both pointer coordinates. For these positive dimensions this is `floor(side/2)`.
+
+Examples from the exported original bitmaps, for pointer `(50,60)`:
+
+| Source bitmap | Dimensions | Bitmap top-left |
+| --- | --- | --- |
+| Marker 1010 | 8 × 16 | (42,52) |
+| Marker 1011 | 11 × 24 | (38,48) |
+| Marker 1012 | 16 × 32 | (34,44) |
+| Oil Paint 1004 | 17 × 16 | (42,52) |
+
+The browser's shared `nativeDabPlacement(point, options, dab, image, random)` now returns this top-left and the original bitmap width/height. `originalDab` exposes `sizeOrdinal` 1–3 in addition to the selected resource ID. `options.scale` explicitly maps native pixel dimensions and displacements to a differently sized browser canvas; no extra material-specific size multiplier remains. Pointer coordinate conversion belongs to the caller; this helper does not silently round an already mapped point.
+
+## Circular oscillation
+
+All examined RealBrush, Airbrush, Bristle, Extrusion, Marker, Chalk, Crayon and CustomBrush1–16 vtables point virtual slot `+0x104` to `0x00124166`. That method initializes offsets to zero, then performs:
+
+```text
+range = sizeOrdinal * CFG.oscillation
+if range == 0: return (0,0)
+radius = randomInteger() % range
+if radius == 0: return (0,0)
+degrees = randomInteger() % 360
+radians = float32(degrees * float32(pi/180))
+dx = trunc(radius * cos(radians))
+dy = trunc(radius * sin(radians))
+```
+
+The radius is uniform over integer remainders; it is not an area-uniform disk and does not use independent rectangular jitter. Radius zero skips the second RNG call. Constant `0x0025ff54` contains little-endian bytes `35 fa 8e 3c`, or `0.01745329238474369`; the source `mulss` and truncation matter at cardinal angles. For example radius 8 and 90 degrees yield `(0,7)`, because the single-precision angle is slightly beyond π/2 and the resulting sine product truncates below 8.
+
+Generic dab routine `0x00122f7c` maintains an unoscillated rectangle, copies it to the current draw rectangle and adds these offsets at `0x0012317e`–`0x00123193`. Tracking therefore does not accumulate oscillation into the next pointer location. The browser implements the verified geometry in `nativeBrushOscillation` and shares it between normal drawing and the Marker placement API. An optional `options.randomInt` supplies recorded native integer draws. The default maps the browser's normalized RNG output to nonnegative 31-bit values; the original process-wide RNG seed and draw sequence have not been reproduced.
 
 ## Generic density and per-pixel blend
 
@@ -47,7 +83,17 @@ The no-extra-color branch reads paint RGB from object `+0x110/+0x111/+0x112` at 
 
 For the generic method, full mask coverage with density bias 1 is opaque; bias 2 gives 50%, bias 3 gives approximately 33.3%, and bias 5 gives 20%. This contradicts the browser approximation `1 / (1 + density * 0.13)`.
 
-When a texture input exists, the generic routine takes a separate path at `0x00123f6e`–`0x00123faa`: it optionally inverts the texture byte, adds `textureByte / textureBias` to the mask contribution, and divides by `densityDivisor + 254`. Dropping the texture input and applying the untextured formula is still a partial renderer.
+When a texture input exists, the generic routine takes a separate path at `0x00123f6e`–`0x00123faa`: it optionally inverts the texture byte, adds `textureByte / textureBias` to the mask contribution, and divides by `densityDivisor + 254`. Setup `0x00122390`–`0x001223a2` stores `float32(1 / textureBias)` at `+0x16c`; the pixel method multiplies by that reciprocal rather than performing integer division. The operations are:
+
+```text
+t = invertTexture ? 255 - textureByte : textureByte
+contribution = float32(t * float32(1 / textureBias))
+a = float32(float32(mask + contribution) / float32(densityDivisor + 254))
+```
+
+Constructor `0x001245e0` sets texture bias to 1. The supplied CFG has no texture-bias override in the implemented built-in, material or CustomBrush1–16 sections. `originalDab` exposes that default explicitly. Source texture setup enables the selected paper at `0x0012259f`–`0x001225ef`; stroke begin captures the Option modifier through helper `0x001b7e1c(8)` at `0x00123d21`–`0x00123d2d` into inversion flag `+0x17c`.
+
+The browser draw path accepts `options.nativeTexture = {data,width,height}` with full-page RGBA pixels (red channel), or one grayscale byte per pixel, plus `options.invertTexture`. It samples at page coordinates after brush placement and recreates the paint mask on every textured dab, avoiding a mask cached at another page location. Shadow and glint retain their separate bias formulas and bypass paper sampling. Marker has a separate texture/pixel method and must use its own formula; this generic coefficient does not establish Marker's destination-dependent blend.
 
 ## Subclass scope: do not apply a universal opacity
 
@@ -92,7 +138,7 @@ Consequently fixed opacities 0.18/0.28 and offsets `shadow/3`, `shadow/2` and `g
 
 The generic spatter predicate at `0x00124246` obtains a normalized random float and accepts a mask pixel when `trunc(randomFloat * spatter + 0.5) == 0`. The dab loop invokes it for each nonzero mask pixel through virtual method `+0x100` (`0x00123b3d`–`0x00123b84`). Airbrush's predicate `0x0011b8c8` has the same formula. This is a random per-pixel acceptance test, not a deterministic coordinate hash that merely lowers some pixels to 10% opacity.
 
-CFG spacing is copied to tool `+0x60` when nonzero at `0x00123eb1`–`0x00123ebd`; zero uses a separate tracking branch at `0x0012242c`–`0x001224ba`, including stationary painting. For nonzero spacing, the tracking handler first compares absolute x/y displacement against the threshold (`0x0012243a`–`0x00122462`) and calls line helper `0x00137556` when due. That helper follows an integer line path and measures steps along the dominant axis: it compares accumulated signed dominant-axis distance with `+0x60` at `0x001376b5`–`0x001376e9` or `0x0013778d`–`0x001377be`. This differs from uniformly stepping Euclidean arc length. Endpoint and stroke-boundary behavior should be retained if porting this helper; replacing only its distance formula would not reproduce the complete native interpolation.
+CFG spacing is copied to tool `+0x60` when nonzero at `0x00123eb1`–`0x00123ebd`; zero uses a separate tracking branch at `0x0012242c`–`0x001224ba`, including stationary painting. For nonzero spacing, the tracking handler first compares absolute x/y displacement against the threshold (`0x0012243a`–`0x00122462`) and calls line helper `0x00137556` when due. That helper follows an integer line path and measures steps along the dominant axis: it compares accumulated signed dominant-axis distance with `+0x60` at `0x001376b5`–`0x001376e9` or `0x0013778d`–`0x001377be`. This differs from uniformly stepping Euclidean arc length. The integrated [source tracker](brush-tracking.md) preserves endpoint, stroke-boundary and requested idle-poll rules; browser event delivery remains an explicit adaptation.
 
 ## Implemented scope and remaining differences
 
@@ -127,9 +173,9 @@ The formerly omitted bias fields are copied from the supplied **KPD3.cfg**, with
 
 Zero entries above are omitted CFG keys retaining the native constructor's zero bias defaults (`0x001245e9`–`0x001245f3`); their corresponding offset pass is absent. Every active shadow/glint pass in these records has an explicit positive source bias.
 
-The renderer still paints into a transparent preview and lets Canvas composite its colored masks. It therefore quantizes coverage into an 8-bit alpha channel rather than duplicating the native floating-point RGB loop byte for byte. The native destination-dependent Marker override is explicitly excluded from the generic mask path: it retains its previous approximation until the renderer can access the underlying artwork for darken-only blending. Marker should not be described as fixed by this change.
+The renderer still paints into a transparent preview and lets Canvas composite its colored masks. It therefore quantizes coverage into an 8-bit alpha channel rather than duplicating the native floating-point RGB loop byte for byte. The native destination-dependent Marker override is excluded from this generic mask path. The application now uses a separate working-raster implementation for its channel-wise darkening, rounding and paper coefficient; see [marker-engine.md](marker-engine.md). Filled-shape paths and complete native interaction behavior remain unverified.
 
-Other remaining differences include texture input and inversion, smear feedback, RealBrush coverage accumulation, Bristle-specific smear/setup, exact dry-out dissipation, native circular oscillation instead of existing rectangular jitter, native random-number-stream consumption, material-size scaling, and dominant-axis integer stroke interpolation. Existing dry-out and jitter approximations were not changed. The masked blend correction does not make a paper-textured brush equivalent to its untextured rendering.
+The shared source geometry and generic texture coefficient are now implemented; the application supplies the selected full-page paper and captured inversion flag. Native bitmap strokes bypass the old paper-opacity post-mask. Remaining differences include smear feedback, RealBrush coverage accumulation, Bristle-specific smear/setup, exact dry-out dissipation, native random-number-stream consumption and any caller tracking behavior not covered by the separately implemented source tracker. The existing dry-out fade remains an approximation. Pixels outside the page are clipped by Canvas after mask generation, whereas native clips before its pixel loop; this can consume different per-pixel RNG draws near page edges. These changes do not establish complete brush-engine parity.
 
 Run the focused source-fixture checks with:
 
@@ -137,6 +183,6 @@ Run the focused source-fixture checks with:
 node --test scripts/parity/native-brush.test.mjs
 ```
 
-They exercise mixed grayscale masks and expected RGBA pixels, density-zero fallback, separate shadow/glint bias, Airbrush random coverage, spatter rejection, real CFG entries, pass ordering/geometry, and fresh random masks on successive Airbrush dabs. The raster-surface fixture copies source pixels without implementing density/bias/spatter formulas, so the real draw entry point is checked as well as the pure mask conversion.
+They exercise mixed grayscale masks and expected RGBA pixels, density-zero fallback, separate shadow/glint bias, Airbrush random coverage, spatter rejection, real CFG entries, source size triples and square-pad registration, integer oscillation/RNG consumption, pass ordering, and fresh random masks on successive Airbrush dabs. Texture fixtures check page-registered RGBA sampling at different dab positions, Option inversion, reciprocal bias and shadow bypass. The raster-surface fixture copies source pixels without implementing these renderer formulas, so the real draw entry point is checked as well as the pure conversions.
 
 The actual-application browser case in [brush.spec.js](../tests/browser/brush.spec.js) also passed: the real Painting Tools → Dry Brush → Small flow requests source bitmap 1022, supplied by a deterministic 2×2 grayscale fixture. Its committed pixels match the expected half-coverage/opaque/zero-mask samples exactly, only three page pixels change, and undo/redo restores exact canvas snapshots. This checks the implemented mask-coverage path; it does not validate total native Dry Brush behavior.

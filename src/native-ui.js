@@ -26,7 +26,7 @@ export function setSprite(image, part, frame) {
 export function nativeCursor(manifest, id, fallback = 'crosshair') {
   const cursor = manifest?.cursors?.items[String(id)];
   const frame = cursor?.frames[manifest.cursors.preferredFrame ?? 0];
-  if (!frame || frame.width > 128 || frame.height > 128 || frame.greenPixels) return fallback;
+  if (cursor?.pngUsable === false || !frame || frame.width > 128 || frame.height > 128 || frame.greenPixels) return fallback;
   // CSS variables resolve relative URLs at the consuming stylesheet's URL.
   // Built styles live under assets/, so resolve against the page explicitly.
   return `url("${new URL(source(frame.image), document.baseURI).href}") ${cursor.hotspot.join(' ')}, ${fallback}`;
@@ -56,7 +56,7 @@ function bindSprite(control, image, part, selectedFrame, disabledFrame) {
   return () => { observer.disconnect(); listeners.abort(); };
 }
 
-export function nativeButtonParts(manifest, root) {
+export function nativeButtonParts(manifest, root, { excludeNames = [] } = {}) {
   const remap = { animations: 'tray:toons', fill: 'tray:bucket', export: 'stereo', exit: 'quit', firehose: 'clear', 'paper-texture': 'paper', 'undo-face': 'undo-face' };
   const trayButtons = ['backgrounds', 'stickers', 'media', 'draw', 'paint', 'mixer', 'stamp', 'text', 'grab', 'eraser'];
   const sprites = new Map();
@@ -70,7 +70,7 @@ export function nativeButtonParts(manifest, root) {
     const image = sprite(part);
     image.dataset.nativePart = name;
     sprites.set(name, image);
-    if (control) {
+    if (control && !excludeNames.includes(name)) {
       bindSprite(control, image, part, control.classList.contains('side') ? 3 : undefined,
         name === 'undo' || name === 'redo' ? 3 : undefined);
     }

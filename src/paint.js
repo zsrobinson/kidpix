@@ -1,10 +1,12 @@
 import { brushOpacity, brushSpacing, drawBrushDab } from './paint-brushes.js'
 import { cutoutContours, makeFillRenderer, makeSurface, mixPixels } from './paint-pixels.js'
-import { drawOriginalDab, originalDab } from './paint-original.js'
+import { drawOriginalDab, originalDab, nativeDabPlacement } from './paint-original.js'
 import { createPaintAudio } from './paint-audio.js'
 import { createNativeSprayAssets } from './native-spray-assets.js'
 import { selectNativeShape, drawNativeShape, drawNativeSprayFrame } from './native-spray-runtime.js'
 import { createNativeMovingPaint } from './native-moving-paint.js'
+import { createNativeBrushTracking, nativeBrushLine, resolveNativeBrushLineSpacing } from './native-brush-tracking.js'
+import { createNativeMarkerStroke } from './native-marker.js'
 
 const shapes = new Set(['line', 'curve', 'rectangle', 'ellipse', 'polygon'])
 const drawingTools = new Set(['pencil', 'chalk', 'crayon', 'marker'])
@@ -148,6 +150,8 @@ export function createPaint(canvas, hooks = {}) {
   let nextNativeShape = null
   const contourCache = new WeakMap()
   const paperMasks = new WeakMap()
+  const nativePixels = new WeakMap()
+  const nativeLineSpacings = new Map()
   const back = []
   const forward = []
   const historyLimit = hooks.historyLimit ?? 32
@@ -238,11 +242,16 @@ export function createPaint(canvas, hooks = {}) {
 
   function cancel() {
     const current = gesture
+    current?.nativeTracking?.end()
+    stopNativeBrushPolling(current)
     if (gesture?.type === 'move-selection') {
       loadSnapshot(gesture.before)
       selection = gesture.original
     }
     gesture = null
+    // Native media writes into the picture as it paints. Preserve delivered
+    // dabs when interrupted, with one undo checkpoint before tool cleanup.
+    if (current?.nativeTracking && current.type === 'stroke') commitPreview(current)
     if (current?.type === 'native-moving') finishMovingStroke(current)
     movingPaint.flush()
     paintAudio.stop()
@@ -262,7 +271,7 @@ export function createPaint(canvas, hooks = {}) {
 
   function notify(kind) {
     render()
-    hooks.onChange?.({ kind, canUndo: !!back.length, canRedo: !!forward.length })
+    hooks.onChange?.({ kind, canUndo: !!back.length, canRedo: !!forward.length, paperSource: paper?.url ?? null })
   }
 
   function remember(before, kind) {
@@ -341,7 +350,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function paperMask() {
-    if (!paper?.image || paper.url?.endsWith('/12300.png')) return null
+    if (!paper?.image || /\/12300\.png(?:[?#]|$)/.test(paper.url)) return null
     const { image } = paper
     if (paperMasks.has(image)) return paperMasks.get(image)
     const dimensions = mediaSize(image)
@@ -357,10 +366,47 @@ export function createPaint(canvas, hooks = {}) {
     return mask.canvas
   }
 
+  function sourcePixels(image) {
+    if (!nativePixels.has(image)) {
+      const { width, height } = mediaSize(image)
+      const surface = makeSurface(width, height, true)
+      surface.drawImage(image, 0, 0)
+      nativePixels.set(image, surface.getImageData(0, 0, width, height))
+    }
+    return nativePixels.get(image)
+  }
+
+  function nativePaperTexture() {
+    if (!paper?.image || /\/12300\.png(?:[?#]|$)/.test(paper.url)) return null
+    return sourcePixels(paper.image)
+  }
+
+  function nativeLineSpacing(brush, dab) {
+    const key = `${brush.tool}:${brush.effectIndex ?? 0}:${brush.variant}`
+    const value = resolveNativeBrushLineSpacing({ spacing: dab.spacing,
+      previousLineSpacing: nativeLineSpacings.get(key) ?? 3, marker: dab.blendClass === 'marker' })
+    nativeLineSpacings.set(key, value)
+    return value
+  }
+
+  const nativePoint = point => ({ x: Math.floor(point.x), y: Math.floor(point.y) })
+
+  function markerStroke(brush, dab) {
+    compose(sample, { includeForeground: false })
+    const color = brush.color.slice(1).match(/../g).map(value => parseInt(value, 16))
+    return createNativeMarkerStroke(sample.getImageData(0, 0, width, height), preview,
+      { color, density: dab.density, texture: brush.nativeTexture,
+        textureBias: dab.textureBias, invertTexture: brush.invertTexture })
+  }
+
   function overlayStrokeTo(context, current) {
     const { options: brush } = current
+    if (current.nativeMarker?.used) {
+      context.drawImage(preview.canvas, 0, 0)
+      return
+    }
     let source = preview.canvas
-    const usePaper = ['chalk', 'crayon', 'marker', 'brush', 'paint'].includes(brush.tool)
+    const usePaper = !current.nativeDabs && ['chalk', 'crayon', 'marker', 'brush', 'paint'].includes(brush.tool)
     const mask = usePaper && paperMask()
     if (mask) {
       work.clearRect(0, 0, width, height)
@@ -478,6 +524,8 @@ export function createPaint(canvas, hooks = {}) {
 
   function drawShape(current, end, points, control) {
     clearPreview()
+    current.nativeMarker?.reset()
+    current.nativeDabs = false
     const { start, shape, options: brush } = current
     preview.save()
     preview.lineWidth = brush.size
@@ -499,8 +547,11 @@ export function createPaint(canvas, hooks = {}) {
 
   function drawMaterialOutline(current, end, points, control) {
     const { start, shape } = current
-    const brush = { ...current, last: start, remainder: 0, step: 1, random: makeRandom(53) }
-    if (shape === 'ellipse') brush.last = { x: end.x, y: (start.y + end.y) / 2 }
+    current.nativeDabs = true
+    const brush = { ...current, last: nativePoint(start), nativeTracking: null,
+      nativeLineSpacing: nativeLineSpacing(current.options, current.dab),
+      remainder: 0, step: 1, random: makeRandom(53) }
+    if (shape === 'ellipse') brush.last = nativePoint({ x: end.x, y: (start.y + end.y) / 2 })
     drawDab(brush, brush.last)
     if (points) {
       for (const point of points.slice(1)) strokeTo(brush, point)
@@ -533,6 +584,7 @@ export function createPaint(canvas, hooks = {}) {
 
   function drawDab(current, point) {
     const { options: brush, dab, image, random } = current
+    if (dab && image) current.nativeDabs = true
     if (current.nativeShapes) {
       const { bank, imageFor } = current.nativeShapes
       const frame = nextNativeShape ?? bank.frames[0]
@@ -541,7 +593,10 @@ export function createPaint(canvas, hooks = {}) {
       current.lastNativeShapeAt = performance.now()
       return
     }
-    if (dab && image) drawOriginalDab(preview, point, brush, dab, image, random, current.step++)
+    if (current.nativeMarker) {
+      current.nativeMarker.draw(sourcePixels(image), nativeDabPlacement(point, brush, dab, image, random))
+      current.step++
+    } else if (dab && image) drawOriginalDab(preview, point, brush, dab, image, random, current.step++)
     else drawBrushDab(preview, point, brush, image, random, current.step++)
   }
 
@@ -559,8 +614,39 @@ export function createPaint(canvas, hooks = {}) {
     requestAnimationFrame(tick)
   }
 
+  function stopNativeBrushPolling(current) {
+    if (!current) return
+    clearTimeout(current.nativePoll)
+    if (current.nativePaintRender !== undefined) cancelAnimationFrame(current.nativePaintRender)
+  }
+
+  function pollNativeBrush(current) {
+    // The source framework requests a 5ms idle wakeup. Delivery also depends
+    // on its event loop; browser timeouts are an adaptation, not measured parity.
+    function poll() {
+      if (gesture !== current || !current.nativeTracking.active) return
+      for (const emission of current.nativeTracking.track(nativePoint(current.end))) drawDab(current, emission)
+      if (current.nativePaintRender === undefined) {
+        current.nativePaintRender = requestAnimationFrame(() => {
+          current.nativePaintRender = undefined
+          if (gesture === current) render()
+        })
+      }
+      current.nativePoll = setTimeout(poll, 5)
+    }
+    current.nativePoll = setTimeout(poll, 5)
+  }
+
   function strokeTo(current, end) {
     const { options: brush } = current
+    if (current.nativeTracking || current.nativeLineSpacing !== undefined) {
+      const target = nativePoint(end)
+      const emissions = current.nativeTracking ? current.nativeTracking.track(target)
+        : nativeBrushLine(nativePoint(current.last), target, current.nativeLineSpacing)
+      for (const emission of emissions) drawDab(current, emission)
+      current.last = current.nativeTracking?.lastPoint ?? target
+      return
+    }
     const length = distance(current.last, end)
     const spacing = current.dab && current.image
       ? Math.max(0.7, current.dab.spacing * brush.scale)
@@ -728,8 +814,11 @@ export function createPaint(canvas, hooks = {}) {
       tool = 'pencil'
     }
     if (fill) variant = variant.replace(/^filled-/, '')
-    if (event.altKey && drawingTools.has(tool)) tool = 'eyedropper'
-    return { ...options, size, tool, variant, fill, scale: width / 720 }
+    // Native media samples Option at stroke begin to invert paper texture.
+    // Retain the web picker shortcut only for the non-media pencil path.
+    if (event.altKey && tool === 'pencil') tool = 'eyedropper'
+    return { ...options, size, tool, variant, fill, scale: width / 720,
+      nativeTexture: nativePaperTexture(), invertTexture: Boolean(event.altKey) }
   }
 
   function finishPolygon(point) {
@@ -818,6 +907,7 @@ export function createPaint(canvas, hooks = {}) {
     paintAudio.start(brush)
     clearPreview()
     const common = { start: point, end: point, options: brush, pointerId: event.pointerId, image, dab, nativeShapes }
+    if (dab?.blendClass === 'marker' && image) common.nativeMarker = markerStroke(brush, dab)
 
     if (tool === 'spray' && moving) {
       gesture = { ...common, type: 'native-moving', before: snapshot(), remembered: false }
@@ -861,10 +951,16 @@ export function createPaint(canvas, hooks = {}) {
       if (tool === 'eraser') brush.color = '#ffffff'
       const random = makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))
       gesture = { ...common, type: 'stroke', last: point, remainder: 0, random, step: 0 }
+      if (dab && image) {
+        gesture.nativeTracking = createNativeBrushTracking({ spacing: dab.spacing, lineSpacing: nativeLineSpacing(brush, dab) })
+      }
       if (tool === 'spray') {
         sprayWhileHeld(gesture)
       }
-      drawDab(gesture, point)
+      if (gesture.nativeTracking) {
+        for (const emission of gesture.nativeTracking.begin(nativePoint(point))) drawDab(gesture, emission)
+        if (dab.spacing === 0) pollNativeBrush(gesture)
+      } else drawDab(gesture, point)
     }
     render()
   }
@@ -936,7 +1032,9 @@ export function createPaint(canvas, hooks = {}) {
   function handleUp(event) {
     if (!gesture || gesture.pointerId !== event.pointerId) return
     const current = gesture
-    handleMove(event)
+    stopNativeBrushPolling(current)
+    if (current.nativeTracking) current.nativeTracking.end()
+    else handleMove(event)
     gesture = null
     paintAudio.stop(true)
     if (current.type === 'native-moving') {
@@ -959,6 +1057,17 @@ export function createPaint(canvas, hooks = {}) {
     } else {
       render()
     }
+  }
+
+  function finishInactiveNativeBrush() {
+    const current = gesture
+    if (!current?.nativeTracking) return
+    stopNativeBrushPolling(current)
+    current.nativeTracking.end()
+    gesture = null
+    paintAudio.stop(true)
+    commitPreview(current)
+    if (canvas.hasPointerCapture(current.pointerId)) canvas.releasePointerCapture(current.pointerId)
   }
 
   async function setLayer(name, asset, settings = {}) {
@@ -1101,6 +1210,10 @@ export function createPaint(canvas, hooks = {}) {
   }, listenerOptions)
   canvas.addEventListener('lostpointercapture', event => {
     if (gesture?.pointerId === event.pointerId) cancel()
+  }, listenerOptions)
+  window.addEventListener('blur', finishInactiveNativeBrush, listenerOptions)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) finishInactiveNativeBrush()
   }, listenerOptions)
   render()
 

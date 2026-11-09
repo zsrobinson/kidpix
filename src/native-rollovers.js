@@ -24,6 +24,13 @@ export function rolloverEndReady(clip, tick, pendingSoundChannels = []) {
     && !pendingSoundChannels.some(channel => channel === 1 || channel === 2);
 }
 
+// RButton auxiliary cleanup: reasons 0 (leave) and 1 (tracking) honor
+// MBTN word 12; reason 3 also destroys an actor retained after hover ended.
+export function rolloverCleanupRequired(button, reason = 0) {
+  return reason === 3 || (button.rolloverCancelsOnLeave
+    ?? !Boolean(button.rolloverParameters?.[1] ?? button.rawWords?.[12]));
+}
+
 const decodedImages = new Map();
 const actions = {
   animations: 'tray:toons', fill: 'tray:bucket', export: 'stereo', exit: 'quit',
@@ -46,7 +53,7 @@ function findControl(root, name) {
   return [...root.querySelectorAll('[data-action]')].find(control => control.dataset.action === action);
 }
 
-export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, renderLayer) {
+export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, renderLayer, { excludeNames = [] } = {}) {
   const data = manifest?.buttonAnimations ?? manifest;
   if (!Array.isArray(data?.buttons) || !data.scripts || !hitRoot || !renderLayer) return () => {};
   const document = hitRoot.ownerDocument;
@@ -54,7 +61,28 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
   const listeners = new view.AbortController();
   const options = { signal: listeners.signal };
   const disposers = [];
+  const actors = new Map();
   const assetUrl = path => new URL(original(`ui/${path}`), document.baseURI).href;
+
+  function cancel(name) {
+    if (name === undefined) actors.forEach(actor => actor.stop());
+    else actors.get(name)?.stop();
+  }
+
+  function cancelGroup(group, exceptName) {
+    if (!group) return;
+    actors.forEach((actor, name) => {
+      if (actor.group === group && name !== exceptName) actor.stop();
+    });
+  }
+
+  // Browser lifecycle adaptation of native controller deactivation/destruction.
+  // Retained actors must not keep sounding in an inactive or discarded window.
+  view.addEventListener('blur', () => cancel(), options);
+  view.addEventListener('pagehide', () => cancel(), options);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) cancel();
+  }, options);
 
   function preload(path) {
     const url = assetUrl(path);
@@ -71,11 +99,13 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
   }
 
   for (const button of data.buttons) {
+    if (excludeNames.includes(button.name)) continue;
     const clip = data.scripts[String(button.rolloverScript)];
     const idle = nativeSpritesMap?.get(button.name);
     const control = idle && findControl(hitRoot, button.name);
     if (!control || !usableClip(clip) || data.unsupportedScripts?.[String(button.rolloverScript)]) continue;
     const loops = button.rolloverLoops ?? Boolean(button.rolloverParameters?.[0] ?? button.rawWords?.[11]);
+    const group = button.group ?? button.rawWords?.[14] ?? 0;
     const image = document.createElement('img');
     image.className = 'native-sprite native-rollover';
     image.alt = '';
@@ -116,6 +146,8 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
       pendingAudio.clear();
     }
 
+    actors.set(button.name, { group, stop });
+
     function playSound(sound) {
       const channel = sound.channel ?? 1;
       const previous = ownedAudio.get(channel);
@@ -138,9 +170,14 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
     }
 
     async function start() {
+      // Native setup destroys any surviving auxiliary handle on reentry.
+      // Restore the backing actor first so its original visibility is retained.
+      stop();
       const current = ++generation;
       try { await framesReady; } catch { return; }
-      if (current !== generation || !inside || blockedUntilLeave || unavailable()) return;
+      // Ordinary leave/tracking may have relinquished hover without destroying
+      // this actor. Only cleanup/replacement invalidates its pending decode.
+      if (current !== generation || unavailable()) return;
       idleWasHidden = idle.hidden;
       hidingIdle = true;
       idle.hidden = true;
@@ -153,7 +190,9 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
 
       function step(now) {
         if (current !== generation) return;
-        if (!inside || blockedUntilLeave || unavailable()) { stop(); return; }
+        // Hover ownership and actor lifetime differ when word 12 is nonzero.
+        // Leave/tracking handlers decide cancellation; a retained actor runs on.
+        if (unavailable()) { stop(); return; }
         let tick = Math.floor((now - startTime) / clip.tickMs);
         const updateDue = tick !== lastTick;
         // Catch up source cues before deciding whether the actor can finish.
@@ -191,20 +230,32 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
       if (inside) return;
       inside = true;
       blockedUntilLeave = Boolean(event.buttons);
-      if (!blockedUntilLeave && !unavailable()) void start();
+      if (!blockedUntilLeave && !unavailable()) {
+        void start();
+        cancelGroup(group, button.name);
+      }
     }, options);
     control.addEventListener('pointerleave', () => {
       inside = false;
       blockedUntilLeave = false;
-      stop();
+      if (rolloverCleanupRequired(button)) stop();
     }, options);
-    const press = () => { blockedUntilLeave = true; stop(); };
+    const press = () => {
+      blockedUntilLeave = true;
+      if (rolloverCleanupRequired(button, 1)) stop();
+    };
     control.addEventListener('pointerdown', press, options);
-    control.addEventListener('pointercancel', press, options);
+    control.addEventListener('pointercancel', () => { blockedUntilLeave = true; stop(); }, options);
     disposers.push(() => { observer.disconnect(); stop(); image.remove(); });
   }
-  return () => {
+  const dispose = () => {
     listeners.abort();
     disposers.forEach(dispose => dispose());
+    actors.clear();
   };
+  // Owners can apply native reason-3 cleanup even after ordinary leave cleared
+  // the hover marker. Keep the existing callable-disposer integration intact.
+  dispose.cancel = cancel;
+  dispose.cancelGroup = cancelGroup;
+  return dispose;
 }

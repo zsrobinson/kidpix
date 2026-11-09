@@ -42,6 +42,121 @@ def button_records(data, names=()):
     return records
 
 
+def region_rectangles(data):
+    """Decode one native RGN block, preserving its authored rectangle union.
+
+    The native loader reads the rectangle count at byte 14 and entries at byte
+    16. Byte 12 is retained without guessing a name for that source field.
+    Other layouts are intentionally left to the caller's geometry fallback.
+    """
+    if len(data) < 16 or data[:4] != b"RGN ":
+        raise ValueError("Unsupported or truncated MRGN header")
+    left, top, right, bottom, word12, count = struct.unpack_from(">4h2H", data, 4)
+    if not count or count > 4096 or len(data) != 16 + count * 8:
+        raise ValueError("Unsupported or truncated MRGN rectangle list")
+    if right <= left or bottom <= top:
+        raise ValueError("Empty MRGN bounds")
+    rects = [list(struct.unpack_from(">4h", data, 16 + index * 8)) for index in range(count)]
+    for x0, y0, x1, y1 in rects:
+        if x0 < left or y0 < top or x1 > right or y1 > bottom or x1 <= x0 or y1 <= y0:
+            raise ValueError("MRGN rectangle falls outside its source bounds")
+    return {"type": "rectangle-union", "status": "exact", "boundsXYWH": [left, top, right - left, bottom - top],
+            "rectsLTRB": rects, "rawWord12": word12, "rectangleCount": count}
+
+
+def initial_script_bounds(archive, resource, sprite):
+    """Recover the initial animation rectangle used by kind-1 RButton loading.
+
+    This reads the first image group, including registration and full bitmap
+    dimensions. It deliberately does not inspect alpha, render later frames, or
+    require that an alternate/trailing script segment be understood.
+    """
+    data = archive[b"tSCR", resource]
+    if len(data) < 28:
+        raise ValueError("Truncated tSCR header")
+    collection, = struct.unpack_from(">H", data, 2)
+    origin_x, origin_y = struct.unpack_from(">hh", data, 16)
+    position = 26
+    while position + 2 <= len(data):
+        opcode, argument = data[position:position + 2]
+        position += 2
+        if opcode == 0x10:
+            if not argument or argument > 48 or position + argument * 6 + 2 > len(data):
+                raise ValueError("Truncated or unsupported initial tSCR image group")
+            images = [struct.unpack_from(">Hhh", data, position + index * 6) for index in range(argument)]
+            position += argument * 6
+            if data[position:position + 2] not in (b"\x01\x02", b"\x00\x02"):
+                raise ValueError("Initial image group has an unsupported continuation")
+            break
+        if (opcode, argument) == (0x04, 0x04):
+            length = 2
+        elif (opcode, argument) == (0x03, 0x06):
+            length = 4
+        else:
+            raise ValueError(f"Unsupported command before initial tSCR image group: {opcode:02x}{argument:02x}")
+        if position + length > len(data):
+            raise ValueError("Truncated command before initial tSCR image group")
+        position += length
+    else:
+        raise ValueError("Missing initial tSCR image group")
+
+    bank = archive[b"tBMH", collection]
+    count, = struct.unpack_from(">H", bank)
+    registers_x = archive.get((b"REGS", collection))
+    registers_y = archive.get((b"REGS", collection + 1))
+    if (registers_x is None) != (registers_y is None):
+        raise ValueError("Incomplete native image registration pair")
+    parts = []
+    for raw_image, raw_x, raw_y in images:
+        # The native interpreter strips all four upper flag bits before it
+        # resolves the one-based sub-bitmap number (0x0015a445–0x0015a456).
+        number = raw_image & 0x0FFF
+        if not number or number > count:
+            raise ValueError("Unsupported initial tSCR sub-bitmap reference")
+        registration_x = registration_y = 0
+        if registers_x is not None:
+            registration_x, = struct.unpack_from(">h", registers_x, number * 2)
+            registration_y, = struct.unpack_from(">h", registers_y, number * 2)
+        image = sprite(bank, number - 1)
+        left = origin_x + raw_x - registration_x
+        top = origin_y + raw_y - registration_y
+        if image.width <= 0 or image.height <= 0:
+            raise ValueError("Empty initial sub-bitmap bounds")
+        parts.append({"rawImage": raw_image, "image": number, "sourceXY": [raw_x, raw_y],
+                      "registrationXY": [registration_x, registration_y],
+                      "rectLTRB": [left, top, left + image.width, top + image.height]})
+    bounds = [min(part["rectLTRB"][0] for part in parts), min(part["rectLTRB"][1] for part in parts),
+              max(part["rectLTRB"][2] for part in parts), max(part["rectLTRB"][3] for part in parts)]
+    return {"script": resource, "collection": collection, "originXY": [origin_x, origin_y],
+            "boundsLTRB": bounds, "parts": parts}
+
+
+def image_button_region(button, archive, sprite):
+    """RButton kind 1 creates a rectangular control, never an alpha silhouette."""
+    inputs = []
+    for role, resource in [("rest", button["stateScripts"][0]), ("state1", button["stateScripts"][1]),
+                           ("rollover", button["rolloverScript"])]:
+        if resource:
+            entry = initial_script_bounds(archive, resource, sprite)
+            inputs.append({"role": role, **entry})
+    if not inputs or inputs[0]["role"] != "rest":
+        raise ValueError("Missing rest script for image-derived button")
+    if button["rolloverScript"]:
+        # 0x000313b6–0x000313cb replaces the preceding rest/state1 union.
+        bounds = inputs[-1]["boundsLTRB"]
+        selection = "rollover-initial-group"
+    else:
+        bounds = [min(entry["boundsLTRB"][0] for entry in inputs), min(entry["boundsLTRB"][1] for entry in inputs),
+                  max(entry["boundsLTRB"][2] for entry in inputs), max(entry["boundsLTRB"][3] for entry in inputs)]
+        selection = "rest-state1-initial-group-union"
+    left, top, right, bottom = bounds
+    return {"type": "rectangle-union", "status": "exact", "sourceKind": 1,
+            "resourceType": "tSCR", "resource": button["rolloverScript"] or button["stateScripts"][0],
+            "boundsXYWH": [left, top, right - left, bottom - top], "rectsLTRB": [bounds],
+            "rectangleCount": 1, "construction": "initial-script-bounds", "boundsSelection": selection,
+            "initialScriptBounds": inputs}
+
+
 def export_button_animations(archive, table_id, output, sprite, names=(), source=""):
     from PIL import Image
 
@@ -115,10 +230,34 @@ def export_button_animations(archive, table_id, output, sprite, names=(), source
             unsupported[str(resource)] = str(error)
 
     for button in buttons:
-        resource = archive.get((b"MRGN", button["hotspotResource"]))
-        if button["hotspotKind"] == 2 and resource and resource[:4] == b"RGN ":
-            left, top, right, bottom = struct.unpack_from(">4h", resource, 4)
-            button["hotspotBounds"] = [left, top, right - left, bottom - top]
+        kind = button["hotspotKind"]
+        if kind == 2:
+            resource = archive.get((b"MRGN", button["hotspotResource"]))
+            try:
+                if resource is None:
+                    raise ValueError("Missing MRGN resource")
+                region = region_rectangles(resource)
+                region.update({"source": source, "resourceType": "MRGN", "resource": button["hotspotResource"],
+                               "coordinateSpace": "native-master"})
+                button["hotspotRegion"] = region
+                button["hotspotBounds"] = region["boundsXYWH"]
+            except ValueError as error:
+                button["hotspotRegion"] = {"status": "unsupported", "sourceKind": kind,
+                                           "resourceType": "MRGN", "resource": button["hotspotResource"], "reason": str(error)}
+        elif kind == 1:
+            try:
+                region = image_button_region(button, archive, sprite)
+                region.update({"source": source, "coordinateSpace": "native-master"})
+                button["hotspotRegion"] = region
+                button["hotspotBounds"] = region["boundsXYWH"]
+            except (KeyError, ValueError, struct.error) as error:
+                button["hotspotRegion"] = {"status": "unsupported", "sourceKind": kind,
+                                           "reason": str(error)}
+        else:
+            button["hotspotRegion"] = {
+                "status": "unresolved", "sourceKind": kind,
+                "reason": "Native hotspot construction kind is not implemented",
+            }
 
     manifest = {
         "version": 1, "source": source, "table": table_id,
@@ -135,6 +274,8 @@ def export_button_animations(archive, table_id, output, sprite, names=(), source
             "Rollover loop and cancellation fields describe native creation/cleanup branches; state-script creation flags are caller supplied.",
             "endCheckTick is the earliest completion/restart tick; active native sound channels can delay it.",
             "Programs with unsupported commands or trailing alternate segments are retained as unsupported, not guessed.",
+            "Explicit single-block MRGN regions preserve all source rectangles; kind-1 controls use the native initial-script rectangle rather than alpha silhouettes.",
+            "Recovered button geometry does not establish a browser action mapping for every native record.",
         ],
     }
     (output / "button-animations.json").write_text(json.dumps(manifest, indent=2) + "\n")

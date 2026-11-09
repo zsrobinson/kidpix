@@ -586,6 +586,7 @@ def export_ui(volume, output):
         "x": 38, "y": 426, "w": 307, "h": 307, "chips": color_picker_grid(swatches),
     }
     manifest["paperTextures"] = export_paper(easel, output)
+    manifest["paperAnimations"] = import_module("native-paper").export_paper(easel, output, import_module("import-original").bitmap)
     manifest["undoAnimations"] = export_undo_animations(easel, output)
     manifest["cursors"] = import_module("native-cursor").export_cursors(mohawk(read("Data/General.MHK")), output)
     manifest["stampEditor"] = import_module("native-stamp-editor").export_stamp_editor(read, output)

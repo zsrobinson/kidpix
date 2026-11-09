@@ -151,6 +151,7 @@ export function createScene(root, surface, onChange) {
 
   root.addEventListener('pointermove', event => {
     if (drag?.pointer !== event.pointerId) return;
+    if (!(event.buttons & 1)) { finishDrag(event); return; }
     const point = coordinates(event);
     const dx = point.x - drag.origin.x;
     const dy = point.y - drag.origin.y;
@@ -167,12 +168,15 @@ export function createScene(root, surface, onChange) {
 
   function finishDrag(event) {
     if (drag?.pointer !== event.pointerId) return;
-    if (JSON.stringify(drag.prior) !== JSON.stringify(objects)) changed(drag.prior);
+    const prior = drag.prior;
     drag = null;
+    if (JSON.stringify(prior) !== JSON.stringify(objects)) changed(prior);
   }
 
   root.addEventListener('pointerup', finishDrag);
   root.addEventListener('pointercancel', finishDrag);
+  root.addEventListener('lostpointercapture', finishDrag);
+  window.addEventListener('blur', () => { if (drag) finishDrag({ pointerId: drag.pointer }); });
 
   function cancelPath() {
     path = null;

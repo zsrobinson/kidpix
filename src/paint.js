@@ -1,4 +1,5 @@
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js'
+import { pointerSamples, createPressureInput, pressureFactor, interpolatePressure, nativePressurePoint } from './pointer-samples.js'
 import { brushOpacity, brushSpacing, drawBrushDab } from './paint-brushes.js'
 import { cutoutContours, makeFillRenderer, makeSurface, mixPixels } from './paint-pixels.js'
 import { drawOriginalDab, originalDab, nativeDabPlacement } from './paint-original.js'
@@ -596,7 +597,9 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function drawDab(current, point) {
-    const { options: brush, dab, image, random } = current
+    const { options: baseBrush, dab, image, random } = current
+    const factor = current.pressureInput ? pressureFactor(point.pressure ?? .5) : 1
+    const brush = factor !== 1 && !dab ? { ...baseBrush, size: baseBrush.size * factor } : baseBrush
     if (dab && image) current.nativeDabs = true
     if (current.nativeShapes) {
       const { bank, imageFor } = current.nativeShapes
@@ -609,8 +612,18 @@ export function createPaint(canvas, hooks = {}) {
     if (current.nativeMarker) {
       current.nativeMarker.draw(sourcePixels(image), nativeDabPlacement(point, brush, dab, image, random))
       current.step++
-    } else if (dab && image) drawOriginalDab(preview, point, brush, dab, image, random, current.step++)
-    else drawBrushDab(preview, point, brush, image, random, current.step++)
+    } else if (dab && image) {
+      // Scale only the rendered dab. Keep native mask generation, page texture
+      // sampling and the base-size tracking scheduler in their original space.
+      if (factor !== 1) {
+        preview.save()
+        preview.translate(point.x, point.y)
+        preview.scale(factor, factor)
+        preview.translate(-point.x, -point.y)
+      }
+      drawOriginalDab(preview, point, brush, dab, image, random, current.step++)
+      if (factor !== 1) preview.restore()
+    } else drawBrushDab(preview, point, brush, image, random, current.step++)
   }
 
   function sprayWhileHeld(current) {
@@ -639,7 +652,8 @@ export function createPaint(canvas, hooks = {}) {
     // on its event loop; browser timeouts are an adaptation, not measured parity.
     function poll() {
       if (gesture !== current || !current.nativeTracking.active) return
-      for (const emission of current.nativeTracking.track(nativePoint(current.end))) drawDab(current, emission)
+      if (current.pressureInput) strokeTo(current, current.end)
+      else for (const emission of current.nativeTracking.track(nativePoint(current.end))) drawDab(current, emission)
       if (current.nativePaintRender === undefined) {
         current.nativePaintRender = requestAnimationFrame(() => {
           current.nativePaintRender = undefined
@@ -657,8 +671,12 @@ export function createPaint(canvas, hooks = {}) {
       const target = nativePoint(end)
       const emissions = current.nativeTracking ? current.nativeTracking.track(target)
         : nativeBrushLine(nativePoint(current.last), target, current.nativeLineSpacing)
-      for (const emission of emissions) drawDab(current, emission)
-      current.last = current.nativeTracking?.lastPoint ?? target
+      for (const emission of emissions) drawDab(current, current.pressureInput
+        ? nativePressurePoint(emission, current.last, { ...target, pressure: end.pressure }) : emission)
+      const accepted = current.nativeTracking?.lastPoint ?? target
+      current.last = current.pressureInput
+        ? { ...accepted, pressure: emissions.length || (accepted.x === target.x && accepted.y === target.y)
+          ? end.pressure : current.last.pressure } : accepted
       return
     }
     const length = distance(current.last, end)
@@ -671,6 +689,7 @@ export function createPaint(canvas, hooks = {}) {
       const point = {
         x: current.last.x + (end.x - current.last.x) * fraction,
         y: current.last.y + (end.y - current.last.y) * fraction,
+        ...(current.pressureInput ? { pressure: interpolatePressure(current.last, end, fraction) } : {}),
       }
       if (current.type === 'mixer') {
         compose(sample, { includeForeground: false, includePreview: true })
@@ -967,6 +986,10 @@ export function createPaint(canvas, hooks = {}) {
       if (tool === 'eraser') brush.color = '#ffffff'
       const random = makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))
       gesture = { ...common, type: 'stroke', last: point, remainder: 0, random, step: 0 }
+      if (variant === 'freehand' && ['pencil', 'chalk', 'crayon'].includes(tool)) {
+        gesture.pressureInput = createPressureInput(event)
+        point.pressure = gesture.pressureInput.sample(event)
+      }
       if (dab && image) {
         gesture.nativeTracking = createNativeBrushTracking({ spacing: dab.spacing, lineSpacing: nativeLineSpacing(brush, dab) })
       }
@@ -974,7 +997,8 @@ export function createPaint(canvas, hooks = {}) {
         sprayWhileHeld(gesture)
       }
       if (gesture.nativeTracking) {
-        for (const emission of gesture.nativeTracking.begin(nativePoint(point))) drawDab(gesture, emission)
+        if (gesture.pressureInput) gesture.last = { ...nativePoint(point), pressure: point.pressure }
+        for (const emission of gesture.nativeTracking.begin(nativePoint(point))) drawDab(gesture, gesture.pressureInput ? { ...emission, pressure: point.pressure } : emission)
         if (dab.spacing === 0) pollNativeBrush(gesture)
       } else drawDab(gesture, point)
     }
@@ -1038,9 +1062,14 @@ export function createPaint(canvas, hooks = {}) {
       // bitmap registration supplies placement without jitter or rotation.
       if (event.type !== 'pointerup' && performance.now() - current.lastNativeShapeAt >= 100) drawDab(current, point)
     } else {
-      const events = event.getCoalescedEvents?.()
-      if (events?.length) events.forEach(entry => strokeTo(current, pointFor(entry)))
-      else strokeTo(current, point)
+      for (const entry of pointerSamples(event)) {
+        const sample = pointFor(entry)
+        if (current.pressureInput) sample.pressure = current.pressureInput.sample(entry, event)
+        strokeTo(current, sample)
+        // Poll native tools at the last consumed sample, never the duplicate
+        // parent position after a nonempty coalesced list.
+        if (current.pressureInput) current.end = sample
+      }
     }
     render()
   }

@@ -55,8 +55,7 @@ async function readyImages(page) {
 async function capture(page, testInfo, id) {
   await page.mouse.move(1023, 767);
   await expect(page.locator('#status')).toBeHidden();
-  const motionTray = ['paint-empty', 'pencil-line', 'filled-box'].includes(id) ? 'draw'
-    : ['paint-tray', 'paint-airbrush-large', 'spray-native-shape'].includes(id) ? 'paint' : null;
+  const motionTray = scenarios.find(scenario => scenario.id === id)?.motionTray;
   if (motionTray) {
     const actor = page.locator(`[data-native-tool-motion="${motionTray}"]:visible`);
     await expect(actor, 'Source tool motion is loaded before capturing its final pose').toHaveCount(1, { timeout: 20_000 });
@@ -113,6 +112,21 @@ for (const scenario of scenarios) {
       await page.getByRole('button', { name: 'Spray Can', exact: true }).click();
       await expect(page.locator('#paper-canvas')).toHaveAttribute('data-paint-ready', 'ready');
       await page.mouse.click(164 + 220, 67 + 170);
+    }
+    const trayCaptures = {
+      'bucket-tray': 'Paint Bucket Tools', 'mixer-tray': 'Mixer Tools', 'eraser-tray': 'Eraser Tools',
+      'grab-tray': 'Grab Tools', 'scissors-tray': 'Grab Tools', 'stamp-tray': 'Rubber Stamp Tools', 'text-tray': 'Text Tools',
+    };
+    if (trayCaptures[scenario.id]) {
+      await page.getByRole('button', { name: trayCaptures[scenario.id], exact: true }).click();
+      if (scenario.id === 'scissors-tray') await page.getByRole('button', { name: 'Scissors', exact: true }).click();
+      if (scenario.id === 'stamp-tray') await expect(page.locator('#library-tray [data-asset]').first()).toBeVisible();
+      if (scenario.id === 'text-tray') {
+        await page.getByRole('spinbutton', { name: 'Font size', exact: true }).fill('32');
+        await page.getByRole('spinbutton', { name: 'Font size', exact: true }).dispatchEvent('change');
+        // Commit the value and leave keyboard focus on neutral tray chrome.
+        await page.mouse.click(394, 618);
+      }
     }
     if (scenario.id === 'stamp-editor') {
       await page.getByRole('button', { name: 'Rubber Stamp Tools', exact: true }).click();

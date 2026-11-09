@@ -163,6 +163,18 @@ export function createDrawingMotionController(manifest, {
   if (![2, 3, 4].includes(manifest.buttons.length) || manifest.buttons.some(button => button.mode !== 2)) {
     throw new Error('Tool motion requires a recovered two, three or four control mode2 group');
   }
+  return createMode2MotionController(manifest, { render, playSound, now, selected });
+}
+
+// Secondary selector groups use exactly the same recovered mode2 state slots
+// and scheduler. Their source table determines group size (Drawing has nine).
+export function createMode2MotionController(manifest, {
+  render = () => {}, playSound = () => null, now = () => performance.now(), selected = null,
+} = {}) {
+  if (!manifest.buttons.length || manifest.buttons.some(button => button.mode !== 2
+    || button.stateScripts[2] || !button.stateScripts[3])) {
+    throw new Error('Source selector requires recovered mode2 slots');
+  }
   let disposed = false;
   let hovered = null;
   let tracking = null;

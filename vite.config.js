@@ -22,4 +22,7 @@ export default defineConfig(({ mode, command }) => ({
   build: { outDir: mode === 'cloudflare' ? 'dist-cloudflare' : 'dist' },
   cacheDir: '.vite-cache',
   optimizeDeps: { noDiscovery: true, include: [] },
+  // Research outputs can contain Wine drive mappings and large extracted trees.
+  // Keep them out of source watching and never follow their host symlinks.
+  server: { watch: { ignored: ['**/artifacts/**', '**/parity/**'], followSymlinks: false } },
 }));

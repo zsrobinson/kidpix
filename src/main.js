@@ -13,6 +13,7 @@ import { attachNativeRollovers } from './native-rollovers.js';
 import { applyNativeControlRegions } from './native-control-regions.js';
 import { createNativePaperPicker } from './native-paper.js';
 import { createNativeToolMotion } from './native-tool-motion.js';
+import { createNativeSecondaryMotion } from './native-secondary-motion.js';
 
 const app = document.querySelector('#app');
 const state = {
@@ -425,6 +426,11 @@ const nativeToolMotion = createNativeToolMotion({
   onReady: () => showTray(), onActivate: action => activate(action),
 });
 
+const nativeSecondaryMotion = createNativeSecondaryMotion({
+  stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
+  onReady: () => showTray(), onActivate: action => activate(action),
+});
+
 function libraryKey() {
   if (state.tray === 'stamp') return 'stamps';
   if (state.tray === 'media') return state.media;
@@ -480,6 +486,7 @@ function showLibrary() {
 
 function showTray() {
   nativeToolMotion.beforeRender();
+  nativeSecondaryMotion.beforeRender();
   disconnectTraySprites?.();
   const lib = libKeys.has(state.tray);
   const nativeDraw = state.tray === 'draw' && nativeUi;
@@ -564,6 +571,8 @@ function showTray() {
     $('#native-draw').querySelectorAll('[data-native-drawing-tool]').forEach(image => image.remove());
     if (!nativeDraw) trayArt.src = original(`ui/${nativeToolMotion.backdropPath}`);
   }
+  nativeSecondaryMotion.update({ tray: state.tray, art: motionView.art, page: state.page,
+    selected: state.tools[state.tray], eraserShape: state.eraserShape, color: state.color, nativeUi });
   syncTool();
 }
 

@@ -22,10 +22,12 @@ def fixture():
     for owner, (table, names, group, commands, first, _, mode) in motion.SPECS.items():
         records = []
         for i in range(len(names)):
-            start = (18137, 18134)[i] if owner == 'eraser' else first + i * 3
-            region = table + i
+            start = ({'eraser': (18137, 18134), 'grab': (18131, 18128)}[owner][i]
+                     if first is None else first + i * 3)
+            kind = 1 if owner == 'grab' and i == 1 else 2
+            region = (1926, 0)[i] if owner == 'grab' else table + i
             argument = i if owner == 'draw' else 1 if owner == 'bucket' else 0
-            records += [struct.pack('>16H', start, start+1, 0, start+1, 2, region,
+            records += [struct.pack('>16H', start, start+1, 0, start+1, kind, region,
                                    commands[i], 3 if owner == 'bucket' else 1, argument, 0,
                                    start+2, 0, 0, 0, group, 0)]
             archive[b'MRGN', region] = b'RGN ' + struct.pack('>4h2H4h', 10, 20, 40, 60, 1, 1, 10, 20, 40, 60)
@@ -33,9 +35,11 @@ def fixture():
                 header = bytearray(26)
                 struct.pack_into('>H', header, 2, 18000)
                 struct.pack_into('>4h', header, 16, 100, 200, 300, 400)
-                images = [(0x8001, 20, 30)] + ([(0x8002, 21, 31)] if mode == 'mode9' else [])
+                images = [(0x8001, 20, 30)] + ([(0x8002, 21, 31)] if mode == 'mode9' and owner != 'grab' else [])
                 draw = bytes([0x10, len(images)]) + b''.join(struct.pack('>Hhh', *p) for p in images)
-                archive[b'tSCR', resource] = bytes(header) + b'\x04\x04\x00\x64' + draw + b'\x03\x06\x00\x04\x00\x01\x01\x02\x00\x02'
+                sound = b'\x03\x06\x00\x04\x00\x01'
+                body = sound + draw if owner == 'grab' else draw + sound
+                archive[b'tSCR', resource] = bytes(header) + b'\x04\x04\x00\x64' + body + b'\x01\x02\x00\x02'
         archive[b'MBTN', table] = b''.join(records)
     return archive
 
@@ -54,8 +58,9 @@ class ToolMotionTests(unittest.TestCase):
             self.assertFalse(tray['nativeRuntimeVerified'])
             self.assertEqual(tray.get('renderMode', 'mode9'), spec[6])
             for button in tray['buttons']:
-                self.assertEqual(button['region']['rectsLTRB'], [[10, 20, 40, 60]])
-                self.assertEqual(button['auxiliaryClipRect'], [10, 20, 30, 40])
+                kind1 = button['hotspotKind'] == 1
+                self.assertEqual(button['region']['rectsLTRB'], [[115, 221, 116, 222]] if kind1 else [[10, 20, 40, 60]])
+                self.assertEqual(button['auxiliaryClipRect'], [115, 221, 1, 1] if kind1 else [10, 20, 30, 40])
                 self.assertEqual(button['mode'], 2)
                 self.assertEqual(button['commandArgument'], button['rawWords'][8])
                 self.assertFalse(button['rolloverLoops'])
@@ -80,7 +85,7 @@ class ToolMotionTests(unittest.TestCase):
         self.assertFalse(tray['buttons'][2]['rolloverLoops'])
 
     def test_changed_dispatch_or_bytecode_fails_closed(self):
-        for owner in ('paint', 'bucket', 'mixer', 'eraser'):
+        for owner in ('paint', 'bucket', 'mixer', 'eraser', 'grab'):
             archive = fixture()
             table = motion.SPECS[owner][0]
             data = bytearray(archive[b'MBTN', table])
@@ -92,6 +97,22 @@ class ToolMotionTests(unittest.TestCase):
         archive[b'tSCR', 18072] = archive[b'tSCR', 18072][:-2] + b'\x05\x01\x00\x02'
         with self.assertRaisesRegex(ValueError, 'Unsupported tSCR'):
             motion.compile_tray(archive, 'paint')
+
+    def test_hand_kind1_uses_registered_full_initial_hover_bounds_not_mode_or_whole_timeline(self):
+        archive = fixture()
+        raw = bytearray(archive[b'tSCR', 18130])
+        # Change only hover's initial registered origin, then add a faraway
+        # later frame. Neither rest/press union nor all-pose union is the hitbox.
+        struct.pack_into('>hh', raw, raw.index(b'\x10\x01', 30) + 4, 40, 50)
+        archive[b'tSCR', 18130] = bytes(raw[:-2]) + b'\x10\x01' + struct.pack('>Hhh', 0x8002, 900, 800) + b'\x00\x02'
+        hand = motion.compile_tray(archive, 'grab')['buttons'][1]
+        self.assertEqual(hand['hotspotKind'], 1)
+        self.assertEqual(hand['mode'], 2)
+        self.assertEqual(hand['region']['boundsXYWH'], [135, 241, 1, 1])
+        self.assertEqual(hand['auxiliaryClipRect'], [135, 241, 1, 1])
+        self.assertEqual(hand['region']['boundsSelection'], 'rollover-initial-group')
+        self.assertEqual([entry['boundsLTRB'] for entry in hand['region']['initialScriptBounds']],
+                         [[115,221,116,222], [115,221,116,222], [135,241,136,242]])
 
     def test_bundle_is_deterministic_exact_and_sorted_numerically(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -142,19 +163,29 @@ class ToolMotionSourceTests(unittest.TestCase):
             self.assertEqual(motion.sha((self.root/path).read_bytes()), digest)
         self.assertEqual(json.loads((self.root/'tool-motion/manifest.json').read_text()), self.index)
         self.assertEqual(list(self.index['trays']), list(motion.SPECS))
-        self.assertEqual(sum(len(t['scripts']) for t in self.index['trays'].values()), 42)
-        self.assertEqual(sum(len(t['sprites']) for t in self.index['trays'].values()), 377)
-        self.assertEqual(sum(len(b['pages']) for b in self.index['backdrops'].values()), 53)
+        self.assertEqual(sum(len(t['scripts']) for t in self.index['trays'].values()), 48)
+        self.assertEqual(sum(len(t['sprites']) for t in self.index['trays'].values()), 406)
+        self.assertEqual(sum(len(b['pages']) for b in self.index['backdrops'].values()), 57)
 
     def test_every_source_pose_registration_and_cue_not_sprite_order(self):
         counts = {'draw': [11,11,6,16,16,6,16,16,6,14,14,5],
                   'paint': [4,11,4,6,13,9,11,11,5], 'bucket': [13,13,8,7,11,5,11,11,5],
-                  'mixer': [11,11,7,11,11,7], 'eraser': [10,10,8,7,7,9]}
+                  'mixer': [11,11,7,11,11,7], 'eraser': [10,10,8,7,7,9], 'grab': [8,8,9,9,9,6]}
         for owner, tray in self.index['trays'].items():
             self.assertEqual([len(c['frames']) for c in tray['scripts'].values()], counts[owner])
             for button in tray['buttons']:
                 words = list(struct.unpack_from('>16H', self.archive[b'MBTN',tray['table']], button['index']*32))
                 self.assertEqual(button['rawWords'], words)
+                if words[4] == 1:
+                    self.assertEqual(button['region']['boundsXYWH'], [149,643,109,112])
+                    self.assertEqual(button['auxiliaryClipRect'], [149,643,109,112])
+                    self.assertEqual([entry['boundsLTRB'] for entry in button['region']['initialScriptBounds']],
+                                     [[130,623,272,763], [130,623,272,763], [149,643,258,755]])
+                    # Independent header/REGS arithmetic, never alpha cropping.
+                    clip = tray['scripts']['18130']; part = clip['frames'][0]['parts'][0]
+                    width, height = struct.unpack_from('>2H', motion.drawing.sprite_payload(self.archive[b'tBMH',18000], 371))
+                    self.assertEqual([part['x'],part['y'],width,height], [149,643,109,112])
+                    continue
                 raw = self.archive[b'MRGN', words[5]]
                 left, top, right, bottom, _, count = struct.unpack_from('>4h2H', raw, 4)
                 self.assertEqual(button['auxiliaryClipRect'], [left,top,right-left,bottom-top])
@@ -258,9 +289,17 @@ class ToolMotionSourceTests(unittest.TestCase):
         # __TEXT/__DATA in this identified i386 slice map VA to file VA-0x1000.
         slots = [(0x31f148,0xf72f8,0xf71d2,0xf71dc), (0x31f268,0xf72f8,0xf0b9c,0xf0ba4),
                  (0x31f380,0xf1e42,0xf71d2,0xf71dc), (0x31f4a0,0xf72f8,0xf2c84,0xf2c8c),
-                 (0x31f5a0,0xf72f8,0xf3b0a,0xf3b12)]
+                 (0x31f5a0,0xf72f8,0xf3b0a,0xf3b12), (0x31eff8,0xf72f8,0xeb184,0xeb18c)]
         for vtable, loader, first, last in slots:
             self.assertEqual([struct.unpack_from('<I',binary,vtable-0x1000+s)[0] for s in (0x48,0x6c,0x70)], [loader,first,last])
+        # Pin the actual range return bodies, owner load instruction and
+        # slot2/slot3 mode derivation, separate from MBTN hotspot word4.
+        for address, expected in [(0xeb184, '5589e531c05dc3905589e5b8010000005dc3'),
+                                  (0xee480, 'c74424049e030000ff5048'),
+                                  (0x31177, '66c780800000000200'),
+                                  (0x313b6, '66898ea0000000')]:
+            expected = bytes.fromhex(expected)
+            self.assertEqual(binary[address-0x1000:address-0x1000+len(expected)], expected)
 
 
 if __name__ == '__main__':

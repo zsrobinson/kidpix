@@ -2,6 +2,15 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.6.0
+
+- Restored all 16 primary tool actors across Drawing, Painting, Bucket, Mixer, Eraser and Grab, retaining 48 source programs and 453 authored poses, exact hit regions and source sound cues.
+- Animated 23 secondary selector rows: Drawing styles, Painting modes, applicable sizes and Mini Eraser shapes. Their 69 complete programs retain 92 authored poses, shared selection progress and finite rollovers.
+- Preserved actor ownership through option rerenders, keyboard/pointer capture and cancellation. Optional asset failure leaves static choices usable and supports hover retry after a failed backdrop change.
+- Added portable Linux source extraction, source-pixel browser coverage, checksummed sprite/audio/backdrop verification and static capture recipes across all eight tool tabs.
+- Verified 157 Node checks, all 206 development browser cases and all 195 built-browser cases. Reviewed and accepted 17 Ubuntu web baselines while preserving the previous macOS baselines separately; native references were not changed.
+- Stamp/Text/Grab secondary actions and original-runtime feel remain follow-up work. Native references remain 0/17; Windows source extraction provides matching artwork/sounds but does not establish runtime parity.
+
 ## 0.5.0
 
 - Restored the paper canister's selected-texture artwork, six authored opening poses, clipping and control readiness. Delayed updates preserve every pose and its terminal hold; canceled texture loads and failed-animation fallback navigation stay coherent with history.

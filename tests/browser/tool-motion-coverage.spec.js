@@ -10,6 +10,7 @@ const trays = {
   paint: { table: 18000, tools: ['brush', 'sound', 'spray'], scripts: [18072, 18075, 18078] },
   bucket: { table: 18300, tools: ['bucket', 'gradient', 'pattern'], scripts: [18081, 18084, 18087] },
   mixer: { table: 18600, tools: ['mega', 'wand'], scripts: [18090, 18093] },
+  grab: { table: 926, tools: ['scissors', 'grab'], scripts: [18131, 18128] },
   eraser: { table: 18500, tools: ['big', 'round'], scripts: [18137, 18134] },
 };
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -47,7 +48,7 @@ async function install(page, { heldAudio = false } = {}) {
       pause() { this.paused = true; this.stops++; }
     };
   }, { heldAudio });
-  await page.routeWebSocket(/ws:\/\/127\.0\.0\.1:4193/, socket => socket.close());
+  await page.routeWebSocket(/ws:\/\/127\.0\.0\.1:(?:4193|4194)/, socket => socket.close());
   await page.clock.install({ time: new Date('2026-01-01T12:00:00Z') });
   await page.goto('/');
   await expect(page.locator('#paint-chrome')).toHaveClass(/native/);
@@ -82,7 +83,7 @@ async function terminal(page, tray, index, script) {
   const count = sourceScripts[script].groups;
   for (let frame = 0; frame < count; frame++) {
     await advance(page, tray, index, script, frame);
-    await expectPixels(page, tray);
+    await expectPixels(page, tray, { composite: tray === 'grab' });
     if (frame + 1 < count) await page.clock.runFor(96);
   }
   // Some auxiliary scripts retain their last picture through additional
@@ -90,13 +91,22 @@ async function terminal(page, tray, index, script) {
   for (let tick = count; tick < sourceScripts[script].endCheckTick; tick++) {
     await page.clock.runFor(112);
     expect(await item(page, tray, index)).toMatchObject({ script, frameIndex: count - 1, finished: false });
-    await expectPixels(page, tray);
+    await expectPixels(page, tray, { composite: tray === 'grab' });
   }
   return await item(page, tray, index);
 }
 
 function assertSource(manifest, tray) {
   expect(manifest.table).toBe(trays[tray].table);
+  if (tray === 'grab') {
+    expect(manifest.renderMode).toBe('mode9'); // Proven callback, ordinary one-part branch.
+    expect(manifest.evidence.callbackRows).toEqual([0, 1]);
+    expect(manifest.buttons[1].hotspotKind).toBe(1);
+    expect(manifest.buttons[1].region.boundsSelection).toBe('rollover-initial-group');
+    expect(manifest.buttons[1].region.initialScriptBounds.map(value => value.boundsLTRB))
+      .toEqual([[130, 623, 272, 763], [130, 623, 272, 763], [149, 643, 258, 755]]);
+    expect(manifest.buttons[0].hotspotResource).toBe(1926);
+  }
   for (const [index, rest] of trays[tray].scripts.entries()) {
     const button = manifest.buttons[index];
     expect(button.name).toBe(trays[tray].tools[index]);
@@ -106,6 +116,7 @@ function assertSource(manifest, tray) {
     expect(button.rolloverScript).toBe(rest + 2);
     expect(button.rolloverParameters).toEqual([0, 0, 0]);
     expect(button.region.boundsXYWH).toEqual(sourceRegions[rest]);
+    expect(button.auxiliaryClipRect).toEqual(sourceRegions[rest]);
     for (const script of [rest, rest + 1, rest + 2]) {
       const clip = manifest.scripts[script], oracle = sourceScripts[script];
       expect(clip.sourceSha256, `${script} original program`).toBe(oracle.sha256);
@@ -121,7 +132,7 @@ function assertSource(manifest, tray) {
   }
 }
 
-test('all five primary tables and 42 programs retain installer assignments, registrations and cue ticks', async ({ page }) => {
+test('all six primary tables and 48 programs retain installer assignments, registrations and cue ticks', async ({ page }) => {
   await install(page);
   for (const tray of Object.keys(trays)) {
     expect(page.toolManifest.trays[tray], `Exporter has not supplied ${tray}`).toBeTruthy();
@@ -202,7 +213,7 @@ for (const [tray, spec] of Object.entries(trays)) for (const [index, tool] of sp
   });
 }
 
-const sourceRegions = {"18060":[160,648,53,109],"18063":[217,648,53,109],"18066":[274,648,53,109],"18069":[331,648,53,109],"18072":[171,649,58,110],"18075":[235,647,62,110],"18078":[313,647,68,112],"18081":[163,647,72,112],"18084":[240,647,68,112],"18087":[313,647,69,112],"18090":[161,648,137,108],"18093":[304,648,82,108],"18137":[276,649,94,109],"18134":[172,649,99,109]};
+const sourceRegions = {"18060":[160,648,53,109],"18063":[217,648,53,109],"18066":[274,648,53,109],"18069":[331,648,53,109],"18072":[171,649,58,110],"18075":[235,647,62,110],"18078":[313,647,68,112],"18081":[163,647,72,112],"18084":[240,647,68,112],"18087":[313,647,69,112],"18090":[161,648,137,108],"18093":[304,648,82,108],"18137":[276,649,94,109],"18134":[172,649,99,109],"18128":[149,643,109,112],"18131":[271,648,115,108]};
 const sourceScripts = {
   "18060": {"sha256":"b0dc0d1f98060dd5e100ee70cd7863baf39a4d4962073423513a7da093f9d175","framesSha256":"006f4fef86ce758c4c489443196d97e4de7b0063798c90fe39e6a45a9bdd5e8f","groups":11,"tickMs":[100],"endCheckTick":11,"sounds":[{"tick":2,"cue":4,"sound":18004,"channel":1}]},
   "18061": {"sha256":"ebdad610147ec565a8848d83f90dc6483bd48790dff6c86ac42f0189b10740e8","framesSha256":"b8bb900f74d575a80ffeb93683ad3acb3f20311a62fee9e7d8bff4dad28a0b28","groups":11,"tickMs":[100],"endCheckTick":11,"sounds":[{"tick":1,"cue":5,"sound":18005,"channel":1}]},
@@ -246,9 +257,9 @@ const sourceScripts = {
   "18137": {"sha256":"57d86e0286d05ac505a947bddaffc0b6f433fdbf1743adca3a74625ac212fd9c","framesSha256":"7145b8de742e51e159c675cc5fbdef3101f1d06b2a6135b8d6da5b6fe9308175","groups":7,"tickMs":[100],"endCheckTick":7,"sounds":[{"tick":2,"cue":49,"sound":18049,"channel":1}]},
   "18138": {"sha256":"2e66b44e54407f24959c93c7993a5a2b04e24852d54e90f96f321736562210dd","framesSha256":"0dcde0c9123886caaae2200dd30e2a609b7fbd4eaad91d8183eea01956f37bcf","groups":7,"tickMs":[100],"endCheckTick":7,"sounds":[{"tick":0,"cue":50,"sound":18050,"channel":1}]},
   "18139": {"sha256":"f2cc0bd6c29b7706692f328c3f3dfd398a933ad54fe9310808c2bf59e2500281","framesSha256":"c4de909f05b360ccf46d18ff36b46ad7f7de6b26168a1dd02dfc9e9e780328ec","groups":9,"tickMs":[100],"endCheckTick":9,"sounds":[{"tick":0,"cue":51,"sound":18051,"channel":1}]},
-};
+"18128":{"sha256":"3ad892d6e15a0197636eafdbc46ad826ad40611524f9cca54122d4e918879a03","framesSha256":"b3051dca371bdaa41ea054b52dafedc4494e38be092f769a7e79b09f3f5f5bf9","groups":8,"tickMs":[100],"endCheckTick":8,"sounds":[{"tick":4,"cue":40,"sound":18040,"channel":1}]},"18129":{"sha256":"e319785f3e63b3bcdc6b2139a0f61eb71838ba9166f7b93ce235ec50440a8bd8","framesSha256":"c45f4b7b02008b8d82dbe541b608e02116dce044e24081b0fac17032ffb45e0a","groups":8,"tickMs":[100],"endCheckTick":8,"sounds":[{"tick":0,"cue":41,"sound":18041,"channel":1}]},"18130":{"sha256":"379d70b3062929adace377138bc0f870d9ec555b9f1b58eb3b747fcf875b8965","framesSha256":"6ba2fbbd936e72634ff0e56f47b0fba0cdd08067c1317134918b72c9aa158472","groups":9,"tickMs":[100],"endCheckTick":9,"sounds":[{"tick":2,"cue":42,"sound":18042,"channel":1}]},"18131":{"sha256":"6a8e2ef6ac46d6d047661565735ba25cde30c5958482cd37e7b583578e968079","framesSha256":"45a036aeb83b4220124818025303a61536c650afc172655af983196c42ddc6a8","groups":9,"tickMs":[100],"endCheckTick":9,"sounds":[{"tick":0,"cue":43,"sound":18043,"channel":1}]},"18132":{"sha256":"88ca05940d9055d923886a652551d2258603659c0046572cf01ea468994f7e42","framesSha256":"06fd3cf50d8f98ea0f868640cc07ae32b30ff1bbd643e2efab1215b3bc3d4032","groups":9,"tickMs":[100],"endCheckTick":9,"sounds":[{"tick":0,"cue":44,"sound":18044,"channel":1}]},"18133":{"sha256":"0e14c1923e3445267c6c33e44f2982fbf2f0a88f32145d0ee377af86f2d778cc","framesSha256":"92fa8642be431f159dab670d7bdb43361a9c30dde00425000373b2161ae0a66e","groups":6,"tickMs":[100],"endCheckTick":6,"sounds":[{"tick":0,"cue":45,"sound":18045,"channel":1}]}};
 
-const sourceAssetHashes = {"draw": "7614847f4d9332ab63af4933ef564f3680d31e1daafefb303526ef67dd93f378", "paint": "6a3e233faf4843f8f4fc508835003d9e86c6a80ed3206485a5c842e21dd7015a", "bucket": "c811d2d71d73547cd725d77a0e417f98c1b1342a5cfd2e64bde93455bc49cb42", "mixer": "c9e4734ee078eb10b2465b85496dbe157ed7d653e4a96fbc4fe2df34f0db3cd7", "eraser": "4f950ed3e3557a8fa8f2f7ddcf996321126aa4c975bf9cfd5256d722a8719486"};
+const sourceAssetHashes = {"draw": "7614847f4d9332ab63af4933ef564f3680d31e1daafefb303526ef67dd93f378", "paint": "6a3e233faf4843f8f4fc508835003d9e86c6a80ed3206485a5c842e21dd7015a", "bucket": "c811d2d71d73547cd725d77a0e417f98c1b1342a5cfd2e64bde93455bc49cb42", "mixer": "c9e4734ee078eb10b2465b85496dbe157ed7d653e4a96fbc4fe2df34f0db3cd7", "eraser": "4f950ed3e3557a8fa8f2f7ddcf996321126aa4c975bf9cfd5256d722a8719486","grab":"9680af8aeed49b63af4475f311360c1e57410d8676cff0b675fb20b7d131b9d5"};
 
 async function loadOracle(page, tray) {
   const manifest = page.toolManifest.trays[tray];
@@ -298,7 +309,7 @@ async function loadOracle(page, tray) {
     } else {
       for (const [view, backdrop] of Object.entries(backdrops)) {
         if (!({ paint: ['paint', 'wacky', 'sound', 'hands-free', 'spray', 'moving-spray'],
-          bucket: ['bucket', 'gradient', 'pattern'], mixer: ['mixer', 'mixer-wand'], eraser: ['eraser'] }[tray] || []).includes(view)) continue;
+          bucket: ['bucket', 'gradient', 'pattern'], mixer: ['mixer', 'mixer-wand'], eraser: ['eraser'], grab: ['grab', 'scissors'] }[tray] || []).includes(view)) continue;
         for (const page of backdrop.pages) pages.set(page.image, { image: await image(`/original/ui/${page.image}`), rect: backdrop.rect });
       }
     }
@@ -420,7 +431,7 @@ for (const tray of Object.keys(trays)) {
     expect(page.motionErrors).toEqual([]);
   });
 
-  test(`${tray}: failed optional art keeps static choices usable and reentry retries`, async ({ page }) => {
+  for (const retryIndex of tray === 'grab' ? [0, 1] : [1]) test(`${tray}: failed optional art keeps static choices usable and reentry retries${tray === 'grab' ? ` ${trays[tray].tools[retryIndex]}` : ''}`, async ({ page }) => {
     let fail = true, failures = 0;
     // Fail both bundle and fallback payloads: a successful fallback must not
     // accidentally turn this into a test of the success path.
@@ -432,13 +443,16 @@ for (const tray of Object.keys(trays)) {
     await action(page, `tray:${tray}`).click();
     await expect.poll(() => failures).toBeGreaterThan(0);
     await expect(actor(page, tray)).toHaveCount(0);
-    const tool = trays[tray].tools[1];
+    const tool = trays[tray].tools[retryIndex];
+    if (tray === 'grab') {
+      await action(page, `tool:${trays[tray].tools[1 - retryIndex]}`).click();
+    }
     await action(page, `tool:${tool}`).click();
     await expect(action(page, `tool:${tool}`)).toHaveAttribute('aria-pressed', 'true');
     fail = false;
     await action(page, 'tray:text').click();
     await openTray(page, tray);
-    expect(await item(page, tray, 1)).toMatchObject({ state: 3, script: trays[tray].scripts[1] + 1 });
+    expect(await item(page, tray, retryIndex)).toMatchObject({ state: 3, script: trays[tray].scripts[retryIndex] + 1 });
     expect(page.motionErrors).toEqual([]);
   });
 }
@@ -599,11 +613,11 @@ test('sprite bundles are opaque HTTP payloads with exact compressed hashes and b
   }
 });
 
-const sourceButtons = {"draw":[[18060,18061,0,18061,2,1184,18400,1,0,0,18062,0,0,0,18400,0],[18063,18064,0,18064,2,2184,18400,1,1,0,18065,0,0,0,18400,0],[18066,18067,0,18067,2,3184,18400,1,2,0,18068,0,0,0,18400,0],[18069,18070,0,18070,2,4184,18400,1,3,0,18071,0,0,0,18400,0]],"paint":[[18072,18073,0,18073,2,18072,18000,1,0,0,18074,0,0,0,18000,0],[18075,18076,0,18076,2,18075,18001,1,0,0,18077,0,0,0,18000,0],[18078,18079,0,18079,2,18078,18002,1,0,0,18080,0,0,0,18000,0]],"bucket":[[18081,18082,0,18082,2,1183,18300,3,1,0,18083,0,0,0,3,0],[18084,18085,0,18085,2,2183,18301,3,1,0,18086,0,0,0,3,0],[18087,18088,0,18088,2,3183,18302,3,1,0,18089,0,0,0,3,0]],"mixer":[[18090,18091,0,18091,2,1186,18600,1,0,0,18092,0,0,0,18600,0],[18093,18094,0,18094,2,2186,18601,1,0,0,18095,0,0,0,18600,0]],"eraser":[[18137,18138,0,18138,2,1185,18500,1,0,0,18139,0,0,0,18500,0],[18134,18135,0,18135,2,2185,18501,1,0,0,18136,0,0,0,18500,0]]};
+const sourceButtons = {"draw":[[18060,18061,0,18061,2,1184,18400,1,0,0,18062,0,0,0,18400,0],[18063,18064,0,18064,2,2184,18400,1,1,0,18065,0,0,0,18400,0],[18066,18067,0,18067,2,3184,18400,1,2,0,18068,0,0,0,18400,0],[18069,18070,0,18070,2,4184,18400,1,3,0,18071,0,0,0,18400,0]],"paint":[[18072,18073,0,18073,2,18072,18000,1,0,0,18074,0,0,0,18000,0],[18075,18076,0,18076,2,18075,18001,1,0,0,18077,0,0,0,18000,0],[18078,18079,0,18079,2,18078,18002,1,0,0,18080,0,0,0,18000,0]],"bucket":[[18081,18082,0,18082,2,1183,18300,3,1,0,18083,0,0,0,3,0],[18084,18085,0,18085,2,2183,18301,3,1,0,18086,0,0,0,3,0],[18087,18088,0,18088,2,3183,18302,3,1,0,18089,0,0,0,3,0]],"mixer":[[18090,18091,0,18091,2,1186,18600,1,0,0,18092,0,0,0,18600,0],[18093,18094,0,18094,2,2186,18601,1,0,0,18095,0,0,0,18600,0]],"eraser":[[18137,18138,0,18138,2,1185,18500,1,0,0,18139,0,0,0,18500,0],[18134,18135,0,18135,2,2185,18501,1,0,0,18136,0,0,0,18500,0]],"grab":[[18131,18132,0,18132,2,1926,22300,1,0,0,18133,0,0,0,153,0],[18128,18129,0,18129,1,0,22301,1,0,0,18130,0,0,0,153,0]]};
 
-const sourcePngHashes = {"draw":"2c9fec03f9cbca14d8ca90c78e612993b872f74edf24b1c286a5e61389682df8","paint":"6b759149135adfa92ee71d6e59b0f936cc249b2ed68c696a4e77b97ac9fc933c","bucket":"9a0cf6d385020f83afbcb5e42b23478def43f37cb8278cf7af8f9d4e8f405a23","mixer":"f53173fd273f30e59c4c6f29b2ca89e64e061d7e48070f956ed94b2549961f35","eraser":"e6dfd59a4e419b9bab5a386b64f5e534d83b8b1a47162b6a8f14776e6272556a"};
+const sourcePngHashes = {"draw":"2c9fec03f9cbca14d8ca90c78e612993b872f74edf24b1c286a5e61389682df8","paint":"6b759149135adfa92ee71d6e59b0f936cc249b2ed68c696a4e77b97ac9fc933c","bucket":"9a0cf6d385020f83afbcb5e42b23478def43f37cb8278cf7af8f9d4e8f405a23","mixer":"f53173fd273f30e59c4c6f29b2ca89e64e061d7e48070f956ed94b2549961f35","eraser":"e6dfd59a4e419b9bab5a386b64f5e534d83b8b1a47162b6a8f14776e6272556a","grab":"4903f27662254d0f2ce7330b318e6a58343ad7ba97d363ab16ea1e30771c1abc"};
 
-const sourceBackdropHashes = {"paint":["5c47607b8602e28b5004ed887939c8bbb2374a08355d2f1115467cc9686a76c3","c61504ed9c034f237d874a6a3c44939dd8d869fc09a867db10188b51661d502a","8760cc5d098d83b511fc2c2691277d3092b29c33466578f7f52f0da31c31cb38","1e8aa1cac383aeec95dc5e92527cc6a1bd3132aaeb5a3fbc0f1b970d67221bf4"],"wacky":["e75079f8cd8e56713dd9f3d4a26f8e4b2ad7a1caaca96d7f29f14ef8fb9d973d","73d0ab3810a6565e26147e83e720b4cb5e5abcea590ebe2239e6449a35830805","6d0a7d0039ffd272fe1e53bb81f3a999d06797061f9108e6ec37e77116b56ce4","65c3e4729c954beebf6ecaea8b24ef83e58c320f01695945f8780fb449e11b81","9299f53d1139dbdb7f36f4c74b3c2c0fbc5b34481e4942fa48d2f85c863d1b4c","a3c380dd37f578fa0fd8b17c6f8cb12a99c7c1f9beb165797e9a4afac99b4ab2"],"sound":["12c9f7274f869d998f50170eed1663678bbb8585d66f0fe540a0609607ded22d","51cee7f805a165fec779d176f478aac76c9f931a435493f2901a7a045f8f83c1"],"hands-free":["78ea180af70ace3fa181bab1925c4ef3658d11ef06184944d898d9a5cc20ca4f","55bb1ebcc09334aac481c5ee0be008540b5260c2cb6027ed6eab319e54777a65"],"spray":["ed9747177b8a8cfde0e9af05e7e4946a2544f8baae26491cdf65f8e3136200f3","80dce0cc8ee3c7f66bd9fb884e8d9019369e97ea3925a5a5558ebe7eaf713acc","63dcc2a54c8599c351c34f3cbecb752c3ecc6a0409064f05d9eeb628b40db144"],"moving-spray":["99b33788a654f96fde7cb05c0b6b158548073efec90e85d3aab3c2a0325c004c","deefdc7d5c778e8aea56e715c36775bbf45f61abfaec58a31200ae81a0d9ec9d","4f64668cf387e3a70a7297c5a9259c424070842de04c02c310ac14abf5fb56af","5fd50fe343d549ecbee9ba11cf7eb6f291bbe46aa748800608c178a1fc0c10f7"],"bucket":["ca9ed5c2c437ab35a47c2ad58772e0ddd629cf789b08174285cc57cbcbef99ac","a593dfcf22799c6908bc56db0396affcd698d618744a195a588157dafb534593","320981223f8aee37e63e453ccb4fc4f5e29b572b9611987f17f0f0e49b401da7","92343fc693bb6592a58fe9fe5ac9493bfd40cfabec51748d8f57aed3bf78a3b8","0ee5228efc0db51ee788e7d6f9f3c443831b892de0209973f1c8dbd806356155","0d563f4c34d5e0d1c3f8dd10723d5d5f0dc5ddcc250d614869e1d3766c8dc58c"],"gradient":["8e9579e4980ff841a9abb7fc7feb56b4726305a4da7e993bf1938f96f0846ce4","b9857baef649a969a3faef29df71077fb4ea0ea16c5898901eee03abaf993d7f","56f51ea5beaabd6c81a2f435df39fe82825332ae521803b03718b1465956f935","4088472f4958e921f1d634545407de0e6dc436903f3e20d78d993c7435d489f3","584ef44b6f0ac67c045b74f4dec91876dfacc8a797692ce10a60d38eef832d0b","0824bdda52f28aa658bafff0277a9bbd6ebc4c8ffab8baf3549c43d55e6230b2","093cc4a5cf5ca2e633abf2562d94cf0037397cebd30eb9ed568e1a80f94b549f","56a92c80cff37ea54351d46cada65986b0e014eaff3fc75df3ca8ba105a9d1cd","49a27db4f60dd71b620774d13be3b54dfadea1e65e57e6eaf8a580992df03ef5"],"pattern":["20959d7beeef7fa99e09a173694c6d2c34644997a9d60fbc4dbd8f2f2ff80851","5ca1b0ac0b1fbd2a1ba157d96c7334543e3d3ccf2b5d2018e1b2d47b438eef6c","188b0b420241f2defe0b7cd4bb64fc1180fd92bda90e8c3967e3bb991d55d6cc","b9262c823f84bd6fb47dc3330ab99402de809e514b696c1e2691c0f66a37b62f","816b0bfe47a9b684c20ddcc10d83be30806bf102d7dbaa03bce8fec5b23474a4","2bac20b26ff91f904c67f6e2c3eab4222befabbcbe770a9c7a641dcf6d8f55ad","5f8816ba5539ed3f61367f2fe668d14dfa0281462af94058706f6c4826897e16"],"mixer":["54a41cdc4327fc2a543460c51f487ce80eea3d0fd635f0c682c74f03f4d9352e","4b22921c6d7704c771fec84fe3cfc9b78022902bbe8e2423055705ef73c5b6c4","2c519e1ae01d548aaee1727303c7064dd363d0cb9934a230b7f5739fda3743ae","746f29c88138c478ab765c36a029b97b66d4579343c2f185b9e7fda69b0763ec"],"mixer-wand":["bf45f2fea136795d9555c8377a76527f9efdf76856aecf183ee5c3e6c5345f3c","ab251c7b6ea41287f5b777c4a04bd3d4e76938d79fee7d96c74c9acf723a3aab"],"eraser":["374ea8caeb5c5480c1b7fe546edd27b15399c3d8bdc4024c15e3fb800e95960d","35161a6a2afa98b214cdeefc8bc2fdaa7acc8520ead6dd7c8c5dd08bfb107701","cb4173113877b8f46dd74abe365b4df1471efbc6ea806fd82389731b5251b14c","f41ba3814c39fce9f09d90fb515f401540d98c99afad1d550881085a82d32626"]};
+const sourceBackdropHashes = {"paint":["5c47607b8602e28b5004ed887939c8bbb2374a08355d2f1115467cc9686a76c3","c61504ed9c034f237d874a6a3c44939dd8d869fc09a867db10188b51661d502a","8760cc5d098d83b511fc2c2691277d3092b29c33466578f7f52f0da31c31cb38","1e8aa1cac383aeec95dc5e92527cc6a1bd3132aaeb5a3fbc0f1b970d67221bf4"],"wacky":["e75079f8cd8e56713dd9f3d4a26f8e4b2ad7a1caaca96d7f29f14ef8fb9d973d","73d0ab3810a6565e26147e83e720b4cb5e5abcea590ebe2239e6449a35830805","6d0a7d0039ffd272fe1e53bb81f3a999d06797061f9108e6ec37e77116b56ce4","65c3e4729c954beebf6ecaea8b24ef83e58c320f01695945f8780fb449e11b81","9299f53d1139dbdb7f36f4c74b3c2c0fbc5b34481e4942fa48d2f85c863d1b4c","a3c380dd37f578fa0fd8b17c6f8cb12a99c7c1f9beb165797e9a4afac99b4ab2"],"sound":["12c9f7274f869d998f50170eed1663678bbb8585d66f0fe540a0609607ded22d","51cee7f805a165fec779d176f478aac76c9f931a435493f2901a7a045f8f83c1"],"hands-free":["78ea180af70ace3fa181bab1925c4ef3658d11ef06184944d898d9a5cc20ca4f","55bb1ebcc09334aac481c5ee0be008540b5260c2cb6027ed6eab319e54777a65"],"spray":["ed9747177b8a8cfde0e9af05e7e4946a2544f8baae26491cdf65f8e3136200f3","80dce0cc8ee3c7f66bd9fb884e8d9019369e97ea3925a5a5558ebe7eaf713acc","63dcc2a54c8599c351c34f3cbecb752c3ecc6a0409064f05d9eeb628b40db144"],"moving-spray":["99b33788a654f96fde7cb05c0b6b158548073efec90e85d3aab3c2a0325c004c","deefdc7d5c778e8aea56e715c36775bbf45f61abfaec58a31200ae81a0d9ec9d","4f64668cf387e3a70a7297c5a9259c424070842de04c02c310ac14abf5fb56af","5fd50fe343d549ecbee9ba11cf7eb6f291bbe46aa748800608c178a1fc0c10f7"],"bucket":["ca9ed5c2c437ab35a47c2ad58772e0ddd629cf789b08174285cc57cbcbef99ac","a593dfcf22799c6908bc56db0396affcd698d618744a195a588157dafb534593","320981223f8aee37e63e453ccb4fc4f5e29b572b9611987f17f0f0e49b401da7","92343fc693bb6592a58fe9fe5ac9493bfd40cfabec51748d8f57aed3bf78a3b8","0ee5228efc0db51ee788e7d6f9f3c443831b892de0209973f1c8dbd806356155","0d563f4c34d5e0d1c3f8dd10723d5d5f0dc5ddcc250d614869e1d3766c8dc58c"],"gradient":["8e9579e4980ff841a9abb7fc7feb56b4726305a4da7e993bf1938f96f0846ce4","b9857baef649a969a3faef29df71077fb4ea0ea16c5898901eee03abaf993d7f","56f51ea5beaabd6c81a2f435df39fe82825332ae521803b03718b1465956f935","4088472f4958e921f1d634545407de0e6dc436903f3e20d78d993c7435d489f3","584ef44b6f0ac67c045b74f4dec91876dfacc8a797692ce10a60d38eef832d0b","0824bdda52f28aa658bafff0277a9bbd6ebc4c8ffab8baf3549c43d55e6230b2","093cc4a5cf5ca2e633abf2562d94cf0037397cebd30eb9ed568e1a80f94b549f","56a92c80cff37ea54351d46cada65986b0e014eaff3fc75df3ca8ba105a9d1cd","49a27db4f60dd71b620774d13be3b54dfadea1e65e57e6eaf8a580992df03ef5"],"pattern":["20959d7beeef7fa99e09a173694c6d2c34644997a9d60fbc4dbd8f2f2ff80851","5ca1b0ac0b1fbd2a1ba157d96c7334543e3d3ccf2b5d2018e1b2d47b438eef6c","188b0b420241f2defe0b7cd4bb64fc1180fd92bda90e8c3967e3bb991d55d6cc","b9262c823f84bd6fb47dc3330ab99402de809e514b696c1e2691c0f66a37b62f","816b0bfe47a9b684c20ddcc10d83be30806bf102d7dbaa03bce8fec5b23474a4","2bac20b26ff91f904c67f6e2c3eab4222befabbcbe770a9c7a641dcf6d8f55ad","5f8816ba5539ed3f61367f2fe668d14dfa0281462af94058706f6c4826897e16"],"mixer":["54a41cdc4327fc2a543460c51f487ce80eea3d0fd635f0c682c74f03f4d9352e","4b22921c6d7704c771fec84fe3cfc9b78022902bbe8e2423055705ef73c5b6c4","2c519e1ae01d548aaee1727303c7064dd363d0cb9934a230b7f5739fda3743ae","746f29c88138c478ab765c36a029b97b66d4579343c2f185b9e7fda69b0763ec"],"mixer-wand":["bf45f2fea136795d9555c8377a76527f9efdf76856aecf183ee5c3e6c5345f3c","ab251c7b6ea41287f5b777c4a04bd3d4e76938d79fee7d96c74c9acf723a3aab"],"eraser":["374ea8caeb5c5480c1b7fe546edd27b15399c3d8bdc4024c15e3fb800e95960d","35161a6a2afa98b214cdeefc8bc2fdaa7acc8520ead6dd7c8c5dd08bfb107701","cb4173113877b8f46dd74abe365b4df1471efbc6ea806fd82389731b5251b14c","f41ba3814c39fce9f09d90fb515f401540d98c99afad1d550881085a82d32626"],"grab":["299c39e967ee2cf3473e22a92b2cef2829bc143d5fdb7e219845c3b4b30739be"],"scissors":["17272f78cfdf8515fc6f7562597a8115373c3749bc57a4250f8de1438cfceed8","56b832113f34bcd1c0497ac109b2f0c6cf07f226106c6507416018c4d00d4c91","4c6dfcc5495119def98f12ff79d0e89353b46dc21177528b46b1b8e06c3f8854"]};
 
 test('all clean tray pages exactly retain source options and omit only primary actor scripts', async ({ page }) => {
   await install(page);
@@ -622,4 +636,243 @@ test('all clean tray pages exactly retain source options and omit only primary a
       expect(digest(png.data), `${view} row${index + 1}: source-composed clean backdrop`).toBe(hashes[index]);
     }
   }
+});
+
+for (const [index, tool, rest] of [[0, 'scissors', 18131], [1, 'grab', 18128]]) {
+  for (const [phase, offset] of [['rest', 0], ['tracking', 1], ['hover', 2]]) {
+    test(`grab/${tool}: ${phase} source cue deadline, ownership and sound-gated end hold`, async ({ page }) => {
+      await install(page, { heldAudio: true });
+      await openTray(page, 'grab');
+      const peer = index === 0 ? 'grab' : 'scissors';
+      await action(page, `tool:${peer}`).focus(); await page.keyboard.press('Enter');
+      await action(page, 'tray:text').click();
+      await page.evaluate(() => { window.toolSounds.length = 0; });
+      await openTray(page, 'grab');
+      const script = rest + offset, oracle = sourceScripts[script];
+      const [x, y, w, h] = sourceRegions[rest];
+      if (phase !== 'rest') await page.mouse.move(...await point(page, x + w / 2, y + h / 2));
+      if (phase === 'tracking') await page.mouse.down();
+      const cue = oracle.sounds[0];
+      const sounds = () => page.evaluate(sound => window.toolSounds.filter(audio =>
+        new URL(audio.src, location.href).pathname.endsWith(`/${sound}.wav`)).map(audio => ({ paused: audio.paused, plays: audio.plays })), cue.sound);
+      for (let tick = 0; tick < oracle.endCheckTick; tick++) {
+        if (tick) await page.clock.runFor(112);
+        expect(await item(page, 'grab', index)).toMatchObject({ script, frameIndex: tick, finished: false });
+        expect(await sounds()).toEqual(tick < cue.tick ? [] : [{ paused: false, plays: 1 }]);
+      }
+      await page.clock.runFor(448);
+      expect(await item(page, 'grab', index)).toMatchObject({ script, frameIndex: oracle.groups - 1, finished: false });
+      if (phase === 'tracking') {
+        await page.mouse.up();
+        expect(await item(page, 'grab', index)).toMatchObject({ state: 3, script, frameIndex: oracle.groups - 1 });
+        expect(await sounds()).toEqual([{ paused: false, plays: 1 }]);
+      }
+      await page.evaluate(sound => {
+        for (const audio of window.toolSounds) if (new URL(audio.src, location.href).pathname.endsWith(`/${sound}.wav`)) {
+          audio.ended = true; audio.dispatchEvent(new Event('ended'));
+        }
+      }, cue.sound);
+      await page.clock.runFor(112);
+      if (phase === 'hover') expect(await item(page, 'grab', index)).toMatchObject({ script: rest, auxiliary: false });
+      else expect(await item(page, 'grab', index)).toMatchObject({ script, finished: true });
+      await page.evaluate(() => { window.previousToolSounds = [...window.toolSounds]; });
+      await action(page, 'tray:text').click();
+      expect(await page.evaluate(() => window.previousToolSounds.every(audio => audio.paused || audio.ended))).toBe(true);
+      await expect(allActors(page)).toHaveCount(0);
+      expect(page.motionErrors).toEqual([]);
+    });
+  }
+
+  for (const event of ['pointercancel', 'lostpointercapture', 'blur']) {
+    test(`grab/${tool}: ${event} cancels tracking and permits keyboard retry`, async ({ page }) => {
+      await install(page, { heldAudio: true });
+      await openTray(page, 'grab');
+      await action(page, `tool:${index === 0 ? 'grab' : 'scissors'}`).focus(); await page.keyboard.press('Enter');
+      // Selecting the peer can change Hand/Scissors pages asynchronously.
+      // Attach the event probe only to the final, rebound controls.
+      await expect(actor(page, 'grab')).toBeVisible();
+      const control = action(page, `tool:${tool}`);
+      await control.evaluate(node => node.addEventListener('pointerdown', event => { node.dataset.testPointer = event.pointerId; }));
+      const [x, y, w, h] = sourceRegions[rest];
+      await page.mouse.move(...await point(page, x + w / 2, y + h / 2)); await page.mouse.down();
+      await page.mouse.move(...await point(page, x + w / 2 + 1, y + h / 2));
+      expect(await item(page, 'grab', index)).toMatchObject({ state: 1 });
+      expect(await control.evaluate(node => node.hasPointerCapture(Number(node.dataset.testPointer)))).toBe(true);
+      await control.evaluate((node, event) => {
+        const pointerId = Number(node.dataset.testPointer);
+        if (event === 'blur') window.dispatchEvent(new Event('blur'));
+        else if (event === 'lostpointercapture') node.releasePointerCapture(pointerId);
+        else node.dispatchEvent(new PointerEvent('pointercancel', { pointerId, pointerType: 'mouse', bubbles: true }));
+      }, event);
+      await moveOutside(page); await page.mouse.up();
+      expect(await item(page, 'grab', index)).toMatchObject({ state: 0, script: rest, auxiliary: false });
+      await expect(action(page, `tool:${index === 0 ? 'grab' : 'scissors'}`)).toHaveAttribute('aria-pressed', 'true');
+      await control.focus(); await page.keyboard.down('Space');
+      await page.clock.runFor(224);
+      const held = await item(page, 'grab', index);
+      await page.keyboard.up('Space');
+      await expect(actor(page, 'grab')).toBeVisible();
+      expect(await item(page, 'grab', index)).toMatchObject({ state: 3, script: held.script, frameIndex: held.frameIndex });
+      await expect(control).toHaveAttribute('aria-pressed', 'true');
+      expect(page.motionErrors).toEqual([]);
+    });
+  }
+}
+
+test('Grab and every Scissors page retain one owner through view switches and held-input rerenders', async ({ page }) => {
+  await install(page);
+  await openTray(page, 'grab'); await loadOracle(page, 'grab');
+  await actor(page, 'grab').evaluate(node => { window.savedMotionActor = node; });
+  await action(page, 'tool:scissors').focus(); await page.keyboard.press('Enter');
+  await expect(actor(page, 'grab')).toBeVisible();
+  await page.clock.runFor(224);
+  const before = await snap(page, 'grab');
+  for (const value of ['page:1', 'page:1', 'page:-1', 'page:-1']) {
+    await action(page, value).click(); await expect(actor(page, 'grab')).toBeVisible();
+    expect(await actor(page, 'grab').evaluate(node => node === window.savedMotionActor)).toBe(true);
+    expect(await snap(page, 'grab')).toEqual(before);
+    await expectPixels(page, 'grab', { composite: true });
+  }
+  // Hold Hand while the other actor remains selected, rerender the Scissors
+  // page, then commit once into the Hand view without restarting its script.
+  await action(page, 'tool:grab').focus(); await page.keyboard.down('Space');
+  await page.clock.runFor(224);
+  const hand = await item(page, 'grab', 1);
+  await action(page, 'page:1').evaluate(node => node.click());
+  await expect(actor(page, 'grab')).toBeVisible();
+  await expect(action(page, 'tool:grab')).toBeFocused();
+  expect(await item(page, 'grab', 1)).toEqual(hand);
+  await page.keyboard.up('Space'); await expect(actor(page, 'grab')).toBeVisible();
+  expect(await item(page, 'grab', 1)).toMatchObject({ state: 3, script: hand.script, frameIndex: hand.frameIndex });
+  expect(await actor(page, 'grab').evaluate(node => node === window.savedMotionActor)).toBe(true);
+  await expectPixels(page, 'grab', { composite: true });
+  // A captured Scissors press crosses a real color rerender before mouseup.
+  await action(page, 'tool:scissors').hover(); await page.mouse.down();
+  await page.clock.runFor(224);
+  const scissors = await item(page, 'grab', 0);
+  await action(page, 'palette').evaluate(node => node.click());
+  await page.locator('#custom-color').evaluate(input => { input.value = '#0080ff'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+  expect(await item(page, 'grab', 0)).toEqual(scissors);
+  await page.mouse.up(); await expect(actor(page, 'grab')).toBeVisible();
+  expect(await item(page, 'grab', 0)).toMatchObject({ state: 3, script: scissors.script, frameIndex: scissors.frameIndex });
+  await page.keyboard.press('Escape'); // Dismiss the real palette after release.
+  await expectPixels(page, 'grab', { composite: true });
+  expect(page.motionErrors).toEqual([]);
+});
+
+test('animated Hand preserves real object selection and dragging across Scissors view changes', async ({ page }) => {
+  await install(page);
+  await action(page, 'tray:stickers').click();
+  const tile = page.locator('#library-tray [data-asset][draggable="true"]').first();
+  await expect(tile).toBeVisible();
+  await tile.dragTo(page.locator('#paper-canvas'), { targetPosition: { x: 360, y: 240 } });
+  const object = page.locator('#objects .scene-object');
+  await expect(object).toHaveCount(1); await expect(actor(page, 'grab')).toBeVisible();
+  const rect = () => object.evaluate(node => ({ x: parseFloat(node.style.left), y: parseFloat(node.style.top) }));
+  const original = await rect();
+  await action(page, 'tool:scissors').focus(); await page.keyboard.press('Enter');
+  await expect(actor(page, 'grab')).toBeVisible();
+  await expect(page.locator('#paper-canvas')).toHaveAttribute('data-tool', 'scissors');
+  let releaseBackdrop;
+  const backdropGate = new Promise(resolve => { releaseBackdrop = resolve; });
+  const delayedBackdrop = '**/tool-motion/backdrops/scissors-2.png*';
+  await page.route(delayedBackdrop, async route => { await backdropGate; await route.continue(); });
+  try {
+    await action(page, 'page:1').click();
+    await expect(actor(page, 'grab')).toBeHidden();
+    // Focus the usable static fallback while the new page decodes. The later
+    // ready render must retain it even before motion indexes have been bound.
+    await action(page, 'tool:grab').focus();
+    releaseBackdrop();
+    await expect(actor(page, 'grab')).toBeVisible();
+    await expect(action(page, 'tool:grab')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(action(page, 'tool:grab')).toHaveAttribute('aria-pressed', 'true');
+  } finally {
+    releaseBackdrop();
+    await page.unroute(delayedBackdrop);
+  }
+  const box = await object.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 47, box.y + box.height / 2 + 29, { steps: 5 }); await page.mouse.up();
+  const moved = await rect();
+  expect(moved.x).toBeCloseTo(original.x + 47, 1); expect(moved.y).toBeCloseTo(original.y + 29, 1);
+  await expect(object).toHaveClass(/is-selected/);
+  await page.locator('#paper-canvas').focus(); await page.keyboard.press('ControlOrMeta+z');
+  expect(await rect()).toEqual(original);
+  await page.keyboard.press('ControlOrMeta+Shift+z'); expect(await rect()).toEqual(moved);
+  await action(page, 'tray:draw').click(); await openTray(page, 'grab');
+  await expect(action(page, 'tool:grab')).toHaveAttribute('aria-pressed', 'true');
+  expect(await item(page, 'grab', 1)).toMatchObject({ state: 3, script: 18129 });
+  expect(await rect()).toEqual(moved);
+  expect(page.motionErrors).toEqual([]);
+});
+
+test('Grab delayed bundle cancellation cannot publish a late actor or cue and reentry retries', async ({ page }) => {
+  await install(page, { heldAudio: true });
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let held = false;
+  await page.route(/\/tool-motion\/grab\/sprites\.bin(?:\?|$)/, async route => {
+    held = true;
+    await gate;
+    try { await route.continue(); } catch { /* Owner switch aborted this request. */ }
+  });
+  await action(page, 'tray:grab').click();
+  await expect.poll(() => held).toBe(true);
+  await action(page, 'tray:text').click();
+  release();
+  await page.clock.runFor(512);
+  await expect(allActors(page)).toHaveCount(0);
+  expect(await page.evaluate(() => window.toolSounds.filter(audio => /\/grab\//.test(audio.src)))).toEqual([]);
+  await openTray(page, 'grab');
+  expect(await item(page, 'grab', 1)).toMatchObject({ state: 3, script: 18129 });
+  expect(page.motionErrors).toEqual([]);
+});
+
+test('Grab separate PNG/raw fallback loads both actors when gzip decompression is unavailable', async ({ page }) => {
+  await page.addInitScript(() => { window.DecompressionStream = undefined; });
+  const requests = [];
+  page.on('request', request => { if (/\/tool-motion\/grab\//.test(request.url())) requests.push(request.url()); });
+  await install(page); await openTray(page, 'grab'); await loadOracle(page, 'grab');
+  expect(requests.filter(path => /\.argb(?:\?|$)/.test(path))).toHaveLength(29);
+  expect(requests.filter(path => /\.png(?:\?|$)/.test(path))).toHaveLength(29);
+  // loadOracle's separate API request is outside page network observations.
+  expect(requests.filter(path => /sprites\.bin/.test(path))).toHaveLength(0);
+  await expectPixels(page, 'grab', { composite: true });
+  await action(page, 'tool:scissors').focus(); await page.keyboard.press('Enter');
+  await expect(actor(page, 'grab')).toBeVisible();
+  await page.clock.runFor(224); await expectPixels(page, 'grab', { composite: true });
+  expect(page.motionErrors).toEqual([]);
+});
+
+test('animated Scissors retain actual raster selection and move behavior', async ({ page }) => {
+  await install(page);
+  await action(page, 'tool:marker').focus(); await page.keyboard.press('Enter');
+  const paper = page.locator('#paper-canvas');
+  await expect(paper).toHaveAttribute('data-paint-ready', 'ready');
+  const bounds = await paper.boundingBox();
+  const at = (x, y) => [bounds.x + x * bounds.width / 720, bounds.y + y * bounds.height / 542];
+  await page.mouse.move(...at(80, 80)); await page.mouse.down();
+  await page.mouse.move(...at(140, 120), { steps: 8 }); await page.mouse.up();
+  const ink = () => paper.evaluate(node => node.toDataURL());
+  const drawn = await ink();
+  await openTray(page, 'grab');
+  await action(page, 'tool:scissors').focus(); await page.keyboard.press('Enter');
+  await expect(actor(page, 'grab')).toBeVisible();
+  await action(page, 'style:rectangle').click();
+  await page.mouse.move(...at(50, 50)); await page.mouse.down();
+  await page.mouse.move(...at(180, 160), { steps: 5 }); await page.mouse.up();
+  await page.mouse.move(...at(100, 100)); await page.mouse.down();
+  await page.mouse.move(...at(300, 220), { steps: 5 }); await page.mouse.up();
+  await action(page, 'tray:draw').click();
+  expect(await ink()).not.toBe(drawn);
+  await paper.focus(); await page.keyboard.press('ControlOrMeta+z');
+  expect(await ink()).toBe(drawn);
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  expect(await ink()).not.toBe(drawn);
+  await openTray(page, 'grab');
+  await expect(action(page, 'tool:scissors')).toHaveAttribute('aria-pressed', 'true');
+  expect(await item(page, 'grab', 0)).toMatchObject({ state: 3, script: 18132 });
+  expect(page.motionErrors).toEqual([]);
 });

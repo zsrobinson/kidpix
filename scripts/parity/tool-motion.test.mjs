@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
+import { existsSync, readFileSync } from 'node:fs';
 import { createDrawingMotionController, loadDrawingMotionAssets, paintDrawingMotionFrame } from '../../src/native-drawing-motion.js';
 import { toolRegionContains } from '../../src/native-tool-motion.js';
 
@@ -118,3 +119,52 @@ test('aborted bundle load cannot start an actor and a fresh load succeeds', asyn
   await assert.rejects(loadDrawingMotionAssets(manifest, { ...options, signal: abort.signal }), /abort/i);
   assert.equal((await loadDrawingMotionAssets(manifest, options)).size, 1);
 });
+
+const toolIndexPath = new URL('../../public/original/ui/tool-motion/manifest.json', import.meta.url);
+test('exported Grab source streams retain all six timelines, cue gates, kind1 clipping and row identity',
+  { skip: !existsSync(toolIndexPath) }, () => {
+    const manifest = JSON.parse(readFileSync(toolIndexPath)).trays.grab;
+    assert.ok(manifest, 'Run native-tool-motion.py with the mounted source');
+    assert.deepEqual(manifest.buttons.map(button => [button.name, button.command, button.commandArgument, button.mode]),
+      [['scissors', 22300, 0, 2], ['grab', 22301, 0, 2]]);
+    assert.deepEqual(manifest.buttons[1].region.boundsXYWH, [149, 643, 109, 112]);
+    for (const [index, rest, counts] of [[0, 18131, [9, 9, 6]], [1, 18128, [8, 8, 9]]]) {
+      for (let phase = 0; phase < 3; phase++) {
+        let time = 0;
+        const cues = [];
+        const actor = createDrawingMotionController(manifest, { selected: 1 - index,
+          now: () => time, playSound(cue) {
+            const handle = { complete: false, stop() { this.complete = true; }, isComplete() { return this.complete; } };
+            cues.push({ cue, handle, time }); return handle;
+          } });
+        if (phase === 1) actor.press(index);
+        if (phase === 2) actor.enter(index);
+        const script = rest + phase, clip = manifest.scripts[script];
+        assert.equal(clip.frames.length, counts[phase]);
+        assert.ok(clip.frames.every(frame => frame.parts.length === 1));
+        for (let tick = 0; tick < clip.endCheckTick; tick++) {
+          if (tick) actor.step(time = tick * 100);
+          const current = actor.snapshot()[index];
+          assert.equal(current.script, script);
+          assert.equal(current.frameIndex, tick);
+          assert.deepEqual(current.clipRect, phase === 2 ? manifest.buttons[index].auxiliaryClipRect : null);
+          assert.deepEqual(cues.filter(value => value.cue.sound === clip.sounds[0].sound).map(value => value.time),
+            clip.sounds.filter(cue => cue.tick <= tick).map(cue => cue.tick * 100));
+        }
+        actor.step(time += 100);
+        assert.equal(actor.snapshot()[index].finished, false, 'Owned sound gates final end check');
+        if (phase === 1) {
+          const before = actor.snapshot()[index];
+          assert.equal(actor.release(true), 0);
+          assert.equal(actor.snapshot()[index].frameIndex, before.frameIndex);
+          assert.equal(actor.press(index), false, 'Selected control is disabled');
+        }
+        cues.forEach(({ handle }) => handle.complete = true);
+        actor.step(time += 100);
+        if (phase !== 2) assert.equal(actor.snapshot()[index].finished, true);
+        else assert.equal(actor.snapshot()[index].auxiliary, false);
+        actor.dispose();
+        assert.ok(cues.every(({ handle }) => handle.complete));
+      }
+    }
+  });

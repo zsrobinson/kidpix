@@ -13,6 +13,7 @@ import io
 import json
 from pathlib import Path
 import struct
+from types import SimpleNamespace
 import wave
 
 
@@ -26,11 +27,19 @@ SPECS = {
     'bucket': (18300, ('bucket', 'gradient', 'pattern'), 3, (18300, 18301, 18302), 18081, 0, 'mode9'),
     'mixer': (18600, ('mega', 'wand'), 18600, (18600, 18601), 18090, 0, 'ordinary'),
     'eraser': (18500, ('big', 'round'), 18500, (18500, 18501), None, 1, 'ordinary'),
+    'grab': (926, ('scissors', 'grab'), 153, (22300, 22301), None, 1, 'mode9'),
 }
 VIEW_OWNERS = dict.fromkeys(('paint', 'wacky', 'sound', 'hands-free', 'spray', 'moving-spray'), 'paint')
 VIEW_OWNERS.update(dict.fromkeys(('bucket', 'gradient', 'pattern'), 'bucket'))
 VIEW_OWNERS.update({'mixer': 'mixer', 'mixer-wand': 'mixer', 'eraser': 'eraser'})
+VIEW_OWNERS.update({'grab': 'grab', 'scissors': 'grab'})
 EVIDENCE = {
+    'grab': {'ownerVtable': '0x0031eff8', 'ownerLoad': '0x000ee480–0x000ee488: MBTN926',
+             'callbackRows': [0, 1], 'callbackRange': '0x000eb184 / 0x000eb18c return 0 / 1',
+             'selectedRestore': '0x000eca7d default command22301; 0x000ecbb3–0x000ecbe2 restores row by command22301',
+             'stateMode': '0x00031155–0x00031177: absent slot2 / present slot3 gives mode2; word4 is hotspot kind',
+             'kind1Bounds': '0x00031247–0x000313cb: initial rest/state1 union replaced by initial rollover full bounds',
+             'auxiliaryClip': '0x0003141d calls rectangle constructor0x0003102a with those final bounds'},
     'paint': {'ownerVtable': '0x0031f5a0', 'ownerLoad': '0x000f419f–0x000f41af: MBTN18000',
               'callbackRows': [0, 2], 'callbackRange': '0x000f3b0a / 0x000f3b12',
               'selectedRestore': '0x000f3d74–0x000f3dc6; default row0 at 0x000f3bbf'},
@@ -63,15 +72,27 @@ def compile_tray(archive, owner):
             raise ValueError(f'Missing {owner} primary controls')
         scripts, sprites, sounds = {}, {}, {}
         for index, button in enumerate(buttons):
-            start = (18137, 18134)[index] if owner == 'eraser' else first + index * 3
+            start = ({'eraser': (18137, 18134), 'grab': (18131, 18128)}[owner][index]
+                     if first is None else first + index * 3)
             argument = 1 if owner == 'bucket' else 0
-            expected = [start, start + 1, 0, start + 1, 2, button['hotspotResource'],
+            kind = 1 if owner == 'grab' and index == 1 else 2
+            hotspot = (1926, 0)[index] if owner == 'grab' else button['hotspotResource']
+            expected = [start, start + 1, 0, start + 1, kind, hotspot,
                         commands[index], 3 if owner == 'bucket' else 1, argument, 0,
                         start + 2, 0, 0, 0, group, 0]
             if button['rawWords'] != expected:
                 raise ValueError(f'Unsupported {owner} table dispatch')
-            button.update(mode=2, commandArgument=argument,
-                          region=buttons_module.region_rectangles(archive[b'MRGN', button['hotspotResource']]))
+            if kind == 1:
+                # The shared kind1 constructor uses full registered initial
+                # bitmap bounds, finally replaced by rollover's initial group.
+                # image_button_region's adapter takes a zero-based bitmap index.
+                def dimensions(bank, index):
+                    width, height, _ = drawing.argb_pixels(drawing.sprite_payload(bank, index + 1))
+                    return SimpleNamespace(width=width, height=height)
+                region = buttons_module.image_button_region(button, archive, dimensions)
+            else:
+                region = buttons_module.region_rectangles(archive[b'MRGN', button['hotspotResource']])
+            button.update(mode=2, commandArgument=argument, region=region)
             button['auxiliaryClipRect'] = list(button['region']['boundsXYWH'])
         for resource in sorted({n for button in buttons for n in [*button['stateScripts'], button['rolloverScript']] if n}):
             raw = archive[b'tSCR', resource]
@@ -141,7 +162,7 @@ def compile_tray(archive, owner):
                                        commandArgument=b['commandArgument']) for b in result['buttons']]
     result['sourceHashes'] = {f'{tag.decode()}/{n}': sha(archive[tag, n]) for tag, n in
                               [(b'MBTN', table), (b'tBMH', 18000), (b'REGS', 18000), (b'REGS', 18001)] +
-                              [(b'MRGN', b['hotspotResource']) for b in result['buttons']]}
+                              [(b'MRGN', b['hotspotResource']) for b in result['buttons'] if b['hotspotKind'] == 2]}
     return result
 
 
@@ -174,7 +195,7 @@ def export_backdrops(read, archive, trays, output):
     ui = import_module('import-ui')
     easel = ui.mohawk(read('Data/Easel.MHK'))
     sources = {'Tp': archive}
-    for name in ('Icons', 'Anims', 'Cyclic'):
+    for name in ('Icons', 'Anims', 'Cyclic', 'CutRgns'):
         sources[name] = ui.mohawk(read(f'Data/Tools/{name}.MHK'))
     frames = {n: ui.sprite(archive[b'tBMH', 18000], n) for n in (738,)}
     result = {}
@@ -213,6 +234,13 @@ def export_backdrops(read, archive, trays, output):
             target = output / path
             target.parent.mkdir(parents=True, exist_ok=True)
             shown.crop((113, 608, 930, 776)).save(target)
+            pages.append(dict(image=path, sha256=sha(target.read_bytes())))
+        if not pages:
+            # Owners without options (Hand) have one undigitized base page.
+            path = f'tool-motion/backdrops/{name}.png'
+            target = output / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            base.crop((113, 608, 930, 776)).save(target)
             pages.append(dict(image=path, sha256=sha(target.read_bytes())))
         result[name] = dict(rect=[113, 608, 817, 168], pages=pages, owner=owner,
                             omittedPrimaryScripts=omitted, retainedScripts=included + [18034])

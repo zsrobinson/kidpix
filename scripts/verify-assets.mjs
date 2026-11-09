@@ -139,6 +139,40 @@ try {
       }
     }
   }
+  if (existsSync(join(original, 'ui/secondary-motion/manifest.json'))) {
+    const motion = read('ui/secondary-motion/manifest.json');
+    if (motion.version !== 1 || !motion.tables || !motion.scripts || !motion.sprites) throw new Error('Unsupported secondary motion index');
+    const verifyHash = (path, expected) => {
+      const bytes = readFileSync(check(join('ui', path)));
+      if (!expected || createHash('sha256').update(bytes).digest('hex') !== expected) throw new Error(`Secondary motion checksum mismatch: ${path}`);
+      return bytes;
+    };
+    for (const sprite of Object.values(motion.sprites)) {
+      const raw = verifyHash(sprite.argb, sprite.argbSha256);
+      if (!Number.isSafeInteger(sprite.width) || sprite.width <= 0 || !Number.isSafeInteger(sprite.height) || sprite.height <= 0
+        || raw.length !== sprite.width * sprite.height * 4) throw new Error(`Invalid secondary sprite dimensions: ${sprite.argb}`);
+      verifyHash(sprite.image, sprite.pngSha256);
+    }
+    for (const table of Object.values(motion.tables)) for (const button of table.buttons) {
+      for (const id of [...button.stateScripts, button.rolloverScript]) {
+        if (id && !motion.scripts[String(id)]) throw new Error(`Missing secondary motion program: ${id}`);
+      }
+    }
+    for (const sound of Object.values(motion.sounds ?? {})) verifyHash(sound.src, sound.sha256);
+    for (const clip of Object.values(motion.scripts)) {
+      for (const frame of clip.frames) for (const part of frame.parts) {
+        if (!motion.sprites[`${clip.collection}:${part.sprite}`]) throw new Error(`Missing secondary motion sprite: ${clip.collection}:${part.sprite}`);
+      }
+      for (const cue of clip.sounds) {
+        const sound = motion.sounds?.[String(cue.sound)];
+        if (!sound) throw new Error(`Missing secondary motion cue: ${cue.sound}`);
+        check(join('ui', sound.src));
+      }
+    }
+    for (const backdrop of Object.values(motion.backdrops ?? {})) {
+      for (const page of backdrop.pages) verifyHash(page.image, page.sha256);
+    }
+  }
   for (const [manifest, folder] of [['ui/trays.json', 'trays'], ['ui/library-trays.json', 'libraries']]) {
     for (const tray of Object.values(read(manifest).trays)) {
       if (tray.image) check(join(dirname(manifest), folder, tray.image));

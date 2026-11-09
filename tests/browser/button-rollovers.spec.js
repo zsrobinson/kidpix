@@ -276,6 +276,12 @@ for (const forceCleanup of [false, true]) {
     try {
       await page.reload({ waitUntil: 'domcontentloaded' });
       await expect(firehoseRollover(page)).toHaveCount(1);
+      // Reload replays the paused clock with a performance origin determined by
+      // setup's real elapsed time. Align before entry to Playwright's 16 ms RAF
+      // grid: otherwise runFor(112) can deliver its last frame only 97 ms after
+      // the actor starts, short of the authored 100 ms source tick.
+      const now = await page.evaluate(() => performance.now());
+      await page.clock.runFor((16 - now % 16) % 16);
       await page.mouse.move(950, 340);
       await page.mouse.move(920, 340);
       await expect(firehoseRollover(page)).toBeHidden();

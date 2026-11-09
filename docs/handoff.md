@@ -31,7 +31,8 @@ release before making the final transfer package. The release owner should:
    machine/library until the receiving machine passes its checks.
 
 No animation-release deployment, build or browser verification was performed as
-part of preparing this document. Native reference captures remain **0/10**. The
+part of preparing this document. Native reference captures remain absent; the
+expanded comparison suite has **17 static capture recipes and 0/17 original-runtime references**. The
 original 32-bit Intel/PowerPC application has **not run**. Resource extraction,
 disassembly, source-timeline tests and browser-controlled clocks establish source
 rules and web behavior; they do not verify original runtime timing, audio latency,

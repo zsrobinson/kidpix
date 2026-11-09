@@ -92,7 +92,9 @@ function filterFor(color) {
 
 export function renderNativeSizes(layer, manifest, size, controls = layer) {
   const parts = manifest.drawingOptions;
-  layer.append(sprite(parts['tray-size']));
+  const base = sprite(parts['tray-size']);
+  base.dataset.nativePart = 'tray-size';
+  layer.append(base);
   const bindings = [];
   for (const [name, value] of [['size-small', 4], ['size-medium', 8], ['size-large', 16]]) {
     const part = parts[name];

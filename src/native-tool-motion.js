@@ -10,7 +10,16 @@ export function toolRegionContains(region, x, y) {
 // One owner survives option/color/size renders. Only an actual tray change
 // destroys its source streams, pending loads and audio handles.
 export function createNativeToolMotion({ stage, layer, controls, resolve, onReady, onActivate,
-  fetch: fetchAsset = globalThis.fetch }) {
+  fetch: fetchAsset = globalThis.fetch,
+  manifestPath = 'tool-motion/manifest.json',
+  canvasAttribute = 'nativeToolMotion',
+  manifestFor = (data, current) => data.trays?.[current.tray],
+  backdropFor: customBackdropFor,
+  loadAssets = loadDrawingMotionAssets,
+  createController = createDrawingMotionController,
+  actionForButton = button => `tool:${button.name}`,
+  supported = tray => ['draw', 'paint', 'bucket', 'mixer', 'eraser', 'grab'].includes(tray),
+}) {
   const view = stage.ownerDocument.defaultView;
   const listeners = new view.AbortController();
   const options = { signal: listeners.signal };
@@ -29,6 +38,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   let pointerCaptureTarget;
   let soundActive = true;
   let keyboardIndex = null;
+  let cancelledKeyboardClick = false;
   let releaseIndex;
   let focusAction;
   let rendering = false;
@@ -78,7 +88,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     owner?.controller.dispose(); owner?.canvas.remove(); owner = null;
     tracking = null;
     if (pointerId !== null && pointerCaptureTarget?.hasPointerCapture(pointerId)) pointerCaptureTarget.releasePointerCapture(pointerId); pointerId = null; pointerCaptureTarget = null; keyboardIndex = null; releaseIndex = undefined;
-    soundActive = true; focusAction = null;
+    soundActive = true; focusAction = null; cancelledKeyboardClick = false;
     layer.hidden = true;
   }
 
@@ -89,6 +99,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   }
 
   function backdropFor(data) {
+    if (customBackdropFor) return customBackdropFor(data, current);
     if (current.tray === 'draw') return { path: current.nativeUi.drawingOptions['tray-draw'].images[0],
       rect: ['x', 'y', 'w', 'h'].map(key => current.nativeUi.drawingOptions['tray-draw'][key]) };
     const backdrop = data.backdrops?.[current.art];
@@ -99,7 +110,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   async function prepare(token, signal) {
     try {
       if (!index) {
-        const response = await fetchAsset(resolve('tool-motion/manifest.json'), { signal });
+        const response = await fetchAsset(resolve(manifestPath), { signal });
         if (!response.ok) throw new Error(`Tool motion index: ${response.status}`);
         const result = await response.json();
         signal.throwIfAborted();
@@ -107,13 +118,13 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       }
       if (token !== generation) return;
       const tray = current.tray;
-      const manifest = index.trays?.[tray];
+      const manifest = manifestFor(index, current);
       if (!manifest) return;
       const requestedBackdrop = backdropFor(index);
       if (!requestedBackdrop) return; // Keep static art until the matching clean page exists.
       const key = `${current.art}:${current.page}`;
       const [assets, chrome, base] = await Promise.all([
-        loaded.get(tray) ?? loadDrawingMotionAssets(manifest, { resolve, fetch: fetchAsset, signal }),
+        loaded.get(tray) ?? loadAssets(manifest, { resolve, fetch: fetchAsset, signal, createImage: () => new view.Image() }),
         image('paint-empty.png'), image(requestedBackdrop.path),
       ]);
       if (token !== generation || signal.aborted) return;
@@ -126,7 +137,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       if (!owner) {
         const canvas = stage.ownerDocument.createElement('canvas');
         canvas.width = 1024; canvas.height = 768;
-        canvas.dataset.nativeToolMotion = tray;
+        canvas.dataset[canvasAttribute] = tray;
         canvas.setAttribute('aria-hidden', 'true');
         const parts = Object.values(manifest.scripts).flatMap(script => script.frames.flatMap(frame => frame.parts));
         const left = Math.min(...parts.map(part => part.x));
@@ -136,7 +147,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
         owner = { tray, manifest, assets, canvas, chrome, context: canvas.getContext('2d', { willReadFrequently: true }),
           bounds: [left, top, right - left, bottom - top] };
         layer.replaceChildren(canvas);
-        owner.controller = createDrawingMotionController(manifest, {
+        owner.controller = createController(manifest, {
           selected: selectedIndex(manifest), render, playSound, now: () => view.performance.now(),
         });
         raf = view.requestAnimationFrame(animate);
@@ -159,7 +170,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
 
   function bind() {
     for (const [i, button] of owner.manifest.buttons.entries()) {
-      const control = [...controls.querySelectorAll('[data-action]')].find(control => control.dataset.action === `tool:${button.name}`);
+      const control = [...controls.querySelectorAll('[data-action]')].find(control => control.dataset.action === actionForButton(button));
       if (!control) continue;
       const clip = regionClipPath(button.region);
       if (!clip) continue;
@@ -182,7 +193,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       if (selected !== null && owner.controller.snapshot()[selected].state !== 3) owner.controller.dispatch(selected, 0x2006);
       if (ready) { bind(); owner.controller.repaint(); }
     }
-    if (!ready && !pending && next.nativeUi && ['draw', 'paint', 'bucket', 'mixer', 'eraser'].includes(next.tray)) {
+    if (!ready && !pending && next.nativeUi && supported(next.tray)) {
       abort = new view.AbortController();
       delete layer.dataset.motionError;
       const token = generation;
@@ -195,7 +206,9 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
 
   function target(event) {
     const control = event.target.closest?.('[data-native-motion-index]');
-    return control && !layer.hidden ? { control, index: Number(control.dataset.nativeMotionIndex) } : null;
+    const index = Number(control?.dataset.nativeMotionIndex);
+    return control && !layer.hidden && owner?.manifest.buttons[index]
+      && actionForButton(owner.manifest.buttons[index]) === control.dataset.action ? { control, index } : null;
   }
   function contains(i, event) {
     const rect = stage.getBoundingClientRect();
@@ -203,6 +216,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       (event.clientX - rect.left) * 1024 / rect.width, (event.clientY - rect.top) * 768 / rect.height);
   }
   function cancel() {
+    if (keyboardIndex !== null) cancelledKeyboardClick = true;
     tracking = null; releaseIndex = undefined;
     owner?.controller.cancel();
     soundActive = false;
@@ -214,7 +228,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   controls.addEventListener('pointerover', event => {
     const hit = target(event);
     if (hit && tracking === null && !hit.control.contains(event.relatedTarget)) { soundActive = true; owner.controller.enter(hit.index); }
-    else if (!owner && !pending && current) update(current);
+    else if ((!owner || layer.hidden) && tracking === null && !pending && current) update(current);
   }, options);
   controls.addEventListener('pointerout', event => {
     const hit = target(event);
@@ -224,7 +238,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     releaseIndex = undefined;
     const hit = target(event);
     if (!hit || event.button !== 0) return;
-    releaseIndex = undefined; soundActive = true;
+    releaseIndex = undefined; soundActive = true; cancelledKeyboardClick = false;
     if (!owner.controller.press(hit.index)) return;
     tracking = hit.index; trackingInside = true; pointerId = event.pointerId;
     pointerCaptureTarget = hit.control;
@@ -245,7 +259,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     // Commit here: a same-tray render may have removed the original pointerdown
     // element, in which case browsers omit the compatibility click entirely.
     releaseIndex = null;
-    if (index !== null) onActivate(`tool:${owner.manifest.buttons[index].name}`);
+    if (index !== null) onActivate(actionForButton(owner.manifest.buttons[index]));
   }, options);
   controls.addEventListener('pointercancel', event => {
     if (event.pointerId === pointerId) cancel();
@@ -255,17 +269,21 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   }, options);
   controls.addEventListener('keydown', event => {
     const hit = target(event);
-    if (hit) soundActive = true;
+    if (hit) {
+      soundActive = true;
+      if (!event.repeat && ['Enter', ' '].includes(event.key)) cancelledKeyboardClick = false;
+    }
     if (hit && !event.repeat && ['Enter', ' '].includes(event.key) && owner.controller.press(hit.index)) keyboardIndex = hit.index;
     if (event.key === 'Escape') cancel();
   }, options);
   controls.addEventListener('keyup', event => {
     const hit = target(event);
+    if (event.key === ' ' && hit && cancelledKeyboardClick) { event.preventDefault(); return; }
     if (event.key !== ' ' || keyboardIndex === null || hit?.index !== keyboardIndex) return;
     event.preventDefault();
     const index = keyboardIndex;
     keyboardIndex = null;
-    if (owner.controller.release(true) !== null) onActivate(`tool:${owner.manifest.buttons[index].name}`);
+    if (owner.controller.release(true) !== null) onActivate(actionForButton(owner.manifest.buttons[index]));
   }, options);
   controls.addEventListener('click', event => {
     const hit = target(event);
@@ -274,6 +292,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     let index = releaseIndex;
     releaseIndex = undefined;
     if (event.detail === 0 && hit) {
+      if (cancelledKeyboardClick) return;
       soundActive = true;
       owner.controller.press(hit.index);
       index = owner.controller.release(true) === null ? null : hit.index;
@@ -281,7 +300,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     keyboardIndex = null;
     if (index !== null && index !== undefined) {
       const button = owner.manifest.buttons[index];
-      if (button) onActivate(`tool:${button.name}`);
+      if (button) onActivate(actionForButton(button));
     }
   }, { ...options, capture: true });
   controls.addEventListener('focusout', () => { if (keyboardIndex !== null && !rendering) cancel(); }, options);
@@ -291,7 +310,9 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   return { update, beforeRender() {
     rendering = true;
     const focused = stage.ownerDocument.activeElement;
-    if (controls.contains(focused) && focused.hasAttribute('data-native-motion-index')) focusAction = focused.dataset.action;
+    // Static fallback controls are usable before a new backdrop has decoded;
+    // their action identity survives binding even when a motion index does not.
+    if (controls.contains(focused) && focused.hasAttribute('data-action')) focusAction = focused.dataset.action;
     if (tracking !== null && pointerId !== null) {
       // Transfer capture before children disappear, preserving tracking through
       // same-owner size/color/option renders without a spurious cancellation.

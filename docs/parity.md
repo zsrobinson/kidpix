@@ -44,6 +44,8 @@ The cursor and scripted-animation checks require the updated UI import. With the
 
 Paint Shapes and Moving Paints also require `npm run import:tools`. The importer writes lossless atlases, one-bank metadata shards and source sound records. The browser loads the selected bank's atlases, rather than thousands of individual image requests. Shape selection/placement and source timing are documented in [spray-engine.md](spray-engine.md); the pixel comparison tests verify the shipped renderers against the recovered data. Moving Paints tests control browser time and audio completion to compare source poses; this does not measure actual native sound latency or event delivery. See [moving-paint.md](moving-paint.md) for lifecycle and history limitations.
 
+The capture recipes now cover all eight tool tabs, with separate Grab Hand and Scissors views, alongside the drawing/export, library and Slide Show scenes: **17 static scenarios** in total. Captures wait for finite tool programs and their owned cues to settle. These resting-state pictures complement the per-pose motion tests; a static match alone cannot establish animation timing or interruption fidelity. Text's recipe explicitly selects 32 points so its empty-tray capture does not imply that the current web default matches the native shipped default.
+
 ## Accept web regression baselines
 
 Inspect the comparison screenshots after a successful complete run, then:

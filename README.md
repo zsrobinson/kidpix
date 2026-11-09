@@ -68,6 +68,14 @@ After deployment, check `/`, `/original/catalog.json`, a library thumbnail, and 
 
 ## Fidelity and verification
 
+Tool-control motion includes all 16 primary actors plus 23 secondary selector
+rows for Drawing styles, Painting modes, applicable sizes and Mini Eraser shapes.
+The secondary source exporter also runs on Linux using the supplied Mac DMG;
+its complete programs, registered artwork and sound cues are documented in
+[secondary control motion](docs/audits/secondary-control-motion.md). Stamp, Text
+and Grab secondary action timelines remain follow-up work. Source reconstruction
+and browser pixel checks do not establish original-runtime timing or feel.
+
 Run `npx playwright install chromium` once, then `npm run parity` to run the local browser checks and generate `artifacts/parity/index.html`. The report supports accepted web regression baselines and separately imported original-application screenshots, with overlays and pixel differences. See [the parity workflow](docs/parity.md) for setup, capture recipes and reference import commands. Original-application references are not bundled; missing captures are explicitly reported.
 
 The resource-based parity work restores native selection artwork, original cursors and hotspots, Undo Guy's scripted expressions/sound cues, face undo/redo toggling, and eyedropper preview/picking across paint and placed objects. It also restores native button rollovers, the Stamp Editor artwork/palette, complete Paint Shapes banks, and authored Moving Paints with source selection, registration and timing. Brush masks use recovered density and shadow/glint rules while retaining documented gaps in texture, interpolation and subclass behavior. The original scheduler and rendering code have been inspected to replace timing and placement approximations. See [the resource inventory](docs/resource-inventory.md), [executable findings](docs/reverse-engineering.md), [spray-engine evidence](docs/spray-engine.md), and [brush-engine scope](docs/brush-engine.md).

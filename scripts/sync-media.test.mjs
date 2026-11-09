@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -125,14 +125,20 @@ test('retries transient failures, stops after limit, and fails authentication im
   assert.equal(attempts, 1);
 });
 
-test('dry-run and help work without R2 credentials or loading the SDK', () => {
+test('dry-run and help work without R2 credentials or loading the SDK', async t => {
+  // Exercise the real CLI in a standalone fixture, without this machine's imported media or node_modules.
+  const root = await fixture(t);
+  await mkdir(join(root, 'scripts'));
+  await mkdir(join(root, 'public', 'original'), { recursive: true });
+  await copyFile(new URL('./sync-media.mjs', import.meta.url), join(root, 'scripts', 'sync-media.mjs'));
+  await writeFile(join(root, 'public', 'original', 'catalog.json'), '{}');
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (key.startsWith('R2_') || key.startsWith('AWS_')) delete env[key];
-  const result = spawnSync(process.execPath, ['scripts/sync-media.mjs', '--dry-run'], { encoding: 'utf8', env });
+  const result = spawnSync(process.execPath, ['scripts/sync-media.mjs', '--dry-run'], { cwd: root, encoding: 'utf8', env });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Dry run: .*files .*prefix original\//);
   assert.match(result.stdout, /No network requests made/);
-  const help = spawnSync(process.execPath, ['scripts/sync-media.mjs', '--help'], { encoding: 'utf8', env });
+  const help = spawnSync(process.execPath, ['scripts/sync-media.mjs', '--help'], { cwd: root, encoding: 'utf8', env });
   assert.equal(help.status, 0);
   assert.match(help.stdout, /R2_ACCESS_KEY_ID/);
 });

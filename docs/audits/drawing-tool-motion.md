@@ -1,6 +1,6 @@
 # Drawing-tool control motion
 
-Recovered from the supplied trial installer on `/Volumes/Kid Pix Deluxe 3D`, specifically `Data/Tools/Tp.MHK` and the i386 slice of [kidpix-original](../../artifacts/research/kidpix-original). **The original application has not run here.** This is resource and binary evidence, with extraction and standalone runtime tests; it is not a native visual or audio comparison. No shared UI importer, `ui.json`, application entry point, CSS or renderer was changed by this work.
+Recovered from the supplied trial installer on `/Volumes/Kid Pix Deluxe 3D`, specifically `Data/Tools/Tp.MHK` and the i386 slice of [kidpix-original](../../artifacts/research/kidpix-original). **The original application has not run here.** This is resource and binary evidence, with extraction and standalone runtime tests; it is not a native visual or audio comparison. The standalone extraction is now integrated into the web studio as described below; the shared UI importer and `ui.json` remain unchanged.
 
 ## Reproduce and identify the evidence
 
@@ -136,4 +136,79 @@ Timing uses one source update per eligible delivered`step`, then schedules the n
 
 Seven focused Python tests pass, including mounted-DMG table/regions, all12 full counts and sound ticks, registration, strict rejection of changed mode/unknown opcode, raw compression/stride and complete isolated export. Fourteen Node tests pass, covering raw mode9, highlight clamping/alpha, source final groups, selected-disabled behavior, press/drag-out/reentry/release, shared1→3 progress, finite hover, backing deadline restoration, sound gating/ownership, cancellation/disposal, delayed updates, callback clipping, explicit auxiliary clipping and loading retry. The generated-manifest Node case plays **all12 actual programs** through every frame and verifies all146 raw sprite hashes. These are source-rule/helper tests, not actual-app or running-original parity tests.
 
-No browser/server was started, no shared reports were written and no app build was run. The parent still needs actual studio tests on an isolated assigned port, source-pixel comparisons across several colors including transparent edges, color changes during motion, keyboard activation, global sound-channel integration and layer-order verification. The ordinary base-image Canvas alpha path can differ from native Mac rounding and remains explicitly unverified; mode9 byte arithmetic is separately tested. Native timer jitter, audio latency, renderer color-space behavior and subjective feel require a running original. No claim of complete DMG-backed native fidelity follows from this standalone implementation.
+The original standalone pass did not start a browser/server or build the app. Actual studio integration and its focused checks now follow below. Global native sound-channel arbitration still has not been verified. The ordinary base-image Canvas alpha path can differ from native Mac rounding and remains explicitly unverified; mode9 byte arithmetic is separately tested. Native timer jitter, audio latency, renderer color-space behavior and subjective feel require a running original. No claim of complete DMG-backed native fidelity follows from this standalone implementation.
+
+
+## Studio integration status — 2026-11-09
+
+The actual studio now uses the shared `ui/tool-motion/manifest.json` for Drawing,
+Painting, Bucket, Mixer and Eraser primary controls. The source controller only
+relaxes its four-control restriction to the recovered two/three/four-row mode2
+groups; its delivered-update scheduler, state dispatch, end holds, sound gates,
+auxiliary clipping and shared-script progress remain intact. Painting/Bucket
+`renderMode:'mode9'` supports the source callback's ordinary one-part branch;
+Mixer/Eraser `renderMode:'ordinary'` paints all registered parts without tint.
+Drawing retains its exact raw mode9 callback and byte arithmetic.
+
+[`native-tool-motion.js`](../../src/native-tool-motion.js) owns loading, the
+native-resolution actor canvas, source hit unions, keyboard/pointer bindings and
+owned audio. Each ready actor canvas exposes `data-native-tool-motion='<tray>'`
+and `data-motion-snapshot` JSON containing exactly `name`, `script`, `frameIndex`,
+`state`, `auxiliary` and `finished` per row. At most the current owner's canvas is
+visible. Finite programs retain their final poses; source terminal wait updates
+are preserved even when no new picture is authored.
+
+The owner survives same-tray color, size, style, effect, alternate-mode and row
+renders. Rebinding transfers active pointer capture before old controls disappear;
+pointer release commits by row identity exactly once. Native command arguments
+are retained by the source controller but are deliberately not used as unique row
+keys: several recovered groups repeat the same argument on every row. Space held
+across a rerender retains logical focus/progress and commits once on keyup. Enter,
+Space and accessibility clicks share the same source selection path. Already
+selected controls retain `aria-pressed` and reject ordinary hover/press replay.
+
+Drawing keeps `drawingOptions` and removes its four old tinted static tool sprites
+only after the motion assets decode. Other trays switch the visible page to its
+matching source-authored clean backdrop only when both actors and that page are
+ready. Every paint clears the old canvas and restores authored chrome/backdrop
+pixels before compositing all actors, including translucent/raw mode9 parts.
+The actor layer sits above the actual drawing surface and below the tray hit
+controls; editable text and library drag code are untouched.
+
+Actual owner changes dispose streams/audio, release capture, abort loading and
+invalidate late completions. Failed first-use art leaves existing static choices
+usable; subsequent updates or tray reentry retry. Window blur/page hiding cancel
+tracking and owned cues. Future cues stay muted until a new control interaction;
+no native global/hardware audio-channel equivalence is claimed.
+
+The optional gzip bundle path validates compressed SHA-256, decompressed byte
+length, byte ranges and decoded sprite dimensions, then uses blob-backed PNGs
+and exact raw channel arrays. No bundle or unavailable `DecompressionStream`
+uses the separate-file paths. A server that incorrectly HTTP-decodes `.gz` also
+uses those paths. The exporter now writes opaque gzip payloads as `sprites.bin`,
+which avoids Vite's automatic `.gz` Content-Encoding. Sounds remain source WAVs.
+
+Focused verification at this stopping point:
+
+- `node --test scripts/parity/drawing-motion.test.mjs scripts/parity/tool-motion.test.mjs`:
+  **24 passed**, including all original source-controller tests and new group-size,
+  ordinary/single-part composition, exact hit-union, gzip integrity/range,
+  HTTP-decoded fallback, unsupported-decompression and cancellation/retry cases.
+- `npx playwright test -c artifacts/t3/tool-motion-integration/playwright.config.mjs`:
+  **15 passed** on isolated port **4191**. Actual-app checks cover every Drawing
+  selection pose/end hold, source delivered-update timing, press/drag/reentry,
+  shared release continuity, keyboard/held-Space behavior, live studio pixel
+  composition, all five tray row identities and persistent rerenders, finite
+  hover/blur, opaque cold loads, static failure fallback and delayed cancellation.
+  The opaque cold-load case observes exactly five sprite-bundle requests and zero
+  individual PNG/raw sprite requests when visiting all five groups.
+- Config, Playwright results and the inspected studio screenshot are confined to
+  `artifacts/t3/tool-motion-integration/`. No shared browser output was overwritten.
+
+All five primary groups and the shared clean-backdrop/bundle contracts are wired;
+no primary tray data is pending for this integration. Parent work remains media
+publication, final full regression, release build and built/public verification.
+This pass did not build `dist-cloudflare`, change package/config/version files,
+commit, push or deploy. Native execution remains unavailable: browser controlled
+clocks validate delivered source updates, not native timer jitter, audio latency,
+Mac bitmap rounding/color-space behavior, or subjective motion feel.

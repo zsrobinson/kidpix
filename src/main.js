@@ -12,6 +12,7 @@ import { createNativeAnimation } from './native-animation.js';
 import { attachNativeRollovers } from './native-rollovers.js';
 import { applyNativeControlRegions } from './native-control-regions.js';
 import { createNativePaperPicker } from './native-paper.js';
+import { createNativeToolMotion } from './native-tool-motion.js';
 
 const app = document.querySelector('#app');
 const state = {
@@ -79,6 +80,7 @@ app.innerHTML = `
         </div>
         <div id="tray-bed" hidden></div>
         <img id="tray-art" alt="" draggable="false">
+        <div id="native-tool-motion" class="chrome" hidden></div>
         <div id="tray-buttons"></div>
         <div id="library-tray" hidden></div>
         <div id="palette" hidden></div>
@@ -417,6 +419,11 @@ function syncTool() {
 const libKeys = new Set(['backgrounds', 'stickers', 'toons', 'media', 'stamp']);
 const trayArt = $('#tray-art');
 const library = $('#library-tray');
+const nativeToolMotion = createNativeToolMotion({
+  stage: studio, layer: $('#native-tool-motion'), controls: $('#tray-buttons'),
+  resolve: path => original(`ui/${path}`),
+  onReady: () => showTray(), onActivate: action => activate(action),
+});
 
 function libraryKey() {
   if (state.tray === 'stamp') return 'stamps';
@@ -472,6 +479,7 @@ function showLibrary() {
 }
 
 function showTray() {
+  nativeToolMotion.beforeRender();
   disconnectTraySprites?.();
   const lib = libKeys.has(state.tray);
   const nativeDraw = state.tray === 'draw' && nativeUi;
@@ -549,6 +557,13 @@ function showTray() {
   for (const control of app.querySelectorAll('.side')) {
     control.setAttribute('aria-pressed', String(control.dataset.action === `tray:${state.tray}`));
   }
+  const motionView = trayState(state);
+  const motionReady = nativeToolMotion.update({ tray: state.tray, art: motionView.art, page: state.page,
+    selected: state.tray === 'eraser' && state.tools.eraser === 'square' ? 'round' : state.tools[state.tray], color: state.color, nativeUi });
+  if (motionReady) {
+    $('#native-draw').querySelectorAll('[data-native-drawing-tool]').forEach(image => image.remove());
+    if (!nativeDraw) trayArt.src = original(`ui/${nativeToolMotion.backdropPath}`);
+  }
   syncTool();
 }
 
@@ -569,12 +584,9 @@ function selectTray(group) {
 
 function chooseColor(color) {
   state.color = color;
-  if (nativeUi && state.tray === 'draw') {
-    disconnectTraySprites?.();
-    disconnectTraySprites = renderNativeDrawing($('#native-draw'), nativeUi, state, $('#tray-buttons'));
-  }
+  if (nativeUi) showTray();
   drawSwatch(color);
-  syncTool();
+  if (!nativeUi) syncTool();
 }
 
 function openPaper(open) {

@@ -138,6 +138,7 @@ export function renderNativeDrawing(layer, manifest, state, controls) {
   for (const [name, part] of Object.entries(manifest.drawingTools)) {
     const image = sprite(part, name === state.tools.draw ? 0 : 1);
     image.style.filter = tint;
+    image.dataset.nativeDrawingTool = name;
     layer.append(image);
   }
   return () => bindings.forEach(disconnect => disconnect());

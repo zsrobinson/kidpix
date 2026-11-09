@@ -1,4 +1,4 @@
-// Standalone Tp.MHK MBTN18400 adapter. No DOM bindings or shared ui.json writes.
+// Source-authored primary mode2 tool controls. DOM ownership lives in native-tool-motion.js.
 const f = Math.fround;
 const reciprocal255 = f(1 / 255); // i386 float at0x002603a0
 
@@ -33,21 +33,60 @@ export async function loadDrawingMotionAssets(manifest, {
   resolve = path => path, fetch: fetchAsset = globalThis.fetch,
   createImage = () => new globalThis.Image(), signal,
 } = {}) {
+  const abort = () => signal?.throwIfAborted();
+  let bundle;
+  if (manifest.bundle?.compression === 'gzip' && typeof globalThis.DecompressionStream === 'function') {
+    const response = await fetchAsset(resolve(manifest.bundle.path), { signal });
+    if (!response.ok) throw new Error(`Tool motion bundle: ${response.status}`);
+    // Some static dev servers mark .gz as HTTP content-encoded. Fetch has
+    // already decoded those bytes, so the compressed hash cannot be checked.
+    // Keep the separate-file oracle rather than treating it as our opaque bundle.
+    const httpDecoded = /gzip/i.test(response.headers?.get('content-encoding') ?? '');
+    if (!httpDecoded) {
+      const compressed = await response.arrayBuffer();
+      if (manifest.bundle.sha256 && globalThis.crypto?.subtle) {
+        const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', compressed));
+        const hash = [...digest].map(byte => byte.toString(16).padStart(2, '0')).join('');
+        if (hash !== manifest.bundle.sha256) throw new Error('Tool motion bundle hash differs');
+      }
+      bundle = new Uint8Array(await new Response(new Blob([compressed]).stream()
+        .pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+      if (bundle.length !== manifest.bundle.byteLength) throw new Error('Tool motion bundle length differs');
+    }
+  }
+  abort();
+  function payload(sprite, kind) {
+    const range = sprite.bundleOffsets?.[kind];
+    if (!range || range.length !== 2 || !range.every(Number.isSafeInteger)
+      || range[0] < 0 || range[1] <= 0 || range[0] + range[1] > bundle.length) {
+      throw new Error(`Tool motion bundle ${kind} range differs`);
+    }
+    return bundle.slice(range[0], range[0] + range[1]);
+  }
   const entries = await Promise.all(Object.entries(manifest.sprites).map(async ([id, sprite]) => {
     const image = createImage();
-    image.src = resolve(sprite.image);
-    const [response] = await Promise.all([
-      fetchAsset(resolve(sprite.argb), { signal }), image.decode(),
-    ]);
-    if (!response.ok) throw new Error(`Drawing motion asset ${sprite.argb}: ${response.status}`);
-    const argb = new Uint8Array(await response.arrayBuffer());
-    if (argb.length !== sprite.width * sprite.height * 4
-      || image.naturalWidth !== sprite.width || image.naturalHeight !== sprite.height) {
-      throw new Error(`Drawing motion asset dimensions differ: ${id}`);
-    }
-    return [id, { image, argb }];
+    let objectUrl;
+    try {
+      if (bundle) {
+        objectUrl = URL.createObjectURL(new Blob([payload(sprite, 'png')], { type: 'image/png' }));
+        image.src = objectUrl;
+      } else image.src = resolve(sprite.image);
+      const [argb] = await Promise.all([
+        bundle ? payload(sprite, 'argb') : (async () => {
+          const response = await fetchAsset(resolve(sprite.argb), { signal });
+          if (!response.ok) throw new Error(`Drawing motion asset ${sprite.argb}: ${response.status}`);
+          return new Uint8Array(await response.arrayBuffer());
+        })(), image.decode(),
+      ]);
+      abort();
+      if (argb.length !== sprite.width * sprite.height * 4
+        || image.naturalWidth !== sprite.width || image.naturalHeight !== sprite.height) {
+        throw new Error(`Drawing motion asset dimensions differ: ${id}`);
+      }
+      return [id, { image, argb }];
+    } finally { if (objectUrl) URL.revokeObjectURL(objectUrl); }
   }));
-  if (signal?.aborted) throw signal.reason ?? new Error('Drawing motion load aborted');
+  abort();
   return new Map(entries);
 }
 
@@ -59,6 +98,21 @@ export function paintDrawingMotionFrame(context, manifest, frame, assets, color,
   if (color.length !== 3 || color.some(value => !Number.isInteger(value) || value < 0 || value > 255)) {
     throw new RangeError('Drawing motion color must be three byte values');
   }
+  if (manifest.renderMode === 'ordinary' || manifest.renderMode === 'mode9' && frame.parts.length === 1) {
+    if (clipRect) { context.save(); context.beginPath(); context.rect(...clipRect); context.clip(); }
+    try {
+      for (const part of frame.parts) {
+        const asset = assets.get(String(part.sprite));
+        if (!asset) throw new Error('Tool motion assets must be loaded before painting');
+        context.drawImage(asset.image, part.x, part.y);
+      }
+    } finally { if (clipRect) context.restore(); }
+    return;
+  }
+  if (manifest.renderMode && manifest.renderMode !== 'mode9') {
+    throw new Error(`Unsupported tool motion rendering ${manifest.renderMode}`);
+  }
+  if (frame.parts.length !== 2) throw new Error('Drawing mode9 requires two source parts');
   const [base, tint] = frame.parts;
   const baseInfo = manifest.sprites[String(base.sprite)];
   const tintInfo = manifest.sprites[String(tint.sprite)];
@@ -97,7 +151,7 @@ export function paintDrawingMotionFrame(context, manifest, frame, assets, color,
 
 /** State/timing engine with explicit source dispatch and browser pointer helpers.
  * Call step(now) from the owner's RAF. render(snapshot) must restore and repaint
- * all four visible controls, using snapshot[].frame/clip. No internal timers.
+ * all visible controls, using snapshot[].frame/clip. No internal timers.
  * playSound(cue, owner) -> { stop(), isComplete() }; a missing handle means
  * unavailable audio and does not deadlock source completion. Channels1/2 gate
  * end processing. Hooks are synchronous; preload assets before construction.
@@ -106,8 +160,8 @@ export function createDrawingMotionController(manifest, {
   render = () => {}, playSound = () => null, now = () => performance.now(),
   selected = 0,
 } = {}) {
-  if (manifest.buttons.length !== 4 || manifest.buttons.some(button => button.mode !== 2)) {
-    throw new Error('Drawing motion requires the four recovered mode2 controls');
+  if (![2, 3, 4].includes(manifest.buttons.length) || manifest.buttons.some(button => button.mode !== 2)) {
+    throw new Error('Tool motion requires a recovered two, three or four control mode2 group');
   }
   let disposed = false;
   let hovered = null;

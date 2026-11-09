@@ -4,6 +4,7 @@ import { copyFile, mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { gzipSync } from 'node:zlib';
 import { buildManifest, cacheControl, checksum, contentType, createS3Transport, createTransport, objectKey, syncMedia, unchanged, withRetry } from './sync-media.mjs';
 
 async function fixture(t) {
@@ -55,6 +56,7 @@ test('media types cover imported formats and stable media has bounded caching', 
   assert.equal(contentType('image.JPG'), 'image/jpeg');
   assert.equal(contentType('audio.flac'), 'audio/flac');
   assert.equal(contentType('shape.svg'), 'image/svg+xml');
+  for (const name of ['sprite.argb', 'poses.bin', 'poses.bin.gz']) assert.equal(contentType(name), 'application/octet-stream');
   assert.equal(cacheControl('movie.mp4'), 'public, max-age=3600, must-revalidate');
   assert.throws(() => contentType('private.pem'), /Unsupported/);
 });
@@ -155,9 +157,10 @@ test('transport inventories all pages and only HEADs keys that exist in R2', asy
   assert.deepEqual(requests[2].input, { Bucket: 'test-bucket', Key: 'original/b.png' });
 });
 
-test('transport streams new uploads and tracks successful PUTs in its inventory', async t => {
+for (const filename of ['a.png', 'poses.bin.gz']) test(`transport preserves upload bytes and explicit metadata: ${filename}`, async t => {
   const root = await fixture(t);
-  await writeFile(join(root, 'a.png'), 'aaa');
+  const bytes = filename.endsWith('.gz') ? gzipSync(Buffer.from('aaa')) : Buffer.from('aaa');
+  await writeFile(join(root, filename), bytes);
   const [file] = await buildManifest(root);
   file.sha256 = await checksum(file.path);
   const requests = [];
@@ -169,8 +172,9 @@ test('transport streams new uploads and tracks successful PUTs in its inventory'
       if (command.operation === 'PutObjectCommand') {
         const chunks = [];
         for await (const chunk of command.input.Body) chunks.push(chunk);
-        assert.equal(Buffer.concat(chunks).toString(), 'aaa');
-        assert.equal(command.input.ContentLength, 3);
+        assert.deepEqual(Buffer.concat(chunks), bytes);
+        assert.equal(command.input.ContentLength, bytes.length);
+        assert.equal(command.input.ContentEncoding, undefined, 'application bundles must not be transparently HTTP-decoded');
         assert.equal(command.input.Metadata.sha256, file.sha256);
         assert.equal(command.input.ContentType, file.contentType);
         assert.equal(command.input.CacheControl, file.cacheControl);

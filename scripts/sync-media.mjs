@@ -11,6 +11,9 @@ const types = {
   '.mp3': 'audio/mpeg', '.flac': 'audio/flac', '.wav': 'audio/wav',
   '.mp4': 'video/mp4', '.webm': 'video/webm', '.ogg': 'audio/ogg',
   '.json': 'application/json; charset=utf-8',
+  // Raw color channels and application-decompressed animation bundles. Gzip
+  // here is a file format, not HTTP Content-Encoding; the runtime expands it.
+  '.argb': 'application/octet-stream', '.bin': 'application/octet-stream', '.gz': 'application/octet-stream',
 };
 
 export function contentType(path) {

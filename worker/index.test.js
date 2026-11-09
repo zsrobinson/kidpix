@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { gzipSync, gunzipSync } from 'node:zlib';
 import worker from './index.js';
 
 function setup({ body = '0123456789', missing = false, metadata = {}, get } = {}) {
@@ -52,6 +53,24 @@ test('JSON receives fallback Content-Type and shorter caching', async () => {
   const response = await fetch('/original/catalog.json');
   assert.equal(response.headers.get('Content-Type'), 'application/json; charset=utf-8');
   assert.equal(response.headers.get('Cache-Control'), 'public, max-age=300');
+});
+
+test('raw color channels and application-compressed bundles retain binary bytes without HTTP decoding', async () => {
+  const raw = Buffer.from([255, 0, 255, 0, 128, 27, 63, 220, 0, 255, 128, 255]);
+  for (const [name, bytes] of [['sprite.argb', raw], ['poses.bin.gz', gzipSync(raw)]]) {
+    const { fetch } = setup({
+      metadata: { size: bytes.length, writeHttpMetadata() {} },
+      get: object => ({ ...object, body: new Blob([bytes]).stream() }),
+    });
+    const response = await fetch(`/original/ui/tool-motion/${name}`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('Content-Type'), 'application/octet-stream');
+    assert.equal(response.headers.get('Content-Encoding'), null);
+    assert.equal(response.headers.get('Content-Length'), String(bytes.length));
+    const received = Buffer.from(await response.arrayBuffer());
+    assert.deepEqual(received, bytes);
+    if (name.endsWith('.gz')) assert.deepEqual(gunzipSync(received), raw);
+  }
 });
 
 test('HEAD returns full metadata without fetching a body or honoring Range', async () => {

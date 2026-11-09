@@ -1,4 +1,6 @@
-import { statSync, readFileSync } from 'node:fs';
+import { existsSync, statSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { gunzipSync } from 'node:zlib';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -86,6 +88,56 @@ try {
   for (const clip of Object.values(ui.buttonAnimations?.scripts ?? {})) {
     for (const frame of clip.frames) check(join('ui', frame.image));
     for (const cue of clip.sounds) check(join('ui', `easel-${cue.sound}.wav`));
+  }
+  if (existsSync(join(original, 'ui/tool-motion/manifest.json'))) {
+    const motion = read('ui/tool-motion/manifest.json');
+    if (motion.version !== 1 || !motion.trays) throw new Error('Unsupported tool motion index');
+    for (const [name, tray] of Object.entries(motion.trays)) {
+      let unpacked;
+      if (tray.bundle) {
+        const packed = readFileSync(check(join('ui', tray.bundle.path)));
+        if (createHash('sha256').update(packed).digest('hex') !== tray.bundle.sha256) throw new Error(`Tool motion bundle checksum mismatch: ${name}`);
+        if (tray.bundle.compression !== 'gzip' || !Number.isSafeInteger(tray.bundle.byteLength) || tray.bundle.byteLength <= 0) throw new Error(`Invalid tool motion bundle metadata: ${name}`);
+        unpacked = gunzipSync(packed, { maxOutputLength: tray.bundle.byteLength });
+        if (unpacked.length !== tray.bundle.byteLength) throw new Error(`Tool motion bundle size mismatch: ${name}`);
+      }
+      for (const [id, sprite] of Object.entries(tray.sprites)) {
+        const raw = readFileSync(check(join('ui', sprite.argb)));
+        if (!Number.isSafeInteger(sprite.width) || sprite.width <= 0 || !Number.isSafeInteger(sprite.height) || sprite.height <= 0
+          || raw.length !== sprite.width * sprite.height * 4 || createHash('sha256').update(raw).digest('hex') !== sprite.argbSha256) {
+          throw new Error(`Tool motion raw pixels differ from source metadata: ${name}/${id}`);
+        }
+        const png = readFileSync(check(join('ui', sprite.image)));
+        if (sprite.pngSha256 && createHash('sha256').update(png).digest('hex') !== sprite.pngSha256) throw new Error(`Tool motion PNG checksum mismatch: ${name}/${id}`);
+        if (unpacked) for (const [kind, expected] of [['argb', raw], ['png', png]]) {
+          const range = sprite.bundleOffsets?.[kind];
+          if (!Array.isArray(range) || range.length !== 2 || !range.every(Number.isSafeInteger) || range[0] < 0
+            || range[1] !== expected.length || range[0] + range[1] > unpacked.length
+            || !unpacked.subarray(range[0], range[0] + range[1]).equals(expected)) {
+            throw new Error(`Tool motion bundle entry differs from its source file: ${name}/${id}/${kind}`);
+          }
+        }
+      }
+      for (const button of tray.buttons) for (const script of [...button.stateScripts, button.rolloverScript]) {
+        if (script && !tray.scripts[String(script)]) throw new Error(`Missing tool motion state program: ${name}/${script}`);
+      }
+      for (const clip of Object.values(tray.scripts)) {
+        for (const frame of clip.frames) for (const part of frame.parts) {
+          if (!tray.sprites[String(part.sprite)]) throw new Error(`Missing tool motion frame part: ${name}/${part.sprite}`);
+        }
+        for (const cue of clip.sounds) {
+          const sound = tray.sounds[String(cue.sound)];
+          if (!sound) throw new Error(`Missing tool motion cue: ${name}/${cue.sound}`);
+          check(join('ui', sound.src));
+        }
+      }
+    }
+    for (const backdrop of Object.values(motion.backdrops ?? {})) {
+      for (const page of backdrop.pages) {
+        const bytes = readFileSync(check(join('ui', page.image)));
+        if (page.sha256 && createHash('sha256').update(bytes).digest('hex') !== page.sha256) throw new Error(`Tool motion backdrop checksum mismatch: ${page.image}`);
+      }
+    }
   }
   for (const [manifest, folder] of [['ui/trays.json', 'trays'], ['ui/library-trays.json', 'libraries']]) {
     for (const tray of Object.values(read(manifest).trays)) {

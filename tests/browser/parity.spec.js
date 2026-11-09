@@ -55,6 +55,16 @@ async function readyImages(page) {
 async function capture(page, testInfo, id) {
   await page.mouse.move(1023, 767);
   await expect(page.locator('#status')).toBeHidden();
+  const motionTray = ['paint-empty', 'pencil-line', 'filled-box'].includes(id) ? 'draw'
+    : ['paint-tray', 'paint-airbrush-large', 'spray-native-shape'].includes(id) ? 'paint' : null;
+  if (motionTray) {
+    const actor = page.locator(`[data-native-tool-motion="${motionTray}"]:visible`);
+    await expect(actor, 'Source tool motion is loaded before capturing its final pose').toHaveCount(1, { timeout: 20_000 });
+    await expect.poll(async () => actor.evaluate(canvas => {
+      const snapshot = JSON.parse(canvas.dataset.motionSnapshot || '[]');
+      return snapshot.length > 0 && snapshot.every(item => item.finished && !item.auxiliary);
+    }), { message: 'All finite tool programs reached their delivered end check', timeout: 10_000 }).toBe(true);
+  }
   await readyImages(page);
   const path = testInfo.outputPath(`${id}.png`);
   await page.locator('#studio').screenshot({ path, animations: 'disabled', caret: 'hide' });

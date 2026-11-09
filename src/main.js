@@ -1,3 +1,4 @@
+import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 import './style.css';
 import { createPaint } from './paint.js';
 import { createScene } from './scene.js';
@@ -17,6 +18,8 @@ import { createNativeActionMotion } from './native-action-motion.js';
 import { createNativeStampMotion } from './native-stamp-motion.js';
 import { createNativeSecondaryMotion } from './native-secondary-motion.js';
 
+// Install before any application or popup capture handler.
+interactionOwner(document);
 const app = document.querySelector('#app');
 const state = {
   tray: 'draw', tools: { draw: 'pencil', paint: 'brush', bucket: 'bucket', mixer: 'mega', grab: 'grab', eraser: 'round' },
@@ -889,15 +892,26 @@ canvas.addEventListener('pointermove', event => {
 }, { capture: true });
 function endPath(event) {
   if (pathPointer !== event.pointerId) return;
+  pathPointer = null;
   const added = event.type === 'pointerup' && scene.pathEnd(event);
   if (event.type !== 'pointerup') scene.cancelPath();
-  pathPointer = null;
   effects.clearRect(0, 0, canvas.width, canvas.height);
   syncTool();
   showStatus(added ? 'Path added. Press Play Picture to see it move.' : '');
 }
 canvas.addEventListener('pointerup', endPath, { capture: true });
 canvas.addEventListener('pointercancel', endPath, { capture: true });
+canvas.addEventListener('lostpointercapture', endPath, { capture: true });
+onInteractionInactive(canvas, () => {
+  if (pathPointer === null) return;
+  const pointerId = pathPointer;
+  if (pointerId === 'pending') {
+    pathPointer = null;
+    scene.cancelPath();
+    effects.clearRect(0, 0, canvas.width, canvas.height);
+    syncTool();
+  } else endPath({ type: 'pointercancel', pointerId });
+});
 
 function importFile(kind) {
   importKind = kind;

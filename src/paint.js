@@ -1,3 +1,4 @@
+import { interactionOwner, onInteractionInactive } from './interaction-owner.js'
 import { brushOpacity, brushSpacing, drawBrushDab } from './paint-brushes.js'
 import { cutoutContours, makeFillRenderer, makeSurface, mixPixels } from './paint-pixels.js'
 import { drawOriginalDab, originalDab, nativeDabPlacement } from './paint-original.js'
@@ -161,6 +162,7 @@ export function createPaint(canvas, hooks = {}) {
   let background = null
   let foreground = null
   let paper = null
+  const inputOwner = interactionOwner(canvas.ownerDocument)
   let gesture = null
   let soundStroke = null
   let cutoutRegions = null
@@ -251,6 +253,7 @@ export function createPaint(canvas, hooks = {}) {
       selection = gesture.original
     }
     gesture = null
+    if (current) inputOwner.release(canvas, current.pointerId)
     // Native media writes into the picture as it paints. Preserve delivered
     // dabs when interrupted, with one undo checkpoint before tool cleanup.
     if (current?.nativeTracking && current.type === 'stroke') commitPreview(current)
@@ -611,14 +614,15 @@ export function createPaint(canvas, hooks = {}) {
         lastDab = now
         render()
       }
-      requestAnimationFrame(tick)
+      current.sprayRender = requestAnimationFrame(tick)
     }
-    requestAnimationFrame(tick)
+    current.sprayRender = requestAnimationFrame(tick)
   }
 
   function stopNativeBrushPolling(current) {
     if (!current) return
     clearTimeout(current.nativePoll)
+    if (current.sprayRender !== undefined) cancelAnimationFrame(current.sprayRender)
     if (current.nativePaintRender !== undefined) cancelAnimationFrame(current.nativePaintRender)
   }
 
@@ -904,6 +908,7 @@ export function createPaint(canvas, hooks = {}) {
       return
     }
 
+    if (!inputOwner.claim(event, canvas)) return
     event.preventDefault()
     canvas.setPointerCapture(event.pointerId)
     paintAudio.start(brush)
@@ -1038,6 +1043,7 @@ export function createPaint(canvas, hooks = {}) {
     if (current.nativeTracking) current.nativeTracking.end()
     else handleMove(event)
     gesture = null
+    inputOwner.release(canvas, current.pointerId)
     paintAudio.stop(true)
     if (current.type === 'native-moving') {
       finishMovingStroke(current)
@@ -1061,16 +1067,6 @@ export function createPaint(canvas, hooks = {}) {
     }
   }
 
-  function finishInactiveNativeBrush() {
-    const current = gesture
-    if (!current?.nativeTracking) return
-    stopNativeBrushPolling(current)
-    current.nativeTracking.end()
-    gesture = null
-    paintAudio.stop(true)
-    commitPreview(current)
-    if (canvas.hasPointerCapture(current.pointerId)) canvas.releasePointerCapture(current.pointerId)
-  }
 
   async function setLayer(name, asset, settings = {}) {
     const request = ++updateId
@@ -1213,10 +1209,7 @@ export function createPaint(canvas, hooks = {}) {
   canvas.addEventListener('lostpointercapture', event => {
     if (gesture?.pointerId === event.pointerId) cancel()
   }, listenerOptions)
-  window.addEventListener('blur', finishInactiveNativeBrush, listenerOptions)
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) finishInactiveNativeBrush()
-  }, listenerOptions)
+  onInteractionInactive(canvas, cancel, listeners.signal)
   render()
 
   return {

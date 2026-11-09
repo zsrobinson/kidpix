@@ -1,3 +1,4 @@
+import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 import { makeId } from './id.js';
 
 const sceneWidth = 720;
@@ -30,6 +31,10 @@ function pathPosition(object, elapsed) {
 }
 
 export function createScene(root, surface, onChange) {
+  const inputOwner = interactionOwner(root.ownerDocument);
+  const listeners = new AbortController();
+  const inputOptions = { signal: listeners.signal };
+  let pathPointer = null;
   let objects = [];
   let selected = null;
   let clipboard = null;
@@ -134,9 +139,10 @@ export function createScene(root, surface, onChange) {
   }
 
   root.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || event.target.isContentEditable) return;
+    if (event.button !== 0 || drag || event.target.isContentEditable) return;
     const node = event.target.closest('[data-object]');
     if (!node || playing || !['grab', 'text'].includes(mode)) return;
+    if (!inputOwner.claim(event, root)) return;
     event.preventDefault();
     const object = objects.find(item => item.id === node.dataset.object);
     selected = object.id;
@@ -147,7 +153,7 @@ export function createScene(root, surface, onChange) {
     };
     root.setPointerCapture(event.pointerId);
     render();
-  });
+  }, inputOptions);
 
   root.addEventListener('pointermove', event => {
     if (drag?.pointer !== event.pointerId) return;
@@ -164,22 +170,30 @@ export function createScene(root, surface, onChange) {
       drag.object.y = clamp(drag.y + dy, -drag.object.height + 10, sceneHeight - 10);
     }
     render();
-  });
+  }, inputOptions);
 
   function finishDrag(event) {
     if (drag?.pointer !== event.pointerId) return;
     const prior = drag.prior;
     drag = null;
+    inputOwner.release(root, event.pointerId);
     if (JSON.stringify(prior) !== JSON.stringify(objects)) changed(prior);
   }
 
-  root.addEventListener('pointerup', finishDrag);
-  root.addEventListener('pointercancel', finishDrag);
-  root.addEventListener('lostpointercapture', finishDrag);
-  window.addEventListener('blur', () => { if (drag) finishDrag({ pointerId: drag.pointer }); });
+  root.addEventListener('pointerup', finishDrag, inputOptions);
+  root.addEventListener('pointercancel', finishDrag, inputOptions);
+  root.addEventListener('lostpointercapture', finishDrag, inputOptions);
+  function finishInactive() {
+    if (drag) finishDrag({ pointerId: drag.pointer });
+    if (pathPointer !== null) cancelPath();
+  }
+  onInteractionInactive(root, finishInactive, listeners.signal);
 
   function cancelPath() {
+    const pointer = pathPointer;
+    pathPointer = null;
     path = null;
+    if (pointer !== null) inputOwner.release(surface, pointer);
     mode = 'grab';
     render();
   }
@@ -308,20 +322,21 @@ export function createScene(root, surface, onChange) {
       return true;
     },
     pathStart(event) {
-      if (mode !== 'path' || !current()) return false;
+      if (event.button !== 0 || path || mode !== 'path' || !current() || !inputOwner.claim(event, surface)) return false;
+      pathPointer = event.pointerId;
       pathStarted = event.timeStamp;
       path = [coordinates(event)];
       return true;
     },
     pathMove(event) {
-      if (!path) return false;
+      if (!path || event.pointerId !== pathPointer) return false;
       const point = coordinates(event);
       const last = path.at(-1);
       if (Math.hypot(last.x - point.x, last.y - point.y) > 5) path.push(point);
       return true;
     },
     pathEnd(event) {
-      if (!path) return false;
+      if (!path || event.pointerId !== pathPointer) return false;
       const prior = snapshot();
       path.push(coordinates(event));
       const object = current();
@@ -437,6 +452,11 @@ export function createScene(root, surface, onChange) {
         forward: Boolean(object), backward: Boolean(object),
         textStyle: object?.kind === 'text' ? Object.fromEntries(
           ['bold', 'italic', 'underline', 'align'].map(key => [key, object[key]])) : null };
+    },
+    destroy() {
+      finishInactive();
+      listeners.abort();
+      cancelAnimationFrame(animation);
     },
     snapshot,
     restore(state) {

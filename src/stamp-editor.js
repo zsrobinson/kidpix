@@ -1,3 +1,5 @@
+import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
+
 export async function editStamp(stamp, initialColor, onSave) {
   const image = new Image();
   image.src = stamp.src;
@@ -29,6 +31,8 @@ export async function editStamp(stamp, initialColor, onSave) {
   const original = context.getImageData(0, 0, 32, 32);
   const undo = [];
   let tool = 'pencil';
+  const inputOwner = interactionOwner(canvas.ownerDocument);
+  const listeners = new AbortController();
   let painting = null;
 
   function update() {
@@ -70,7 +74,8 @@ export async function editStamp(stamp, initialColor, onSave) {
   }
 
   canvas.addEventListener('pointerdown', event => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || painting !== null || !inputOwner.claim(event, canvas)) return;
+    event.preventDefault();
     remember();
     painting = event.pointerId;
     canvas.setPointerCapture(painting);
@@ -79,7 +84,14 @@ export async function editStamp(stamp, initialColor, onSave) {
   canvas.addEventListener('pointermove', event => {
     if (tool === 'pencil' && event.pointerId === painting) paint(event);
   });
-  canvas.addEventListener('lostpointercapture', () => { painting = null; });
+  function finishGesture(event) {
+    if (painting === null || (event && painting !== event.pointerId)) return;
+    const pointer = painting;
+    painting = null;
+    inputOwner.release(canvas, pointer);
+  }
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, finishGesture);
+  onInteractionInactive(canvas, () => finishGesture(), listeners.signal);
 
   dialog.addEventListener('click', event => {
     const command = event.target.closest('[data-command]')?.dataset.command;
@@ -111,7 +123,7 @@ export async function editStamp(stamp, initialColor, onSave) {
     update();
   });
 
-  dialog.addEventListener('close', () => dialog.remove(), { once: true });
+  dialog.addEventListener('close', () => { finishGesture(); listeners.abort(); dialog.remove(); }, { once: true });
   update();
   document.body.append(dialog);
   dialog.showModal();

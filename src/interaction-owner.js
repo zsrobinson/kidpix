@@ -1,0 +1,63 @@
+// One owner per document, shared by paper, objects, paths and modal editors.
+// Install on window capture before chrome's capture handlers (including popups).
+const owners = new WeakMap();
+
+export function interactionOwner(document = globalThis.document) {
+  if (owners.has(document)) return owners.get(document);
+  let active = null;
+  const rejected = new Map();
+  const window = document.defaultView;
+  const block = event => { event.preventDefault(); event.stopImmediatePropagation(); };
+  function guard(event) {
+    const id = event.pointerId;
+    if (event.type === 'pointerdown') {
+      // Pointer IDs can be reused, but never rehabilitate a still-held contact.
+      if (rejected.get(id)?.down) { block(event); return; }
+      rejected.delete(id);
+      if (active && id !== active.pointerId) {
+        rejected.set(id, { down: true });
+        block(event);
+      }
+      return;
+    }
+    if (rejected.has(id)) {
+      if (event.type === 'pointerup' || event.type === 'pointercancel') rejected.get(id).down = false;
+      block(event);
+      return;
+    }
+    // Also suppress pre-down touch hover/enter so chrome cannot react first.
+    // Keyboard/assistive clicks have no physical pointer and remain available.
+    if (event.pointerType === 'touch' && active && id !== active.pointerId) block(event);
+  }
+  for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel',
+    'pointerover', 'pointerout', 'pointerenter', 'pointerleave', 'lostpointercapture',
+    'click', 'dblclick', 'contextmenu']) window.addEventListener(type, guard, { capture: true, passive: false });
+  // An interrupted contact may never deliver its terminal event. Keep its click
+  // tombstone, while allowing a genuinely new down to reuse the platform ID.
+  const interrupted = () => { for (const contact of rejected.values()) contact.down = false; };
+  for (const type of ['blur', 'pagehide']) window.addEventListener(type, interrupted);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) interrupted(); });
+  const api = {
+    claim(event, surface) {
+      if (active || rejected.has(event.pointerId)) return false;
+      active = { pointerId: event.pointerId, pointerType: event.pointerType, surface };
+      return true;
+    },
+    release(surface, pointerId) {
+      if (active?.surface !== surface || active.pointerId !== pointerId) return;
+      active = null; // Clear before synchronous capture-loss callbacks.
+      if (surface.hasPointerCapture?.(pointerId)) surface.releasePointerCapture(pointerId);
+    },
+  };
+  owners.set(document, api);
+  return api;
+}
+
+// The surface owns cancellation semantics; this only wires interruption sources.
+export function onInteractionInactive(surface, finish, signal) {
+  const document = surface.ownerDocument;
+  const window = document.defaultView;
+  const options = { signal };
+  for (const type of ['blur', 'pagehide', 'resize']) window.addEventListener(type, finish, options);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) finish(); }, options);
+}

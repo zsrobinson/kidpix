@@ -1,3 +1,4 @@
+import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 import { original } from './library.js';
 import { place } from './trays.js';
 import { editStamp as editFallbackStamp } from './stamp-editor.js';
@@ -116,6 +117,7 @@ async function openStampEditor(stamp, initialColor, onSave) {
   const history = [];
   let color = /^#[a-f\d]{6}$/i.test(initialColor) ? initialColor : '#000000';
   let tool = 'pencil';
+  const inputOwner = interactionOwner(canvas.ownerDocument);
   let gesture;
   let sound;
   let saved = null;
@@ -239,29 +241,38 @@ async function openStampEditor(stamp, initialColor, onSave) {
   };
   const draw = (x, y) => { context.fillStyle = color; context.fillRect(x, y, 1, 1); };
   canvas.addEventListener('pointerdown', event => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || gesture || !inputOwner.claim(event, canvas)) return;
     event.preventDefault();
     canvas.focus();
     remember();
     const point = position(event);
+    gesture = { pointer: event.pointerId, point, rollbackOnCancel: tool === 'pencil' };
+    canvas.setPointerCapture(event.pointerId);
     if (tool === 'fill') fillPixels(context, ...point, color);
     else {
-      gesture = { pointer: event.pointerId, point };
-      canvas.setPointerCapture(event.pointerId);
       draw(...point);
     }
     update();
   }, options);
   canvas.addEventListener('pointermove', event => {
-    if (gesture?.pointer !== event.pointerId) return;
+    if (gesture?.pointer !== event.pointerId || tool !== 'pencil') return;
     const point = position(event);
     strokePixels(gesture.point, point, draw);
     gesture.point = point;
     update();
   }, options);
-  canvas.addEventListener('pointerup', event => { if (gesture?.pointer === event.pointerId) gesture = null; }, options);
-  canvas.addEventListener('lostpointercapture', () => { gesture = null; }, options);
-  canvas.addEventListener('pointercancel', event => { if (gesture?.pointer === event.pointerId) { gesture = null; undo(); } }, options);
+  function finishGesture(event) {
+    if (!gesture || (event && gesture.pointer !== event.pointerId)) return;
+    const { pointer, rollbackOnCancel } = gesture;
+    gesture = null;
+    inputOwner.release(canvas, pointer);
+    // Preserve native editor policy: explicit cancel rolls back; capture loss
+    // and lifecycle interruptions keep delivered pixels and their checkpoint.
+    if (event?.type === 'pointercancel' && rollbackOnCancel) undo();
+    sound?.pause();
+  }
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, finishGesture, options);
+  onInteractionInactive(canvas, () => finishGesture(), listeners.signal);
   // Modal keystrokes must not reach the Paint Zone's document-level shortcuts.
   dialog.addEventListener('keydown', event => {
     event.stopPropagation();
@@ -298,6 +309,7 @@ async function openStampEditor(stamp, initialColor, onSave) {
   }
   document.body.append(dialog);
   const closed = new Promise(resolve => dialog.addEventListener('close', () => {
+    finishGesture();
     listeners.abort();
     sound?.pause();
     dialog.remove();

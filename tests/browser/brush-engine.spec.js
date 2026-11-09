@@ -1,3 +1,4 @@
+import { installPaletteClockAudio, openClockPalette, closeClockPalette } from './palette-clock.js';
 import { test, expect } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { readFile } from 'node:fs/promises';
@@ -41,13 +42,13 @@ async function marker(page) {
   await ready(page);
 }
 async function color(page, value) {
-  await button(page, 'Color Swatch').hover();
+  await openClockPalette(page);
   const custom = page.locator('#custom-color');
   await custom.focus();
   await custom.fill(value);
   await custom.dispatchEvent('change');
   await page.locator('#paper-canvas').focus();
-  await page.keyboard.press('Escape');
+  await closeClockPalette(page);
 }
 async function history(page, before, after) {
   await page.keyboard.press('ControlOrMeta+z');
@@ -57,6 +58,7 @@ async function history(page, before, after) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await installPaletteClockAudio(page);
   page.brushErrors = [];
   page.on('pageerror', error => page.brushErrors.push(error.message));
   page.on('response', response => { if (response.status() >= 400) page.brushErrors.push(`${response.status()} ${response.url()}`); });

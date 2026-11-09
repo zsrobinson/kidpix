@@ -229,3 +229,29 @@ WebKit run, deployment dry run or publish was performed for this integration.
 When merging onto the parent's later release work, retain its version, readiness,
 input/history fixes and other source changes; this branch starts at9236d56 and
 changes only the listed palette hooks plus the narrow test/audit additions.
+
+## Parent integration and publication preparation
+
+Merged above published0.9.0 while retaining its Text/readiness/tablet work and
+recorded-path target cleanup. Both review findings are addressed: only primary
+pointerdown can claim a palette contact, and failed-art palettes retain mouse
+leave dismissal with real-focus/trigger exemptions and retry. Four new review
+regressions failed before the fixes and pass afterward.
+
+The17 media objects (16 payloads, then manifest;570,459 bytes total) are uploaded
+and independently SHA-256 verified through the public Worker. Receipts live in
+`artifacts/t3/release-0100/`. The child's initial404 probe remains historical.
+
+Exact WebKit PNG comparison uses the same readback Canvas backend as the sampler
+(`willReadFrequently`); all14 poses and three dropper states compare without a
+channel tolerance. This corrects differing Canvas alpha-rounding paths in the
+test oracle; the production renderer is unchanged. The clock fixture pauses at
+a future instant and aligns actor start to its RAF grid without altering authored
+30/100ms intervals.
+
+Frozen-clock pigment/primary-tool tests now drive real palette opening/closing
+programs. They compare primary snapshots immediately around each color change
+while paused, then finish closing before testing the unoccluded studio pixels.
+Only palette cue completion is mocked in these fixtures; the studio palette
+suite separately checks held source cue gates. No motion manifest is disabled
+and no primary pixel/state assertion is removed. Nine affected cases pass.

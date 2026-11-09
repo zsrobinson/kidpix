@@ -275,3 +275,56 @@ and deployment dry run. The candidate is ready for final commit/publication and
 verification of the new public build.
 Native original references remain0/17, and actual iPad hardware acceptance is
 still pending. Evidence and current receipts belong in`artifacts/t3/release-090/`.
+
+## Published0.9 and next animation pass
+
+0.9.0 is live at3c0a2410f77551414ea5f7b0cc845119c4bd922e, built2026-11-09
+22:36:17.882Z. Cloudflare/GitHub checks and all262 public browser cases passed.
+The full local/source/WebKit/static evidence is in`artifacts/t3/release-090/`;
+no media changes were needed. The previous0.8 drag failure remains separately
+recorded; do not rewrite that failed run as a pass.
+
+Working changes above0.9 fix a confirmed pre-existing recorded-path crash after
+held Cut/Undo/Delete, plus wrong-target Paste/restore. Root main.js/scene.js and
+new path-input.spec.js are intentional and must survive ColorPicker integration.
+Eight focused regressions pass; evidence:`artifacts/t3/path-target-invalidation/`.
+They are not yet published. Original references remain0/17.
+
+The ColorPicker child commit5875d5b in its isolated checkout integrates original
+seven opening/closing poses and source hit sampling. Its17 required media files
+are not yet public; upload payloads before manifest and verify checksums before
+its eventual publication. Parent review and integration are pending. A separate
+Windows runner preflight may test a harmless desktop/token/display/audio helper;
+no original app execution or original-runtime capture has been established.
+
+## Current0.10 candidate
+
+Root main includes25bd00e recorded-path target fixes and a32bcc8 ColorPicker
+integration above live0.9 source3c0a241. Preserve all intentional uncommitted
+changes. Package0.10.0 is a candidate, not published. ColorPicker17media files
+were staged payload-first thenmanifest and publicly checksum-verified. Two P2
+review fixes and four red/green regressions cover rightclick and fallback leave.
+WebKit now passes94 cases with1 explicit Chromium-delivery skip; exact image
+oracles match the sampler readback backend. Node193/build/dryrun passed.
+
+The first full330dev/285built attempt had9/8 legacy fixture failures caused by
+assuming immediate palette dismissal with frozen clocks. Helpers now deliver
+real opening/closing frames, preserve exact snapshots around the immediate
+color change, and compare the visible studio after closing. All9 affected tests
+pass. Fresh full suites are running; do not publish until they pass. Initial17
+static captures are pixel-identical to accepted0.9 baselines. No baseline
+acceptance is required or authorized merely to clear an unexpected difference.
+
+GenuineWindows preflight proved only a harmless admin desktop can draw/type
+and capture known pixels. Users-only child timed out without a report; audio
+and OpenGL remain unresolved. All owned accounts/processes/scratch cleaned up.
+No original application executed; accepted references stay0/17. The dedicated
+CI branch is unmerged. Evidence:`artifacts/t3/windows-runner-preflight/`.
+
+Final0.10 local gates passed330dev,285built,193Node,94WebKit+1explicit
+skip,9,751assetsandbuild/dryrun. Source-onlyexportpassed187with6asset-dependent
+skipsandbuild/dryrun. All17currentcapturesarepixel-identicalto0.9 withzero
+comparison/regressionerrors; acceptedbaselineswerenotchanged. Combinedfinal
+reviewfoundnofindings,11targetedactualappchecks passed. Thecandidateisready
+forfinalcommit/pushandexact-revisionpublicverification; receipts
+`artifacts/t3/release-0100/`. Preserveallintentionalworkingchanges.

@@ -23,7 +23,7 @@ Before publishing, also run `npm run test:browser:build`. It builds the actual C
 
 The browser suite covers:
 
-- Ten comparison states: empty Paint Zone, pencil straight line, filled box, painting tray, large Air Brush selection, original Paint Shape, native Stamp Editor, background tray, placed sticker and Slide Show with one picture.
+- Seventeen comparison states across all eight tool tabs: empty Paint Zone, pencil straight line, filled box, painting tray, large Air Brush selection, original Paint Shape, native Stamp Editor, background tray, placed sticker and Slide Show with one picture.
 - Drawing, exact canvas undo/redo, saving a picture containing ink and a sticker, clearing it, reopening it, and checking exported PNG dimensions and an ink pixel.
 - Drawing at an 800×600 viewport to verify pointer-to-page coordinate mapping.
 - Undo Guy face toggling, independent history arrows, animation placement/completion and restoration of the idle composition.
@@ -34,7 +34,8 @@ The browser suite covers:
 - Moving Paints authored poses and holds, audio-gated completion, stationary/current-pointer emission, outside-page suppression, tool cleanup, live PNG export and held-stroke undo/redo.
 - Native paper opening and resting canister source pixels, selected-page/history synchronization, canceled image requests and persistent decode-failure recovery.
 - All 20 Undo Guy routines with complete source-pixel sequences, repeated holds, cue ownership, finite completion and redo selection.
-- Pointer-capture loss, blur, editable text selection, protected chrome, popup dismissal and retained rollover owner cleanup.
+- Color Picker authored opening/closing, exact source pixels and hit sampling, cue gates, dropper state, fallback/retry, scaled pen/touch/mouse input and owned cancellation.
+- Pointer-capture loss, blur, recorded-path target replacement, editable text selection, protected chrome, popup dismissal and retained rollover owner cleanup.
 - Native grayscale brush-mask coverage through the actual painting tool and exact undo/redo, with separate synthetic-pixel tests for density, spatter and shadow/glint rules.
 - Real Stamp Editor entry, source layout/palette, pixel transformations, edited-stamp persistence/placement, cancellation, keyboard isolation, failed-load retry and prevention of duplicate modals.
 - Text font/size steppers, delayed-art focus and static gesture continuity, Stamp library identity through readiness, alignment and independent formatting source programs, selection-direction preservation, Grab clipboard/ordering capabilities, target changes before release, disjoint restoration around unbound navigation art, and Stamp boundary arrows/sizes/editor ownership.

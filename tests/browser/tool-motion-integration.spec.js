@@ -1,3 +1,4 @@
+import { installPaletteClockAudio, openClockPalette, closeClockPalette } from './palette-clock.js';
 import { test, expect } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { readFileSync } from 'node:fs';
@@ -21,6 +22,7 @@ async function until(page, start, elapsed) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await installPaletteClockAudio(page);
   page.motionErrors = [];
   page.on('pageerror', error => page.motionErrors.push(error.message));
   await page.addInitScript(() => {
@@ -132,14 +134,15 @@ test('Space held across a color/size render retains focus and commits once on ke
 test('color and style renders preserve the running frame; actual studio pixels include source composition', { tag: '@module' }, async ({ page }, testInfo) => {
   await click(page, 'tool:crayon');
   await page.clock.runFor(220);
+  // Deliver palette opening before measuring the frozen tool stream.
+  await openClockPalette(page);
   const before = (await snapshot(page))[2];
-  // Trigger the application's real palette path without hovering another tool.
-  await click(page, 'palette');
   const color = page.locator('#palette [data-action^="color:"]').filter({ hasNot: page.locator('[hidden]') }).first();
   const selectedColor = (await color.getAttribute('data-action')).slice(6);
   await color.evaluate(control => control.click());
   await click(page, 'style:line');
   expect((await snapshot(page))[2]).toMatchObject({ script: before.script, frameIndex: before.frameIndex, state: 3 });
+  await closeClockPalette(page);
   // Build an independent backdrop in a separate canvas, then use the tested raw
   // callback. Comparing the full studio screenshot catches wrong DOM stacking.
   const expected = await page.evaluate(async ({ manifest, color }) => {

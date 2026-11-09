@@ -2,6 +2,14 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.10.0
+
+- Restored the Color Picker's seven opening poses at 30 ms and seven closing poses at 100 ms, exact clipping and source sound completion gates. Interrupted opening plays the full closing program; controls become live when opening finishes.
+- Added source-mask color sampling, preview/selection separation and Eye Dropper rest/hover/tracking artwork. Pointer ownership, keyboard/custom-color access, scaled input, cancellation and failed-art retry preserve usable controls.
+- Fixed recorded paths when Cut, Undo, Delete or Paste changes their target. Capture and preview clear before the edit; deleted or replaced objects cannot receive a stray path or history entry.
+- Verified 193 Node checks, 330 development cases, 285 built cases, assets and build/dry run. Source-only checks passed 187 cases with six asset-dependent skips; all 17 static captures remain pixel-identical to 0.9. WebKit passed 94 cases with one explicit Chromium-only delivery skip. All 17 new media objects were publicly checksum-verified before code publication.
+- Actual iPad hardware acceptance and original-program runtime feel remain unverified; native references remain 0/17.
+
 ## 0.9.0
 
 - Animated Text's previous/next font and larger/smaller size arrows with 16 source programs and 20 poses, including tracking and boundary-disabled artwork. The enabled secondary scope is now 46 source rows, 144 programs and 193 poses.

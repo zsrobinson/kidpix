@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // This file uses only the shipped app and independently composes source PNGs.
+// Use the sampling canvas readback backend for exact WebKit alpha rounding.
 const phase = page => page.locator('#palette');
 async function start(page) {
   await page.goto('/');
@@ -15,7 +16,10 @@ async function open(page) {
 test('studio source programs render all 14 independently composed poses and gate controls', async ({ page }) => {
   await start(page);
   await page.clock.install({ time: new Date(1000000) });
-  await page.clock.pauseAt(new Date(1000000));
+  await page.clock.pauseAt(new Date(1001000));
+  // Align actor start with the mocked RAF grid, preserving 30/100ms checks.
+  const now = await page.evaluate(() => performance.now());
+  await page.clock.runFor((16 - now % 16) % 16);
   // Disable audio for deterministic source terminal-update checks.
   await page.evaluate(() => { HTMLMediaElement.prototype.play = function() { return Promise.reject(new Error('disabled')); }; });
   await page.locator('#color-button').dispatchEvent('click', { detail: 0 });
@@ -25,7 +29,7 @@ test('studio source programs render all 14 independently composed poses and gate
     return page.evaluate(async ({id,x,y}) => {
       const image = new Image(); image.src = `/original/ui/color-picker-motion/big-${id}.png`; await image.decode();
       const canvas = document.createElement('canvas'); canvas.width=1024;canvas.height=768;
-      const c=canvas.getContext('2d');c.save();c.beginPath();c.rect(-80,411,427,457);c.clip();c.drawImage(image,x,y);c.restore();
+      const c=canvas.getContext('2d',{willReadFrequently:true});c.save();c.beginPath();c.rect(-80,411,427,457);c.clip();c.drawImage(image,x,y);c.restore();
       const a=c.getImageData(0,0,1024,768).data;
       const b=document.querySelector('#color-picker-actor').getContext('2d').getImageData(0,0,1024,768).data;
       return a.reduce((n,v,i)=>n+(v!==b[i]),0);
@@ -70,7 +74,7 @@ for(const pointerType of ['mouse','touch','pen']) test(`scaled ${pointerType} so
   await start(page); await page.setViewportSize({width:768,height:600}); await page.waitForTimeout(150); await open(page);
   const expected = await page.evaluate(async () => {
     const image = new Image(); image.src='/original/ui/color-picker-motion/big-7.png'; await image.decode();
-    const c=document.createElement('canvas'); c.width=307;c.height=307;const ctx=c.getContext('2d');ctx.drawImage(image,0,0);
+    const c=document.createElement('canvas'); c.width=307;c.height=307;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
     return '#'+[...ctx.getImageData(191-38,580-426,1,1).data].slice(0,3).map(v=>v.toString(16).padStart(2,'0')).join('');
   });
   await page.evaluate(pointerType=>{
@@ -132,7 +136,7 @@ test('dropper rest, hover and held tracking use authored overlays; command prese
   await start(page); await open(page);
   const check=async sprite=> page.evaluate(async sprite=>{
     const paths=[7,sprite];const images=await Promise.all(paths.map(async id=>{const image=new Image();image.src=`/original/ui/color-picker-motion/big-${id}.png`;await image.decode();return image;}));
-    const c=document.createElement('canvas');c.width=1024;c.height=768;const ctx=c.getContext('2d');
+    const c=document.createElement('canvas');c.width=1024;c.height=768;const ctx=c.getContext('2d',{willReadFrequently:true});
     ctx.save();ctx.beginPath();ctx.rect(-80,411,427,457);ctx.clip();ctx.drawImage(images[0],38,426);ctx.restore();
     ctx.save();ctx.beginPath();ctx.rect(116,446,71,80);ctx.clip();ctx.drawImage(images[1],118,461);ctx.restore();
     const a=ctx.getImageData(0,0,1024,768).data,b=document.querySelector('#color-picker-actor').getContext('2d').getImageData(0,0,1024,768).data;
@@ -180,4 +184,41 @@ for(const pointerType of ['touch','pen']) test(`held drawing rejects foreign ${p
   },pointerType);
   await expect(phase(page)).toBeHidden();
   await page.mouse.up();await open(page);
+});
+
+for (const [name, x, y] of [['swatch', 190, 580], ['dropper', 150, 480]]) test(`secondary mouse button cannot activate source ${name}`, async ({ page }) => {
+  await start(page); await open(page);
+  const color = await page.locator('#custom-color').inputValue();
+  const box = await page.locator('#studio').boundingBox();
+  await page.mouse.click(box.x + x * box.width / 1024, box.y + y * box.height / 768, { button: 'right' });
+  await expect(page.locator('#custom-color')).toHaveValue(color);
+  await expect(phase(page)).toHaveAttribute('data-phase', 'open');
+  await expect(page.locator('#paper-canvas')).toHaveAttribute('data-tool', 'pencil');
+});
+
+test('fallback leave dismisses and a later open retries source artwork', async ({ page }) => {
+  await start(page); let fail = true;
+  await page.route('**/color-picker-motion/manifest.json*', route => fail ? route.fulfill({ status: 503, body: '{}' }) : route.continue());
+  await page.locator('#color-button').dispatchEvent('click', { detail: 0 });
+  await expect(phase(page)).toHaveAttribute('data-phase', 'fallback');
+  const box = await page.locator('#studio').boundingBox();
+  await page.mouse.move(box.x + 190 * box.width / 1024, box.y + 580 * box.height / 768);
+  await page.mouse.move(box.x + 600 * box.width / 1024, box.y + 300 * box.height / 768);
+  await expect(phase(page)).toBeHidden();
+  await expect(phase(page)).toHaveAttribute('data-phase', 'closed');
+  fail = false; await open(page);
+});
+
+test('fallback retains focus and trigger exemptions before mouse leave', async ({ page }) => {
+  await start(page);
+  await page.route('**/color-picker-motion/manifest.json*', route => route.fulfill({ status: 503, body: '{}' }));
+  await page.locator('#color-button').dispatchEvent('click', { detail: 0 });
+  await expect(phase(page)).toHaveAttribute('data-phase', 'fallback');
+  const trigger = await page.locator('#color-button').boundingBox();
+  await page.mouse.move(trigger.x + trigger.width / 2, trigger.y + trigger.height / 2);
+  await expect(phase(page)).toBeVisible();
+  await page.locator('#custom-color').focus();
+  await page.mouse.move(600, 300); await expect(phase(page)).toBeVisible();
+  await page.getByRole('textbox', { name: 'Picture title', exact: true }).focus();
+  await page.mouse.move(601, 301); await expect(phase(page)).toBeHidden();
 });

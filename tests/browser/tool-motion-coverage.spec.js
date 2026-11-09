@@ -1,3 +1,4 @@
+import { installPaletteClockAudio, openClockPalette, closeClockPalette } from './palette-clock.js';
 import { test, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { PNG } from 'pngjs';
@@ -26,6 +27,7 @@ const point = async (page, x, y) => {
 const moveOutside = async page => page.mouse.move(...await point(page, 1020, 765));
 
 async function install(page, { heldAudio = false } = {}) {
+  await installPaletteClockAudio(page);
   page.motionErrors = [];
   page.on('pageerror', error => page.motionErrors.push(error.message));
   await page.addInitScript(({ heldAudio }) => {
@@ -397,18 +399,21 @@ for (const tray of Object.keys(trays)) {
     await moveOutside(page);
     await page.clock.runFor(112);
     await actor(page, tray).evaluate(node => { window.savedMotionActor = node; });
-    const before = await snap(page, tray);
+    let before = await snap(page, tray);
     expect(before.some(value => value.frameIndex > 0 && !value.finished)).toBe(true);
     for (const color of ['#0080ff', '#f54081', '#ffffff', '#000000']) {
-      await action(page, 'palette').click();
+      await openClockPalette(page);
+      before = await snap(page, tray);
       // The OS color chooser is outside Playwright. Deliver its existing input
       // boundary; selection and every subsequent rerender use the actual app.
       await page.locator('#custom-color').evaluate((input, color) => {
         input.value = color; input.dispatchEvent(new Event('change', { bubbles: true }));
       }, color);
-      await page.keyboard.press('Escape');
       expect(await actor(page, tray).evaluate(node => node === window.savedMotionActor)).toBe(true);
       expect(await snap(page, tray), 'Color repaint preserves every base stream deadline/pose').toEqual(before);
+      await expectPixels(page, tray, { color });
+      await closeClockPalette(page);
+      before = await snap(page, tray);
       await expectPixels(page, tray, { color, composite: true });
     }
     for (const value of ['size:4', 'effect:1', 'page:1', 'page:-1']) {
@@ -756,13 +761,13 @@ test('Grab and every Scissors page retain one owner through view switches and he
   // A captured Scissors press crosses a real color rerender before mouseup.
   await action(page, 'tool:scissors').hover(); await page.mouse.down();
   await page.clock.runFor(224);
+  await openClockPalette(page);
   const scissors = await item(page, 'grab', 0);
-  await action(page, 'palette').evaluate(node => node.click());
   await page.locator('#custom-color').evaluate(input => { input.value = '#0080ff'; input.dispatchEvent(new Event('change', { bubbles: true })); });
   expect(await item(page, 'grab', 0)).toEqual(scissors);
   await page.mouse.up(); await expect(actor(page, 'grab')).toBeVisible();
   expect(await item(page, 'grab', 0)).toMatchObject({ state: 3, script: scissors.script, frameIndex: scissors.frameIndex });
-  await page.keyboard.press('Escape'); // Dismiss the real palette after release.
+  await closeClockPalette(page);
   await expectPixels(page, 'grab', { composite: true });
   expect(page.motionErrors).toEqual([]);
 });

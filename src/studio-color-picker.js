@@ -123,7 +123,7 @@ export function createStudioColorPicker({ studio, palette, trigger, original, ge
   };
   const consume = event => { event.preventDefault(); event.stopImmediatePropagation(); };
   studio.addEventListener('pointerdown', event => {
-    if (picker?.state !== 'open' || event.target.closest('input')) return;
+    if (event.button !== 0 || picker?.state !== 'open' || event.target.closest('input')) return;
     const { x, y } = point(event);
     const dropper = colorPickerContains(manifest.dropperRegion, x, y);
     if (!dropper && !colorPickerHit(manifest, x, y)) return;
@@ -133,6 +133,14 @@ export function createStudioColorPicker({ studio, palette, trigger, original, ge
     if (dropper) picker.setDropperState('tracking'); else picker.pointerDown(x, y);
   }, true);
   studio.addEventListener('pointermove', event => {
+    if (failed) {
+      if (event.pointerType !== 'mouse' || palette.hidden
+        || palette.contains(palette.ownerDocument.activeElement) || event.target.closest('#color-button')) return;
+      const rect = palette.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right
+        || event.clientY < rect.top || event.clientY > rect.bottom) close();
+      return;
+    }
     if (picker?.state !== 'open' || palette.contains(document.activeElement) && !contact) return;
     if (contact && contact.id !== event.pointerId) return;
     const { x, y } = point(event);

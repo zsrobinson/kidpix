@@ -986,7 +986,7 @@ export function createPaint(canvas, hooks = {}) {
       if (tool === 'eraser') brush.color = '#ffffff'
       const random = makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))
       gesture = { ...common, type: 'stroke', last: point, remainder: 0, random, step: 0 }
-      if (variant === 'freehand' && ['pencil', 'chalk', 'crayon'].includes(tool)) {
+      if (event.pointerType === 'pen' && variant === 'freehand' && ['pencil', 'chalk', 'crayon'].includes(tool)) {
         gesture.pressureInput = createPressureInput(event)
         point.pressure = gesture.pressureInput.sample(event)
       }

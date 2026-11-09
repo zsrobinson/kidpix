@@ -6,8 +6,9 @@ import { readData, recordMedia } from './recording.js';
 import { editStamp } from './stamp-editor.js';
 import { loadCatalog, original, originalCssUrl, rebaseProject } from './library.js';
 import { highlightLibraryItem, libraryCategories, showOriginalLibrary, trayKey } from './library-tray.js';
-import { loadNativeUi, nativeButtonParts, renderNativeDrawing, setSprite } from './native-ui.js';
+import { loadNativeUi, nativeButtonParts, nativeCursor, renderNativeDrawing, renderNativeSizes, setSprite } from './native-ui.js';
 import { commandButtons, libraryGroups, optionTitle, place, toolGroups, trayState } from './trays.js';
+import { createNativeAnimation } from './native-animation.js';
 
 const app = document.querySelector('#app');
 const state = {
@@ -32,6 +33,7 @@ let pathPointer = null;
 let nativeUi;
 let nativeSprites;
 let nativeTrays = {};
+let disconnectTraySprites;
 let libraryManifest;
 let importKind = 'image';
 const importedAssets = new Map();
@@ -42,6 +44,7 @@ let gradientDefinitions = [];
 let backgroundRequest = 0;
 const undoStack = [];
 const redoStack = [];
+let undoFaceRedo = false;
 
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const button = (action, label, x, y, w, h, extra = '') =>
@@ -193,6 +196,7 @@ scaleStudio();
 
 function remember(entry) {
   if (loadingProject) return;
+  undoFaceRedo = false;
   undoStack.push(entry);
   if (undoStack.length > 32) undoStack.shift();
   redoStack.length = 0;
@@ -200,8 +204,10 @@ function remember(entry) {
 }
 
 function syncHistory() {
+  if (!undoStack.length && !redoStack.length) undoFaceRedo = false;
   for (const control of app.querySelectorAll('[data-action="undo"]')) control.setAttribute('aria-disabled', String(!undoStack.length));
   for (const control of app.querySelectorAll('[data-action="redo"]')) control.setAttribute('aria-disabled', String(!redoStack.length));
+  app.querySelector('[data-action="undo-face"]').setAttribute('aria-disabled', String(!(undoFaceRedo ? redoStack.length : undoStack.length)));
 }
 
 function drawForeground() {
@@ -222,13 +228,23 @@ const paint = createPaint(canvas, {
     state.pickColor = false;
     syncTool();
   },
+  onSamplePreview(color) { drawSwatch(color); },
+  sampleColor: point => samplePictureColor(point),
+  cursorFor(options) {
+    // These roles are identified from the recovered glyphs. The exporter keeps
+    // that evidence separate from bindings recovered from the executable.
+    const ids = { eyedropper: 10006, bucket: 10007, select: 10008, scissors: 10013, brush: 10015, spray: 10017, text: 10019 };
+    const id = options.tool === 'mixer' ? options.mode === 'wand' ? 10011 : 10010 : ids[options.tool] ?? 10029;
+    return nativeCursor(nativeUi, id, options.tool === 'text' ? 'text' : 'crosshair');
+  },
   onText(point) {
     if (state.tray === 'text') scene.addText(point, textStyle());
   },
   onError(error) { showStatus(error?.message || 'Could not use that image.'); },
 });
 
-function history(direction) {
+function history(direction, fromFace = false) {
+  if (!fromFace) undoFaceRedo = false;
   const source = direction === 'undo' ? undoStack : redoStack;
   const target = direction === 'undo' ? redoStack : undoStack;
   const entry = source.pop();
@@ -246,12 +262,14 @@ function history(direction) {
     state.backdrop = entry[direction === 'undo' ? 'before' : 'after'];
   } else paint[direction]();
   target.push(entry);
+  if (fromFace) undoFaceRedo = direction === 'undo';
   syncHistory();
 }
 
 const paperTextures = ['Smooth', 'Leaf', 'Stones', 'Fern', 'Swirl', 'Mosaic', 'Woodgrain', 'Woven'];
 let uiSound;
 let faceAnimation;
+let undoAnimation;
 let slideSound;
 let slideTrack;
 let slidePicturePlayers = [];
@@ -287,6 +305,12 @@ function playUiSound(id) {
 
 function animateUndoGuy() {
   if (!nativeUi || !nativeSprites) return;
+  if (undoAnimation && nativeUi.undoAnimations?.clips.length) {
+    const { clips } = nativeUi.undoAnimations;
+    const clip = clips[Math.floor(Math.random() * clips.length)];
+    undoAnimation.play(clip, clip.tickMs);
+    return;
+  }
   playUiSound(1008 + Math.floor(Math.random() * 20));
   const image = nativeSprites.get('undo-face');
   const start = performance.now();
@@ -347,7 +371,7 @@ function syncTool() {
   if (state.pickColor) next.tool = 'eyedropper';
   if (state.playing || objectPlacement || pathPointer !== null) next.tool = 'none';
   paint.setOptions(next);
-  if (pathPointer === null) scene.chooseMode(group === 'text' ? 'text' : group === 'grab' && tool === 'grab' ? 'grab' : 'paint');
+  if (pathPointer === null) scene.chooseMode(state.pickColor ? 'paint' : group === 'text' ? 'text' : group === 'grab' && tool === 'grab' ? 'grab' : 'paint');
   canvas.dataset.tool = next.tool;
   canvas.dataset.paintStyle = art;
 }
@@ -410,6 +434,7 @@ function showLibrary() {
 }
 
 function showTray() {
+  disconnectTraySprites?.();
   const lib = libKeys.has(state.tray);
   const nativeDraw = state.tray === 'draw' && nativeUi;
   trayArt.hidden = lib || nativeDraw;
@@ -426,9 +451,8 @@ function showTray() {
     const nativeTray = nativeTrays[view.art];
     state.page = Math.min(state.page, Math.max(0, (nativeTray?.pages.length ?? 1) - 1));
     const page = nativeTray?.pages[state.page];
-    if (nativeDraw) renderNativeDrawing($('#native-draw'), nativeUi, state);
-    else if (page) trayArt.src = original(`ui/trays/${page.image}`);
-    else {
+    if (!nativeDraw && page) trayArt.src = original(`ui/trays/${page.image}`);
+    else if (!nativeDraw) {
       const fallback = { 'hands-free': 'sound', 'mixer-wand': 'mixer' }[view.art] || view.art;
       trayArt.src = original(`guide/${fallback}.png`);
     }
@@ -439,6 +463,7 @@ function showTray() {
         .replace('title=', `aria-pressed="${selected}" title=`),
     ).join('');
     if (page) {
+      for (const control of layer.querySelectorAll('.tray-hit')) control.classList.add('native-control');
       const rowWidth = nativeTray.options.length;
       for (const [index, option] of page.options.entries()) {
         const rect = nativeTray.options[index];
@@ -448,6 +473,13 @@ function showTray() {
         const selected = scissors ? state.cookie ? state.cookie === option.id : styles[key] === state.selectionStyle : index === state.effect;
         const action = scissors ? key < 4 ? `style:${styles[key]}` : `cookie:${option.id}` : `effect:${index}`;
         layer.insertAdjacentHTML('beforeend', button(action, optionTitle(view.art, key), ...rect, 'tray-option').replace('title=', `aria-pressed="${selected}" title=`));
+      }
+      if (nativeTray.dynamicOptionFrames) {
+        for (const control of layer.querySelectorAll('.tray-option')) {
+          control.classList.add('native-option');
+          control.style.setProperty('--option-hover', originalCssUrl('ui/trays/icons/option-frame-739.png'));
+          control.style.setProperty('--option-selected', originalCssUrl('ui/trays/icons/option-frame-740.png'));
+        }
       }
       if (state.page > 0) layer.insertAdjacentHTML('beforeend', button('page:-1', 'Previous row', 872, 643, 42, 33));
       if (state.page < nativeTray.pages.length - 1) layer.insertAdjacentHTML('beforeend', button('page:1', 'Next row', 872, 700, 42, 33));
@@ -470,6 +502,10 @@ function showTray() {
     }
     if (state.tray === 'grab' && state.tools.grab === 'grab') {
       layer.innerHTML += '<div class="path-controls"><button class="pill" data-action="path">Path</button><button class="pill" data-action="loop-path">Loop Path</button><button class="pill" data-action="preview-object">Play Object</button></div>';
+    }
+    if (nativeDraw) disconnectTraySprites = renderNativeDrawing($('#native-draw'), nativeUi, state, layer);
+    else if (nativeUi && nativeTray && ['paint', 'mixer', 'eraser'].includes(state.tray)) {
+      disconnectTraySprites = renderNativeSizes(layer, nativeUi, state.sizes[state.tray]);
     }
   }
   for (const control of app.querySelectorAll('.side')) {
@@ -495,7 +531,10 @@ function selectTray(group) {
 
 function chooseColor(color) {
   state.color = color;
-  if (nativeUi && state.tray === 'draw') renderNativeDrawing($('#native-draw'), nativeUi, state);
+  if (nativeUi && state.tray === 'draw') {
+    disconnectTraySprites?.();
+    disconnectTraySprites = renderNativeDrawing($('#native-draw'), nativeUi, state, $('#tray-buttons'));
+  }
   drawSwatch(color);
   syncTool();
 }
@@ -782,8 +821,7 @@ function freshPicture() {
   selectTray('draw');
 }
 
-function createComposite() {
-  const result = document.createElement('canvas');
+function createComposite(result = document.createElement('canvas')) {
   result.width = canvas.width;
   result.height = canvas.height;
   const context = result.getContext('2d');
@@ -791,6 +829,15 @@ function createComposite() {
   scene.draw(context);
   paint.renderForegroundTo(context);
   return result;
+}
+
+let colorSample;
+function samplePictureColor(point) {
+  colorSample ??= document.createElement('canvas');
+  const context = createComposite(colorSample).getContext('2d');
+  const x = Math.max(0, Math.min(canvas.width - 1, Math.floor(point.x)));
+  const y = Math.max(0, Math.min(canvas.height - 1, Math.floor(point.y)));
+  return '#' + [...context.getImageData(x, y, 1, 1).data].slice(0, 3).map(c => c.toString(16).padStart(2, '0')).join('');
 }
 
 function download(name, content) {
@@ -952,6 +999,7 @@ function doEdit(command) {
 
 const commands = {
   undo: () => { animateUndoGuy(); history('undo'); },
+  'undo-face': () => { animateUndoGuy(); history(undoFaceRedo ? 'redo' : 'undo', true); },
   redo: () => history('redo'),
   new: () => showDialog('Create a new picture?', 'Save your picture first if you want to keep it.', [['Cancel'], ['New Picture', freshPicture]]),
   quit: () => showDialog('Close this picture?', 'Save your picture first if you want to keep it.', [['Cancel'], ['Close Picture', freshPicture]]),
@@ -1023,7 +1071,7 @@ const commands = {
     state.extendedHelp = !state.extendedHelp;
     showStatus(state.extendedHelp ? 'Move over a tool to see its name. Press Esc to close help.' : '', 0);
   },
-  about: () => showDialog('KID PIX 3D', 'Web feasibility build. The Paint Zone uses artwork and libraries from the Mac trial.', [['OK']]),
+  about: () => showDialog('KID PIX 3D', `Version ${__APP_VERSION__}. Paint Zone and Slide Show with artwork and libraries from the Mac trial.`, [['OK']]),
   palette: () => openPalette(true),
   eyedropper: () => { state.pickColor = true; openPalette(false); syncTool(); },
   paper: () => { playUiSound(1006); openPaper(!paperOpen); },
@@ -1266,6 +1314,7 @@ app.addEventListener('change', async event => {
 });
 
 $('#color-button').addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') openPalette(true); });
+canvas.addEventListener('pointerleave', () => { if (state.pickColor) drawSwatch(state.color); });
 studio.addEventListener('pointermove', event => {
   const palette = $('#palette');
   if (event.pointerType !== 'mouse' || palette.hidden || palette.contains(document.activeElement)) return;
@@ -1277,6 +1326,11 @@ app.addEventListener('pointerover', event => {
 });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
+    if (state.pickColor) {
+      state.pickColor = false;
+      drawSwatch(state.color);
+      syncTool();
+    }
     openPalette(false);
     openPaper(false);
     $('#menu-items').hidden = true;
@@ -1317,10 +1371,13 @@ $('#slide-chrome').style.backgroundImage = `url("${original('guide/slides.png')}
 loadNativeUi().then(manifest => {
   if (!manifest) return;
   nativeUi = manifest;
+  studio.style.setProperty('--cursor-grab', nativeCursor(manifest, 10008, 'grab'));
+  studio.style.setProperty('--cursor-text', nativeCursor(manifest, 10019, 'text'));
   $('#paint-chrome').classList.add('native');
   $('#paint-chrome').style.backgroundImage = `url("${original('ui/paint-empty.png')}")`;
   nativeSprites = nativeButtonParts(manifest, $('#hit-layer'));
   $('#native-buttons').replaceChildren(...[...nativeSprites].filter(([name]) => name !== 'swatch').map(([, image]) => image));
+  if (manifest.undoAnimations) undoAnimation = createNativeAnimation($('#native-buttons'), nativeSprites.get('undo-face'), playUiSound);
   if (manifest.slideShow) {
     $('#slides').classList.add('native-slides');
     $('#slides').style.setProperty('--slide-slot', originalCssUrl('ui/slide-slot.png'));

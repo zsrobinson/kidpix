@@ -57,11 +57,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 #objects { z-index: 2; }
 .scene-object { position: absolute; border: 1px solid transparent; touch-action: none; user-select: none; }
 .scene-object img, .scene-object video { width: 100%; height: 100%; object-fit: contain; pointer-events: none; display: block; }
-.scene-object.is-selectable { pointer-events: auto; cursor: grab; }
+.scene-object.is-selectable { pointer-events: auto; cursor: var(--cursor-grab, grab); }
 .scene-object.is-selected { border: 1px dashed #37b8ff; box-shadow: 0 0 0 1px #fff9; }
 .scene-object .object-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.16; }
 .scene-object .resize-object { position: absolute; width: 13px; height: 13px; right: -5px; bottom: -5px; border: 1px solid white; background: #2b96df; cursor: nwse-resize; }
-.object-text[contenteditable="true"] { cursor: text; }
+.object-text[contenteditable="true"] { cursor: var(--cursor-text, text); }
 .hit {
   position: absolute;
   padding: 0;
@@ -248,6 +248,8 @@ select { min-width: 0; }
 #slide-grid { top: 185px; left: 161px; grid-auto-rows: 117px; gap: 19px 16px; padding: 2px 5px 10px 5px; background: #3c4b70; border-radius: 10px; }
 
 .native-sprite { position: absolute; pointer-events: none; }
+#tray-buttons > .native-sprite { pointer-events: none; }
+.hit.native-control:is(:hover, [aria-pressed="true"]) { box-shadow: none; outline: 0; }
 .native-draw .tray-hit[aria-pressed="true"] { outline: 0; }
 #color-chip { inset: auto; left: 25px; top: 21px; width: 68px; height: 65px; background: none; mask: none; filter: none; }
 .object-text[contenteditable="true"] { min-height: 1.16em; }
@@ -274,6 +276,9 @@ select { min-width: 0; }
 
 .tray-option { border-radius: 1px; }
 .tray-option[aria-pressed="true"] { box-shadow: inset 0 0 0 3px #f04b2c, inset 0 0 0 5px #9f200c; }
+.tray-option.native-option { background-position: center; background-size: 100% 100%; }
+.tray-option.native-option:hover { background-image: var(--option-hover); box-shadow: none; }
+.tray-option.native-option[aria-pressed="true"] { background-image: var(--option-selected); box-shadow: none; }
 #palette.original-palette { bottom: auto; padding: 0; border: 0; border-radius: 0; background-color: transparent; background-size: contain; box-shadow: none; }
 .original-palette .palette-chip { border-radius: 50%; }
 .original-palette #custom-color { position: absolute; width: 24px; height: 21px; left: 145px; top: 258px; padding: 0; opacity: .08; }

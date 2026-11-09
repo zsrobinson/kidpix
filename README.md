@@ -68,6 +68,10 @@ After deployment, check `/`, `/original/catalog.json`, a library thumbnail, and 
 
 ## Fidelity and verification
 
+Run `npx playwright install chromium` once, then `npm run parity` to run the local browser checks and generate `artifacts/parity/index.html`. The report supports accepted web regression baselines and separately imported original-application screenshots, with overlays and pixel differences. See [the parity workflow](docs/parity.md) for setup, capture recipes and reference import commands. Original-application references are not bundled; missing captures are explicitly reported.
+
+The first resource-based parity pass restores native selection artwork, original cursors and hotspots, Undo Guy's scripted expressions/sound cues, face undo/redo toggling, and eyedropper preview/picking across paint and placed objects. The original animation scheduler was inspected to recover its 100 ms interval for the Undo Guy routines. See [the resource inventory](docs/resource-inventory.md) and [the executable findings](docs/reverse-engineering.md) for source evidence, extraction coverage and remaining work. Regenerate local UI exports with `python3 scripts/import-ui.py` after mounting the trial; run `npm run test:import` to check the animation and cursor decoders. Updated UI media must be synced before deploying code that uses it.
+
 - The native Paint Zone and Slide Show artwork, sound effects, library ordering, and catalog media come from the supplied trial. The editor uses the original 720×542 drawing area and the original foreground occlusion for layered backgrounds.
 - The canvas engine is a browser reimplementation. It uses recovered brush and paper masks, pattern and gradient definitions, and spray imagery where available. The procedural effects, timing, and edge cases still need comparison against a running original.
 - Browser pictures and slides use the editable `.kidpix-web` format. PNG and red/cyan still export are available. Native Kid Pix project interchange and original movie and Slide Show export formats remain open work.

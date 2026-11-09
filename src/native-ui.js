@@ -23,30 +23,54 @@ export function setSprite(image, part, frame) {
   image.src = source(part.images[frame] ?? part.images[0]);
 }
 
+export function nativeCursor(manifest, id, fallback = 'crosshair') {
+  const cursor = manifest?.cursors?.items[String(id)];
+  const frame = cursor?.frames[manifest.cursors.preferredFrame ?? 0];
+  if (!frame || frame.width > 128 || frame.height > 128 || frame.greenPixels) return fallback;
+  return `url("${source(frame.image)}") ${cursor.hotspot.join(' ')}, ${fallback}`;
+}
+
+function bindSprite(control, image, part, selectedFrame, disabledFrame) {
+  const listeners = new AbortController();
+  const options = { signal: listeners.signal };
+  let hovered = false;
+  let pressed = false;
+  const update = () => {
+    const selected = control.getAttribute('aria-pressed') === 'true';
+    const disabled = control.getAttribute('aria-disabled') === 'true';
+    const frame = disabled && disabledFrame !== undefined ? disabledFrame
+      : selected && selectedFrame !== undefined ? selectedFrame : pressed ? 2 : hovered ? 1 : 0;
+    setSprite(image, part, frame);
+  };
+  control.classList.add('native-control');
+  control.addEventListener('pointerenter', () => { hovered = true; update(); }, options);
+  control.addEventListener('pointerleave', () => { hovered = false; pressed = false; update(); }, options);
+  control.addEventListener('pointerdown', () => { pressed = true; update(); }, options);
+  control.addEventListener('pointerup', () => { pressed = false; update(); }, options);
+  control.addEventListener('pointercancel', () => { pressed = false; update(); }, options);
+  const observer = new MutationObserver(update);
+  observer.observe(control, { attributes: true, attributeFilter: ['aria-disabled', 'aria-pressed'] });
+  update();
+  return () => { observer.disconnect(); listeners.abort(); };
+}
+
 export function nativeButtonParts(manifest, root) {
-  const remap = { animations: 'tray:toons', fill: 'tray:bucket', export: 'stereo', exit: 'quit', firehose: 'clear', 'paper-texture': 'paper' };
+  const remap = { animations: 'tray:toons', fill: 'tray:bucket', export: 'stereo', exit: 'quit', firehose: 'clear', 'paper-texture': 'paper', 'undo-face': 'undo-face' };
   const trayButtons = ['backgrounds', 'stickers', 'media', 'draw', 'paint', 'mixer', 'stamp', 'text', 'grab', 'eraser'];
   const sprites = new Map();
-  for (const [name, part] of Object.entries(manifest.buttons)) {
+  for (const [name, originalPart] of Object.entries(manifest.buttons)) {
+    const idle = name === 'undo-face' && manifest.undoAnimations?.idle;
+    const part = idle ? { x: idle.rect[0], y: idle.rect[1], w: idle.rect[2], h: idle.rect[3], images: [idle.frames[0].image] } : originalPart;
     const action = remap[name] || (trayButtons.includes(name) ? `tray:${name}` : name);
     const control = name === 'undo-face' ? root.querySelector('[aria-label="Undo Guy"]')
       : name === 'undo' ? root.querySelector('[aria-label="Undo"]')
         : root.querySelector(`[data-action="${action}"]`);
     const image = sprite(part);
+    image.dataset.nativePart = name;
     sprites.set(name, image);
     if (control) {
-      const update = frame => {
-        const disabled = control.getAttribute('aria-disabled') === 'true';
-        setSprite(image, part, disabled && part.images.length === 4 ? 3 : frame);
-      };
-      control.addEventListener('pointerenter', () => update(1));
-      control.addEventListener('pointerleave', () => update(0));
-      control.addEventListener('pointerdown', () => update(2));
-      control.addEventListener('pointerup', () => update(1));
-      if (name === 'undo' || name === 'redo') {
-        new MutationObserver(() => update(0)).observe(control, { attributes: true, attributeFilter: ['aria-disabled'] });
-        update(0);
-      }
+      bindSprite(control, image, part, control.classList.contains('side') ? 3 : undefined,
+        name === 'undo' || name === 'redo' ? 3 : undefined);
     }
   }
   return sprites;
@@ -64,7 +88,25 @@ function filterFor(color) {
   return `hue-rotate(${sector * 60}deg) saturate(${.5 + delta * .5}) brightness(${.8 + highest * .25})`;
 }
 
-export function renderNativeDrawing(layer, manifest, state) {
+export function renderNativeSizes(layer, manifest, size, controls = layer) {
+  const parts = manifest.drawingOptions;
+  layer.append(sprite(parts['tray-size']));
+  const bindings = [];
+  for (const [name, value] of [['size-small', 4], ['size-medium', 8], ['size-large', 16]]) {
+    const part = parts[name];
+    const image = sprite(part, size === value ? 2 : 0);
+    image.dataset.nativePart = name;
+    layer.append(image);
+    const control = controls.querySelector(`[data-action="size:${value}"]`);
+    if (control) {
+      control.style.cssText = place(part.x, part.y, part.w, part.h);
+      bindings.push(bindSprite(control, image, part, 2));
+    }
+  }
+  return () => bindings.forEach(disconnect => disconnect());
+}
+
+export function renderNativeDrawing(layer, manifest, state, controls) {
   const options = manifest.drawingOptions;
   const controlMap = {
     freehand: 'freehand', line: 'line', curve: 'curve', rectangle: 'rectangle',
@@ -72,10 +114,23 @@ export function renderNativeDrawing(layer, manifest, state) {
     polygon: 'polygon', 'polygon-fill': 'filled-polygon',
   };
   layer.replaceChildren();
+  const bindings = [];
   for (const [name, part] of Object.entries(options)) {
     const size = { 'size-small': 4, 'size-medium': 8, 'size-large': 16 }[name];
     const selected = size === state.sizes.draw || controlMap[name] === state.drawStyle;
-    layer.append(sprite(part, name.startsWith('tray-') && part.images.length === 3 ? 2 : selected ? 2 : 0));
+    if (name === 'tray-up' || name === 'tray-down') {
+      layer.append(sprite(part, 2));
+      continue;
+    }
+    const image = sprite(part, selected ? 2 : 0);
+    image.dataset.nativePart = name;
+    layer.append(image);
+    const action = size ? `size:${size}` : controlMap[name] ? `style:${controlMap[name]}` : null;
+    const control = action && controls?.querySelector(`[data-action="${action}"]`);
+    if (control) {
+      control.style.cssText = place(part.x, part.y, part.w, part.h);
+      bindings.push(bindSprite(control, image, part, 2));
+    }
   }
   const tint = filterFor(state.color);
   for (const [name, part] of Object.entries(manifest.drawingTools)) {
@@ -83,4 +138,5 @@ export function renderNativeDrawing(layer, manifest, state) {
     image.style.filter = tint;
     layer.append(image);
   }
+  return () => bindings.forEach(disconnect => disconnect());
 }

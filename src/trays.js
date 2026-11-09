@@ -18,7 +18,7 @@ export const libraryGroups = [
 
 export const commandButtons = [
   ['undo', 'Undo', 25, 314, 34, 43],
-  ['undo', 'Undo Guy', 58, 306, 46, 54],
+  ['undo-face', 'Undo Guy', 58, 306, 46, 54],
   ['redo', 'Redo', 103, 313, 32, 44],
   ['play', 'Play Picture', 901, 16, 110, 106],
   ['save', 'Save Picture', 898, 146, 57, 56],

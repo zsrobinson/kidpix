@@ -13,3 +13,7 @@ __pycache__/
 .env*
 !.env.example
 .dev.vars*
+
+artifacts/
+parity/references/
+parity/web-baselines/

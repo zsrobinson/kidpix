@@ -419,6 +419,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function getColorAt(point) {
+    if (hooks.sampleColor) return hooks.sampleColor(point);
     compose(sample)
     const { x, y } = pixelFor(point)
     const pixels = sample.getImageData(x, y, 1, 1).data
@@ -1065,7 +1066,7 @@ export function createPaint(canvas, hooks = {}) {
     if (next.tool && next.tool !== options.tool && !('asset' in next)) options.asset = null
     options = { ...options, ...next }
     options.variant ||= 'freehand'
-    canvas.style.cursor = cursors[toolAliases[options.tool] || options.tool] || 'crosshair'
+    canvas.style.cursor = hooks.cursorFor?.(options) || cursors[toolAliases[options.tool] || options.tool] || 'crosshair'
     if (options.tool === 'sound' && 'level' in next) respondToSound()
     if (Object.keys(next).every(key => key === 'level' || key === 'pitch')) return
     const asset = brushAsset(activeOptions({}))

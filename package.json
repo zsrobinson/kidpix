@@ -1,6 +1,6 @@
 {
   "name": "kid-pix-3d-web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,15 +11,24 @@
     "verify:assets": "node scripts/verify-assets.mjs",
     "prebuild": "npm run verify:assets",
     "build:cloudflare": "vite build --mode cloudflare",
-    "test": "node --test worker/*.test.js scripts/sync-media.test.mjs",
+    "test": "node --test worker/*.test.js scripts/sync-media.test.mjs scripts/parity/*.test.mjs",
     "check": "npm test && npm run build:cloudflare && wrangler deploy --dry-run",
     "deploy": "npm run build:cloudflare && wrangler deploy",
     "deploy:dry-run": "npm run build:cloudflare && wrangler deploy --dry-run",
     "media:sync": "node scripts/sync-media.mjs",
-    "media:plan": "node scripts/sync-media.mjs --dry-run"
+    "media:plan": "node scripts/sync-media.mjs --dry-run",
+    "test:browser": "playwright test",
+    "test:browser:headed": "playwright test --headed",
+    "parity": "playwright test",
+    "parity:reference": "node scripts/parity/manage.mjs reference",
+    "parity:baseline": "node scripts/parity/manage.mjs baseline",
+    "test:import": "PYTHONPATH=scripts python3 -m unittest discover -s scripts -p \"test_*.py\""
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1164.0",
+    "@playwright/test": "1.65.0",
+    "pixelmatch": "8.0.0",
+    "pngjs": "7.0.0",
     "vite": "8.3.6",
     "wrangler": "4.158.0"
   },

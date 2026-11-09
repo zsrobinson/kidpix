@@ -48,6 +48,15 @@ try {
     }
   }
   for (const paper of ui.paperTextures) check(join('ui', paper.image));
+  if (ui.undoAnimations) {
+    for (const clip of [ui.undoAnimations.idle, ...ui.undoAnimations.clips]) {
+      for (const frame of clip.frames) check(join('ui', frame.image));
+      for (const cue of clip.sounds) check(join('ui', `easel-${cue.sound}.wav`));
+    }
+  }
+  for (const cursor of Object.values(ui.cursors?.items ?? {})) {
+    for (const frame of cursor.frames) check(join('ui', frame.image));
+  }
   for (const [manifest, folder] of [['ui/trays.json', 'trays'], ['ui/library-trays.json', 'libraries']]) {
     for (const tray of Object.values(read(manifest).trays)) {
       if (tray.image) check(join(dirname(manifest), folder, tray.image));

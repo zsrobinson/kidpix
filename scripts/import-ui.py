@@ -18,7 +18,7 @@ from Foundation import NSData, NSUnarchiver
 from PIL import Image
 
 
-def app_resources(volume, *, include_paths=False):
+def app_resources(volume, *, include_paths=False, include_app_paths=False):
     """Read the file list and the independently compressed payload segments."""
     installer = volume / "Kid Pix Installer.app/Contents/Resources"
     index = zlib.decompress((installer / "Archive.zplist").read_bytes())
@@ -33,7 +33,7 @@ def app_resources(volume, *, include_paths=False):
 
     @lru_cache
     def read(path):
-        file = by_path[f"Contents/Resources/{path}"]
+        file = by_path[path if path.startswith("Contents/") else f"Contents/Resources/{path}"]
         fork = next(fork for fork in file["Forks"] if not str(fork["ForkName"]))
         chunks = []
         with (installer / "Archive.zp").open("rb") as payload:
@@ -47,6 +47,8 @@ def app_resources(volume, *, include_paths=False):
         return data
 
     if include_paths:
+        if include_app_paths:
+            return read, list(by_path)
         prefix = "Contents/Resources/"
         return read, [path.removeprefix(prefix) for path in by_path if path.startswith(prefix)]
     return read
@@ -314,8 +316,6 @@ def export_trays(read, tp, easel, output):
                 image.save(folder / filename)
                 shown.alpha_composite(frames[738], (x, y))
                 shown.alpha_composite(image, (x + (56 - image.width) // 2, y + (56 - image.height) // 2))
-                if column == 0:
-                    shown.alpha_composite(frames[740], (x, y))
                 options.append({"id": resource_id, "image": filename})
                 if row == 0:
                     option_positions.append([x, y, 56, 56])
@@ -325,7 +325,8 @@ def export_trays(read, tp, easel, output):
         if not pages:
             frame.crop(tray_rect).save(folder / f"{name}.png")
             pages.append({"image": f"{name}.png", "options": []})
-        details["trays"][name] = {"base": base_filename, "pages": pages, "options": option_positions}
+        details["trays"][name] = {"base": base_filename, "pages": pages, "options": option_positions,
+                                 "dynamicOptionFrames": True}
     (output / "trays.json").write_text(json.dumps(details, indent=2) + "\n")
 
 
@@ -440,6 +441,69 @@ def export_ideas(read, paths, output):
     (output / "index.json").write_text(json.dumps(ideas, indent=2) + "\n")
 
 
+def export_undo_animations(easel, output):
+    decode = import_module("mohawk-script").decode_script
+    folder = output / "undo"
+    folder.mkdir(exist_ok=True)
+    clips = []
+    # These are the 20 sound-bearing face routines, followed by the idle/blink
+    # routines. Decode each draw group, not the numeric order of the sprite bank.
+    for resource in [1094, *range(1095, 1115)]:
+        script = decode(easel[b"tSCR", resource])
+        collection = script["collection"]
+        origin_x, origin_y = script["origin"]
+        groups = []
+        sounds = []
+        ticks = 0
+        current = None
+        interval_ms = None
+        for event in script["events"]:
+            if event["op"] == "interval":
+                if interval_ms is not None:
+                    raise ValueError(f"Changing intervals not supported in undo script {resource}")
+                interval_ms = event["ms"]
+            elif event["op"] == "draw":
+                parts = []
+                for image_id, x, y in event["images"]:
+                    index = image_id & 0x7FFF
+                    if image_id & 0x8000:
+                        x -= struct.unpack_from(">h", easel[b"REGS", collection], index * 2)[0]
+                        y -= struct.unpack_from(">h", easel[b"REGS", collection + 1], index * 2)[0]
+                    image = sprite(easel[b"tBMH", collection], index - 1)
+                    parts.append((origin_x + x, origin_y + y, image))
+                current = {"parts": parts, "ticks": 0}
+                groups.append(current)
+            elif event["op"] == "wait":
+                if current is None:
+                    raise ValueError(f"Wait before drawing in undo script {resource}")
+                if not event.get("terminal"):
+                    current["ticks"] += 1
+                    ticks += 1
+            elif event["op"] == "sound":
+                sound_id = collection + event["cue"]
+                if (b"tWAV", sound_id) not in easel:
+                    raise ValueError(f"Missing sound cue in undo script {resource}")
+                sounds.append({"tick": ticks, "sound": sound_id, "channel": event["channel"]})
+        rect = [min(x for group in groups for x, y, image in group["parts"]),
+                min(y for group in groups for x, y, image in group["parts"]), 0, 0]
+        right = max(x + image.width for group in groups for x, y, image in group["parts"])
+        bottom = max(y + image.height for group in groups for x, y, image in group["parts"])
+        rect[2:] = [right - rect[0], bottom - rect[1]]
+        frames = []
+        for index, group in enumerate(groups):
+            image = Image.new("RGBA", tuple(rect[2:]))
+            for x, y, part in group["parts"]:
+                image.alpha_composite(part, (x - rect[0], y - rect[1]))
+            filename = f"undo/{resource}-{index}.png"
+            image.save(output / filename)
+            frames.append({"image": filename, "ticks": group["ticks"]})
+        if interval_ms is None:
+            raise ValueError(f"Missing interval in undo script {resource}")
+        clips.append({"script": resource, "rect": rect, "frames": frames, "sounds": sounds, "tickMs": interval_ms})
+    return {"idle": clips[0], "clips": clips[1:],
+            "timingStatus": "Intervals, frame order, positions, waits and sound cues decoded from tSCR; millisecond scheduler verified against the i386 executable. Live runtime comparison remains pending."}
+
+
 def export_ui(volume, output):
     read, paths = app_resources(volume, include_paths=True)
     easel = mohawk(read("Data/Easel.MHK"))
@@ -522,6 +586,8 @@ def export_ui(volume, output):
         "x": 38, "y": 426, "w": 307, "h": 307, "chips": color_picker_grid(swatches),
     }
     manifest["paperTextures"] = export_paper(easel, output)
+    manifest["undoAnimations"] = export_undo_animations(easel, output)
+    manifest["cursors"] = import_module("native-cursor").export_cursors(mohawk(read("Data/General.MHK")), output)
     sprite(palette[b"tBMH", 1500], 7).save(output / "eyedropper.png")
     sprite(little_palette[b"tBMH", 1500], 0).save(output / "small-palette.png")
     sprite(login[b"tBMH", 7600], 51).save(output / "login.png")

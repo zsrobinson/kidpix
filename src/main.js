@@ -1,4 +1,5 @@
 import { guardStepperInput } from './stepper-input.js';
+import { createStudioColorPicker } from './studio-color-picker.js';
 import { createTextRangeKeeper } from './text-range.js';
 import { TEXT_FONTS, TEXT_STEPPERS, editedSize, textStep } from './text-values.js';
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
@@ -55,6 +56,7 @@ let paperPage = 0;
 let paperOpen = false;
 let selectedPaper = 12300;
 let nativePaperPicker;
+let studioColorPicker;
 let gradientDefinitions = [];
 let backgroundRequest = 0;
 const undoStack = [];
@@ -668,6 +670,7 @@ function selectTray(group) {
   openPaper(false);
   objectPlacement = null;
   state.pickColor = false;
+  studioColorPicker?.reset();
   state.tray = group;
   state.category = 0;
   state.libraryPage = 0;
@@ -681,6 +684,7 @@ function selectTray(group) {
 
 function chooseColor(color) {
   state.color = color;
+  studioColorPicker?.setColor(color);
   if (nativeUi) showTray();
   drawSwatch(color);
   if (!nativeUi) syncTool();
@@ -762,10 +766,12 @@ function renderPalette() {
 }
 
 function openPalette(open) {
-  const palette = $('#palette');
-  if (open && palette.hidden) renderPalette();
-  palette.hidden = !open;
-  $('#color-button').setAttribute('aria-expanded', String(open));
+  studioColorPicker ??= createStudioColorPicker({ studio, palette: $('#palette'), trigger: $('#color-button'),
+    original, getColor: () => state.color, renderControls: renderPalette, fallback: renderPalette,
+    select: chooseColor, preview: drawSwatch,
+    eyedropper: () => { state.pickColor = true; syncTool(); },
+  });
+  if (open) studioColorPicker.open(); else studioColorPicker.close();
 }
 
 function coordinates(event) {
@@ -1524,12 +1530,6 @@ app.addEventListener('pointerdown', event => {
   if (paperOpen && !event.target.closest('#paper-picker, [data-action="paper"]')) openPaper(false);
 }, { capture: true });
 canvas.addEventListener('pointerleave', () => { if (state.pickColor) drawSwatch(state.color); });
-studio.addEventListener('pointermove', event => {
-  const palette = $('#palette');
-  if (event.pointerType !== 'mouse' || palette.hidden || palette.contains(document.activeElement)) return;
-  const { left, top, right, bottom } = palette.getBoundingClientRect();
-  if (!event.target.closest('#color-button') && (event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom)) openPalette(false);
-});
 app.addEventListener('pointerover', event => {
   if (state.extendedHelp && event.target.closest('button[title]')) showStatus(event.target.closest('button').title, 0);
 });

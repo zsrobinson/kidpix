@@ -2,7 +2,7 @@
 
 The ordinary Paint Zone palette has authored opening **and closing** motion. The correct archives are `Data/BigPicker.MHK` and `Data/LittlePicker.MHK`. `Data/Picker.MHK` has 290 scripts and is Slide Show; none of those programs is used by this helper. [KPD3.cfg](../../artifacts/research/KPD3.cfg) lines 33–46 explicitly distinguish `[ColorPicker]`, `[SmallPicker]`, and `[Picker]`. The [user guide](../../artifacts/research/user-guide.txt)'s printed pages 22–23 describes hover-to-open, selecting a color without immediately closing, leaving to dismiss, and Eye Dropper screen sampling.
 
-This is resource and i386 binary evidence, plus browser verification of the new standalone helper. **The original application has not run here.** No native screenshot, recording, audio-latency or subjective-feel comparison has been made. Existing shared UI files remain unchanged by this task; parent integration into the actual studio is still required.
+This is resource and i386 binary evidence, plus browser verification of the new standalone helper. **The original application has not run here.** No native screenshot, recording, audio-latency or subjective-feel comparison has been made. The studio integration described below now uses this source helper; native runtime evidence remains absent.
 
 ## Primary evidence
 
@@ -69,9 +69,9 @@ SmallPicker is a distinct subclass. Its open virtual`0x85838` attaches its handl
 
 All12 exported BigPicker parts decode through existing `import-ui.sprite`, which accepts the proven direct-color ARGB formats0x2005/0x2305 and preserves alpha. No indexed paper palette assumptions enter their export. Mask255 is used as a hit decision, not rendered as grayscale palette art. Recoloring the authored greens would destroy selectable colors.
 
-A native recording is still required for event ordering during opening, exact initial scheduler phase, audio startup/latency, first-load presentation, composition against the Mac window, color-profile differences in screen sampling, and subjective feel. Browser tests below establish the helper's authored frames/coordinates and explicit lifecycle; they do not establish that the original app ran or that studio integration is complete.
+A native recording is still required for event ordering during opening, exact initial scheduler phase, audio startup/latency, first-load presentation, composition against the Mac window, color-profile differences in screen sampling, and subjective feel. Browser tests below establish the helper's authored frames/coordinates and explicit lifecycle; they do not establish that the original app ran. The later studio checks below cover integration separately.
 
-## Integration API
+## Source helper integration API
 
 The parent can export assets independently, without altering existing import output:
 
@@ -115,10 +115,117 @@ Methods: `await open()`, `close()`, `move(x,y)`, `pointerDown(x,y)`, `pointerUp(
 
 The parent must replace the old static `#palette` background and immediate `openPalette()` reveal, keep controls disabled until ready, replace tiny estimated chip hit boxes with `colorPickerHit` sampling, route leave by the exact retention geometry, preserve preview versus committed color, avoid duplicate dropper art, and ensure owned sound completion/cancellation. Existing custom HTML color input is an adaptation with no recovered native counterpart. No shared main/native-ui/style/paper file was edited here.
 
-## Checks actually run
+## Initial source-helper checks
 
 - `PYTHONPATH=scripts python3 scripts/color-picker-motion.test.py`: **6 passed**, including live mounted-source timing/registration, mask/geometry, direct-color format checks, static SmallPicker, exact Misc31504 PCM and strict malformed mask rejection.
 - `node --test scripts/parity/color-picker-motion.test.mjs`: **12 passed**; asset-free source-rule fixture tests cover timing, sound gate, late updates, full closing interruption, reentry guard, stale loads, retry, disposal, exact retention/search, drag preview/commit, Eye Dropper/Escape and finite button state cues.
 - `npx playwright test -c artifacts/t3/color-picker-motion/playwright.config.mjs`: **3 passed** on isolated4183. All14 poses match an independent native-coordinate composition pixel-for-pixel; actual decoded source colors can be selected while retaining/dismissing the popup; original opening WAV decodes and controlled completion waits until630ms. Browser WAV resampling is allowed at most one output sample of duration rounding. Browser context is a standalone helper fixture, not the integrated studio or native app.
 
 Temporary Playwright config/output and exploratory resource dumps live only under `artifacts/t3/color-picker-motion`. The browser test supplies its own minimal page and imports the source module; run it against Vite on4183, not a production build. Shared4174/4175 ports and root reports were not used. No full regression, build, deployment, commit or push was performed.
+
+## Studio adapter — isolated integration on 9236d56
+
+`src/studio-color-picker.js` now connects the unchanged source controller to
+`main.js`. A transparent1024×768 scene canvas above the art/trays and below menus
+renders the exact source clipping rectangle, including negative scene coordinates;
+CSS only positions the canvas. It never interpolates, rescales individual poses,
+recolors source art or generates intermediate frames. Program1500 uses all seven
+30ms poses;1501 uses all seven100ms poses even when opening was interrupted.
+The terminal update and owned audio completion gates still belong to the helper.
+Repeated open during closing is rejected; there is no queued automatic reopening.
+Live DOM controls are hidden until opening completes and hidden immediately when
+closing begins. Source mask/search sampling replaces estimated DOM swatch hits
+for physical pointers. Dropper1503/1504/1505 overlays restore the final opening
+pose before drawing rest/tracking/hover.1502 remains geometry evidence, never an
+extra animated layer.
+
+Adapter API: `createStudioColorPicker({studio,palette,trigger,original,getColor,
+renderControls,fallback,select,preview,eyedropper})` returns `open()`, `close()`,
+`reset()`, `setColor(color)` and read-only `active`. `main.js` routes opening and
+closing through it, synchronizes committed color, and resets on tray selection.
+The adapter uses `interactionOwner` for a captured physical contact, preserves
+foreign-contact rejection and converts client coordinates through the scaled
+studio bounds. Preview updates the chip; release commits a valid source sample
+without closing. It releases ownership before hiding controls. Pending manifest
+and PNG fetches use an AbortController and generation guard; object URLs are
+revoked after decode. Only a completely decoded asset set is cached. Failures
+restore the existing static palette; dismissal permits a fresh decode attempt.
+Source cues are owned Audio objects; autoplay rejection reports error completion
+rather than leaving the actor permanently gated. Interruption pauses owned audio.
+No new media exports were needed and no imported media was edited.
+
+Explicit modern browser adaptations:
+
+- Existing keyboard/assistive chip commands and Custom HTML color input remain
+  available after opening completion. Keyboard chip commands retain their prior
+  choose-and-dismiss behavior; physical source swatches choose-and-stay-open.
+  Focus in palette controls suppresses mouse-leave dismissal for accessibility.
+- Eye Dropper button artwork/hits use source programs/region. Activation starts
+  the source close program and transfers to the existing studio eyedropper,
+  which samples the composed drawing and objects. It does not attempt native
+  whole-desktop screen sampling. Escape retains studio cancellation/dismissal
+  behavior, rather than the native dropper-only Escape policy.
+- Touch/pen open by explicit activation; only mouse hover opens automatically.
+  Passive pen motion cannot open or dismiss the palette. Synthetic mapping tests
+  tolerate missing browser pointer capture; real contacts use pointer capture.
+- Blur, pagehide, document hidden, resize and tray changes immediately dispose the
+  actor, abort pending loads, stop audio and restore committed preview. They allow
+  a fresh open afterward. Ordinary Escape/leave/close still play the full closing
+  program. These lifecycle cancellations are browser policy, not recovered native
+  closing behavior. A stalled source update never skips authored poses.
+
+### Media required before parent publication
+
+All paths below are relative to `public/original/ui/color-picker-motion/`, served
+at `/original/ui/color-picker-motion/`. The adapter decodes the complete exported
+sprite set, including geometry-only sprites, before enabling source playback:
+
+- `manifest.json`
+- `big-1.png`, `big-2.png`, `big-3.png`, `big-4.png`, `big-5.png`, `big-6.png`,
+  `big-7.png`, `big-8.png`, `big-9.png`, `big-10.png`, `big-11.png`, `big-12.png`
+- `big-1500.wav`, `big-1501.wav`, `big-1502.wav`, `misc-31504.wav`
+
+The existing fallback additionally uses `ui/color-picker.png`; current studio
+swatch/cursor and other UI media dependencies are unchanged. Public HEAD probes
+on2026-11-09 returned **404 for all17 picker objects** at
+`https://kidpix.zsrobinson.com/original/ui/color-picker-motion/`.
+Receipts and exact URLs are in private
+`artifacts/t3/color-picker-integration/media-public.json`. Parent must upload and
+verify payload bytes/content types before publishing this integration, with the
+manifest last. No upload, deployment, version change or root checkout edit was
+performed. Local media/dependencies were read through symlinks only.
+
+### Studio verification boundary
+
+`tests/browser/studio-color-picker.spec.js` exercises shipped entry points without
+importing any application renderer. Its pixel oracle independently composes source
+PNGs with explicit placements and clipping: all14 open/close poses and the three
+dropper overlays. Tests also cover controls/end gates, cue completion/error,
+interrupted opening/full close, blocked reentry, decode failure/retry, delayed
+load cancellation, held preview cancellation, foreign-contact rejection, lifecycle
+reset/reopen and scaled mouse/touch/pen mask sampling against an independent
+source pixel. Real mouse capture is covered; touch/pen mapping and foreign-contact
+checks use synthetic PointerEvents, not physical tablet delivery.
+
+The helper fixture tests now carry `@module`; they remain development-source-only.
+The studio file is included in `playwright.build.config.js`, inherited by public
+configuration. The existing object-eyedropper regression explicitly waits for
+owned close completion before reentry. Selected Dry Brush, source control-region,
+object-eyedropper and edited-picture popup regressions exercise adjacent behavior.
+Private configs/logs/output live only under
+`artifacts/t3/color-picker-integration/`; development and built servers use4217,
+without shared reporters or baseline writes. Native captures remain **0/17**;
+source/browser success establishes neither native timing/audio latency nor feel.
+WebKit and physical iPad/Pencil delivery were not run for this change.
+
+Final isolated checks: `npm test` **193/193**; `npm run build:cloudflare`
+passed; focused private Chromium development **22/22** and built **19/19**.
+Commands use the private `playwright.config.mjs` and
+`playwright.built.config.mjs` in the artifact directory, selecting
+`studio-color-picker`, source `color-picker-motion` (dev only), `brush`, `fidelity`,
+`control-regions`, and `interaction-ux` with the focused grep recorded in the
+private handoff. No full browser suite, shared report, public runtime test,
+WebKit run, deployment dry run or publish was performed for this integration.
+When merging onto the parent's later release work, retain its version, readiness,
+input/history fixes and other source changes; this branch starts at9236d56 and
+changes only the listed palette hooks plus the narrow test/audit additions.

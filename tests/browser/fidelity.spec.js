@@ -187,7 +187,10 @@ test('eyedropper previews scene colors, cancels without committing and picks on 
   await page.mouse.down();
   await page.mouse.up();
   await expect(page.locator('#paper-canvas')).toHaveAttribute('data-tool', 'pencil');
+  // Source closing owns the actor until its complete seven-pose end check.
+  await expect(page.locator('#palette')).toHaveAttribute('data-phase', 'closed');
   await button(page, 'Color Swatch').hover();
+  await expect(page.locator('#palette')).toHaveAttribute('data-phase', 'open');
   await expect(page.locator('#custom-color')).toHaveValue('#ee3366');
   await page.keyboard.press('Escape');
   // Use one opaque path for the color check; overlapping anti-aliased freehand

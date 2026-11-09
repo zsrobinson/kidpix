@@ -28,7 +28,7 @@ window.pickerFixture=f;
   });
 });
 
-test('all seven opening and closing poses match independent source placement pixel for pixel', async ({ page }) => {
+test('@module all seven opening and closing poses match independent source placement pixel for pixel', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const f = window.pickerFixture;
     await f.picker.open();
@@ -62,7 +62,7 @@ test('all seven opening and closing poses match independent source placement pix
   expect(result.beforeClose).toBe('closing'); expect(result.state).toBe('closed'); expect(result.alpha).toBe(false);
 });
 
-test('decoded source color sampling, drag selection and retention use native scene coordinates', async ({ page }) => {
+test('@module decoded source color sampling, drag selection and retention use native scene coordinates', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const f = window.pickerFixture;
     await f.picker.open(); for (let i = 0; i < 7; i++) f.advance(30);
@@ -80,7 +80,7 @@ test('decoded source color sampling, drag selection and retention use native sce
   expect(result.openAfterSelection).toBe('open'); expect(result.retained).toBe('open'); expect(result.exited).toBe('closing');
 });
 
-test('browser completion waits for owned source cue; pointer-close stops it and blocks reversal', async ({ page }) => {
+test('@module browser completion waits for owned source cue; pointer-close stops it and blocks reversal', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const f = window.pickerFixture;
     const sounds = [];

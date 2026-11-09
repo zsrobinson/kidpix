@@ -352,3 +352,8 @@ input.text-value { padding: 0 4px; color-scheme: light; }
 #font-size::-webkit-inner-spin-button, #font-size::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .text-step { color: #163e61; }
 .text-step.native-control { color: transparent; }
+
+/* Authored BigPicker scene actor; controls remain keyboard/assistive targets. */
+#color-picker-actor { position: absolute; inset: 0; width: 1024px; height: 768px; z-index: 6; pointer-events: none; }
+#palette.motion-palette { z-index: 6; background-image: none; touch-action: none; }
+#palette.motion-palette button { touch-action: none; }

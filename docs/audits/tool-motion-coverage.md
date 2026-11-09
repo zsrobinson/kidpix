@@ -1,14 +1,14 @@
 # Tool-control motion coverage
 
-Update: the resumed Ubuntu pass now enables23 secondary selector rows alongside
-the16 primary actors. Drawing styles, Painting modes, applicable sizes and Mini
-Eraser shapes use complete source programs. The source-only inventory and prior
-execution records below are retained as historical evidence; see
-[secondary control motion](secondary-control-motion.md) for current scope.
+Update: the runtime now enables 46 secondary source rows (144 programs,
+193 poses) alongside the 16 primary actors. The source-only inventory and prior
+execution records below remain historical evidence; see
+[secondary control motion](secondary-control-motion.md) for enabled scope and
+[Text steppers](text-steppers.md) for the latest four controls.
 
 Audit of the mounted trial installer and current studio, 2026-11-09. **The original application has not run.** Installer and binary evidence establish authored poses, table assignments and rendering/state rules; browser tests establish web behavior only. Native event ordering, timer jitter, audio latency, color management, ordinary alpha rounding and subjective motion remain unverified. Native captures remain 0/17 prepared recipes (previously0/10).
 
-This pass covers tool icons and controls on Drawing, Painting, Bucket, Mixer, Stamp, Text, Grab and Eraser. It excludes Color Picker animation, clipboard/font features, character playback and erasure effects. The 16-main-actor integration completes the long material actors; short secondary selectors and actions across those eight tabs remain later work.
+The historical audit below covers tool icons and controls on Drawing, Painting, Bucket, Mixer, Stamp, Text, Grab and Eraser. It excludes Color Picker animation, clipboard/font features, character playback and erasure effects. The 16-main-actor integration completes the long material actors; short secondary selectors and actions across those eight tabs remain later work.
 
 ## Independent evidence
 

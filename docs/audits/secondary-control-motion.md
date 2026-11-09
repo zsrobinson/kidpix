@@ -1,11 +1,14 @@
 # Secondary tool-control motion
 
 The Ubuntu source recovery exports 59 controls from 11 original MBTN tables,
-179 complete programs and 235 authored draw groups. The current runtime enables
-23 selector rows, 69 programs and 92 draw groups: nine Drawing styles, six
-Painting mode choices, six size rows and two Mini Eraser shapes. Size rows are
-shared by multiple owners; this is a count of unique source rows, not rendered
-button instances. Stamp, Text and Grab action controls remain static.
+179 complete programs and 235 authored draw groups. The runtime enables
+46 unique source rows, 144 programs and 193 draw groups. These include the initial
+23 selector rows plus Text alignment/formatting/font/size arrows, Grab clipboard
+and ordering actions, and Stamp category arrows/sizes/editor entry. Size rows are
+shared by multiple owners; these counts describe unique source rows, not rendered
+button instances. The four Text steppers add 16 programs and 20 poses; see
+[their source and value contract](text-steppers.md). Native popup interiors,
+Text clipboard/voice controls and remaining Grab navigation are not enabled.
 
 ## Source and state rules
 
@@ -22,7 +25,8 @@ cues, terminal checks and exact kind1 rectangles. Paths are relative to `ui/`.
 Sprite identity includes the collection and one-based bitmap number. Unflagged
 Stamp bitmap references still retain their nonzero source registrations.
 
-Enabled groups use the recovered mode2 controller. Selected state shares the
+Selector groups use the recovered mode2 controller; Text/Grab/Stamp actions use
+explicit mode0/1/2 state contracts in `native-action-state.js`. Selected state shares the
 tracking script and preserves its progress; auxiliary playback is finite and
 canceled on leave. Secondary rows are outside primary material callback ranges
 and use ordinary bitmap composition. Drawing and Painting/Mixer load size table

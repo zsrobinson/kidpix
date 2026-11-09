@@ -58,8 +58,10 @@ async function expectSourcePixels(page, owner, view) {
   const top = Math.min(...allParts.map(part => part.y));
   const right = Math.max(...allParts.map(part => part.x + sourceManifest.sprites[`${part.collection}:${part.sprite}`].width));
   const bottom = Math.max(...allParts.map(part => part.y + sourceManifest.sprites[`${part.collection}:${part.sprite}`].height));
-  const expected = new PNG({ width: 1024, height: 768 });
+  let expected = new PNG({ width: 1024, height: 768 });
+  const layers = [];
   const overlay = (src, x, y, clip = [left, top, right - left, bottom - top]) => {
+    layers.push({ png: PNG.sync.write(src).toString('base64'), x, y, clip });
     for (let sy = 0; sy < src.height; sy++) for (let sx = 0; sx < src.width; sx++) {
       const dx = x + sx, dy = y + sy;
       if (dx < clip[0] || dy < clip[1] || dx >= clip[0] + clip[2] || dy >= clip[1] + clip[3] || dy >= 768) continue;
@@ -80,6 +82,23 @@ async function expectSourcePixels(page, owner, view) {
     for (const part of script.frames[state.frameIndex].parts) overlay(png(sourceManifest.sprites[`${script.collection}:${part.sprite}`].image), part.x, part.y,
       state.auxiliary ? button.auxiliaryClipRect : [0, 0, 1024, 768]);
   }
+  // WebKit rounds premultiplied Canvas source-over differently from Chromium.
+  // Keep Chromium's independent integer oracle; compose the same pinned source
+  // PNGs with WebKit's own Canvas rules for its pixel/placement comparison.
+  // No app renderer, timeline or asset loader is used by either oracle.
+  if (test.info().project.use.browserName === 'webkit') {
+    const reference = await page.evaluate(async layers => {
+      const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 768;
+      const context = canvas.getContext('2d');
+      for (const layer of layers) {
+        const image = new Image(); image.src = `data:image/png;base64,${layer.png}`; await image.decode();
+        context.save(); context.beginPath(); context.rect(...layer.clip); context.clip();
+        context.drawImage(image, layer.x, layer.y); context.restore();
+      }
+      return canvas.toDataURL();
+    }, layers);
+    expected = PNG.sync.read(Buffer.from(reference.split(',')[1], 'base64'));
+  }
   const actual = PNG.sync.read(Buffer.from((await actor(page, owner).evaluate(canvas => canvas.toDataURL())).split(',')[1], 'base64'));
   const studio = PNG.sync.read(await page.locator('#studio').screenshot());
   expect([studio.width, studio.height]).toEqual([1024, 768]);
@@ -94,6 +113,14 @@ async function expectSourcePixels(page, owner, view) {
       if (Math.abs(actual.data[offset + c] - expected.data[offset + c]) > 1) canvasBad++;
       if (expected.data[offset + 3] === 255 && Math.abs(studio.data[offset + c] - expected.data[offset + c]) > 1) visibleBad++;
     }
+  }
+  if (canvasBad) {
+    const differences = [];
+    for (let offset = 0; offset < actual.data.length && differences.length < 24; offset += 4) {
+      const a = [...actual.data.subarray(offset, offset + 4)], e = [...expected.data.subarray(offset, offset + 4)];
+      if (a.some((v, c) => Math.abs(v - e[c]) > 1)) differences.push({ x: offset / 4 % actual.width, y: Math.floor(offset / 4 / actual.width), actual: a, expected: e });
+    }
+    await test.info().attach('source-canvas-differences', { body: JSON.stringify({ canvasBad, differences }), contentType: 'application/json' });
   }
   expect(canvasBad, `${owner} source canvas channels`).toBe(0);
   if (visibleBad) {
@@ -191,4 +218,64 @@ test('same tray rerender retains held arrow stream and commits once',async ({pag
   await click(page,'tray:text');
   expect((await snap(page)).find(s=>s.name==='font-size-step:1')).toMatchObject({frameIndex:1,state:1});
   await page.mouse.up(); await expect(page.locator('#font-size')).toHaveValue('36');
+});
+
+for (const id of ['font-size','font']) test(`art readiness retains focused ${id} identity and editing`, async ({page}) => {
+  let release;
+  const ready = new Promise(resolve => { release = resolve; });
+  await page.route('**/secondary-motion/manifest.json', async route => { await ready; await route.continue().catch(() => {}); });
+  try {
+    await page.goto('/'); await expect(page.locator('[data-native-tool-motion="draw"]')).toBeVisible();
+    await click(page,'tray:text');
+    const field=page.locator(`#${id}`);await field.focus();
+    if(id==='font-size') await field.fill('42');
+    await field.evaluate(node=>window.pendingTextField=node);
+    release();await expect(actor(page)).toBeVisible();
+    expect(await field.evaluate(node=>node===window.pendingTextField)).toBe(true);
+    await expect(field).toBeFocused();
+    if(id==='font-size') {
+      await page.keyboard.type('0');await expect(field).toHaveValue('420');await field.press('Tab');await expect(field).toHaveValue('336');
+    } else {
+      await field.press('ArrowDown');await expect(field).toHaveValue('serif');
+    }
+  } finally { release(); }
+});
+
+for (const cancellation of ['Escape','blur','focus','pagehide','hidden']) test(`fallback Space cancels on ${cancellation} and permits a fresh activation`,async({page})=>{
+  await page.route('**/secondary-motion/manifest.json',route=>route.abort());
+  await page.goto('/');await click(page,'tray:text');
+  const larger=control(page,'font-size-step:1');await larger.focus();await page.keyboard.down('Space');
+  if(cancellation==='Escape') await page.keyboard.press('Escape');
+  else if(cancellation==='focus') await page.locator('#font-size').focus();
+  else await page.evaluate(type=>{
+    if(type==='hidden') {Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});}
+    else window.dispatchEvent(new Event(type));
+  },cancellation);
+  await page.keyboard.up('Space');await expect(page.locator('#font-size')).toHaveValue('32');
+  await larger.focus();await page.keyboard.press('Space');await expect(page.locator('#font-size')).toHaveValue('36');
+});
+
+for (const cancel of [false,true]) test(`fallback Space survives art readiness ${cancel?'cancelled':'accepted'} exactly once`,async({page})=>{
+  let release;
+  const ready=new Promise(resolve=>{release=resolve;});
+  await page.route('**/secondary-motion/manifest.json',async route=>{await ready;await route.continue().catch(()=>{});});
+  try {
+    await page.goto('/');await expect(page.locator('[data-native-tool-motion="draw"]')).toBeVisible();await click(page,'tray:text');
+    await control(page,'font-size-step:1').focus();await page.keyboard.down('Space');
+    if(cancel) await page.keyboard.press('Escape');
+    release();await expect(actor(page)).toBeVisible();await page.keyboard.up('Space');
+    await expect(page.locator('#font-size')).toHaveValue(cancel?'32':'36');
+  } finally { release(); }
+});
+
+for (const cancel of [false,true]) test(`fallback pointer survives art readiness ${cancel?'cancelled':'accepted'} exactly once`,async({page})=>{
+  let release;const ready=new Promise(resolve=>release=resolve);
+  await page.route('**/secondary-motion/manifest.json',async route=>{await ready;await route.continue().catch(()=>{});});
+  try{
+    await page.goto('/');await expect(page.locator('[data-native-tool-motion="draw"]')).toBeVisible();await click(page,'tray:text');
+    await control(page,'font-size-step:1').hover();await page.mouse.down();
+    if(cancel)await page.keyboard.press('Escape');
+    release();await expect(actor(page)).toBeVisible();await page.mouse.up();
+    await expect(page.locator('#font-size')).toHaveValue(cancel?'32':'36');
+  }finally{release();await page.mouse.up();}
 });

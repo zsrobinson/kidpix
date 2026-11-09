@@ -1,3 +1,4 @@
+import { guardStepperInput } from './stepper-input.js';
 import { createTextRangeKeeper } from './text-range.js';
 import { TEXT_FONTS, TEXT_STEPPERS, editedSize, textStep } from './text-values.js';
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
@@ -444,10 +445,10 @@ $('#tray-buttons').addEventListener('pointerdown', event => {
   if (state.tray === 'text' && (['bold', 'italic', 'underline'].includes(action) || action?.startsWith('align:') || action?.startsWith('font-step:') || action?.startsWith('font-size-step:'))
     && document.activeElement?.matches('.object-text')) event.preventDefault();
 }, { capture: true });
-// Static fallback also ignores held-key repeats; no native repeat cadence is known.
-$('#tray-buttons').addEventListener('keydown', event => {
-  if (event.repeat && ['Enter', ' '].includes(event.key)
-    && TEXT_STEPPERS.some(stepper => stepper.action === event.target.dataset.action)) event.preventDefault();
+guardStepperInput($('#tray-buttons'), {
+  actions: TEXT_STEPPERS.map(stepper => stepper.action),
+  getTarget: () => actionMotionState().target,
+  activate: action => activate(action),
 });
 const textRange = createTextRangeKeeper($('#objects'));
 $('#tray-buttons').addEventListener('pointerdown', event => {
@@ -487,9 +488,14 @@ function actionMotionState() {
 }
 const nativeActionMotion = createNativeActionMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
-  onReady: () => showTray(), onActivate: action => activate(action),
-  refreshCurrent: actionMotionState,
+  onReady: () => state.tray === 'text' ? updateActionMotion() : showTray(),
+  onActivate: action => activate(action), refreshCurrent: actionMotionState,
 });
+function updateActionMotion() {
+  const view = trayState(state);
+  return nativeActionMotion.update({ ...actionMotionState(), tray: state.tray, art: view.art, page: state.page,
+    selected: state.tools[state.tray], color: state.color, nativeUi });
+}
 
 function stampMotionState() {
   return { active: state.tray === 'stamp', nativeUi: Boolean(nativeUi && libraryManifest?.trays.stamps),
@@ -498,7 +504,8 @@ function stampMotionState() {
 }
 const nativeStampMotion = createNativeStampMotion({
   stage: studio, controls: library, resolve: path => original(`ui/${path}`),
-  onReady: () => showLibrary(), onActivate: action => activate(action), readState: stampMotionState,
+  onReady: () => nativeStampMotion.update(stampMotionState()),
+  onActivate: action => activate(action), readState: stampMotionState,
 });
 
 function libraryKey() {
@@ -652,8 +659,7 @@ function showTray() {
   }
   nativeSecondaryMotion.update({ tray: state.tray, art: motionView.art, page: state.page,
     selected: state.tools[state.tray], eraserShape: state.eraserShape, color: state.color, nativeUi });
-  nativeActionMotion.update({ ...actionMotionState(), tray: state.tray, art: motionView.art, page: state.page,
-    selected: state.tools[state.tray], color: state.color, nativeUi });
+  updateActionMotion();
   syncTool();
 }
 
@@ -1398,7 +1404,7 @@ async function activate(action) {
     showSlides();
   } else if (id === 'font-step' || id === 'font-size-step') {
     const change = textStep(state, `${id}:${value}`);
-    if (change) { Object.assign(state, change); applyTextStyle(); showTray(); }
+    if (change) { Object.assign(state, change); applyTextStyle(); updateActionMotion(); syncTool(); }
   } else if (id === 'align') { state.align = value; applyTextStyle(); showTray(); }
   else if (id === 'edit') doEdit(value);
   else commands[id]?.();

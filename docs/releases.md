@@ -2,6 +2,15 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.9.0
+
+- Animated Text's previous/next font and larger/smaller size arrows with 16 source programs and 20 poses, including tracking and boundary-disabled artwork. The enabled secondary scope is now 46 source rows, 144 programs and 193 poses.
+- Added the 23 recovered size presets, bounded at 7–336. Retained the existing four browser font families, custom typed sizes, unknown saved font names, and directional text selections. Original font rasterization and native popup interiors remain outside this release.
+- Kept font, numeric and Stamp library controls intact when optional animation art finishes loading. Static keyboard/pointer presses remain owned through art binding and cancel on Escape, interruption or target changes.
+- Preserved library tiles through Stamp readiness and covered category focus, an active drag and later placement. Regression coverage includes category focus, immediate drags and dragging while art becomes ready.
+- Verified 193 Node checks, 303 development cases and 262 built cases. The final field-spacing/capture updates also passed 45 affected cases per Chromium lane and 26 WebKit cases. Reviewed all 17 static captures; the accepted report has zero web comparison/regression errors. Source-only checks passed with six asset-dependent skips. No new media files were required.
+- Expanded the WebKit lane to Text controls and library readiness: 67 cases passed with one Chromium-only delivery skip. Actual iPad hardware testing and original-runtime timing/feel remain unverified; native references stay 0/17.
+
 ## 0.8.0
 
 - Added shared gesture ownership for drawing, objects, recorded paths and both Stamp Editors. Secondary contacts cannot take over or activate controls, including late clicks and browser-generated double-taps after the first contact releases.

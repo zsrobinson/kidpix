@@ -5,7 +5,12 @@ import { readFileSync } from 'node:fs';
 const actor = (page, tray = 'draw') => page.locator(`[data-native-tool-motion="${tray}"]`);
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 const snapshot = (page, tray = 'draw') => actor(page, tray).evaluate(canvas => JSON.parse(canvas.dataset.motionSnapshot));
-const click = (page, action) => page.locator(`[data-action="${action}"]`).evaluate(control => control.click());
+// Resolve and dispatch in one task: readiness can replace fallback controls.
+const click = (page, action) => page.evaluate(action => {
+  const matches = [...document.querySelectorAll('[data-action]')].filter(control => control.dataset.action === action);
+  if (matches.length !== 1) throw new Error('Expected one action control: ' + action);
+  matches[0].click();
+}, action);
 async function move(page, x, y) {
   const bounds = await page.locator('#studio').boundingBox();
   await page.mouse.move(bounds.x + x * bounds.width / 1024, bounds.y + y * bounds.height / 768);

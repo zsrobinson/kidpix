@@ -68,13 +68,16 @@ After deployment, check `/`, `/original/catalog.json`, a library thumbnail, and 
 
 ## Fidelity and verification
 
-Tool-control motion includes all 16 primary actors plus 23 secondary selector
-rows for Drawing styles, Painting modes, applicable sizes and Mini Eraser shapes.
-The secondary source exporter also runs on Linux using the supplied Mac DMG;
-its complete programs, registered artwork and sound cues are documented in
-[secondary control motion](docs/audits/secondary-control-motion.md). Stamp, Text
-and Grab secondary action timelines remain follow-up work. Source reconstruction
-and browser pixel checks do not establish original-runtime timing or feel.
+Tool-control motion includes all 16 primary actors and 46 secondary source rows:
+Drawing styles, Painting modes, sizes, Mini Eraser shapes, Stamp controls, Text
+formatting/font/size arrows, and Grab clipboard/ordering actions. The secondary
+rows retain 144 complete programs and 193 authored poses. Source recovery also
+runs on Linux using the supplied Mac DMG; see
+[secondary control motion](docs/audits/secondary-control-motion.md) and
+[Text steppers](docs/audits/text-steppers.md). Native popup interiors, additional
+font faces, voice controls and remaining Grab navigation remain follow-up work.
+Source reconstruction and browser pixel checks do not establish original-runtime
+timing or feel; accepted native references remain 0/17.
 
 Run `npx playwright install chromium` once, then `npm run parity` to run the local browser checks and generate `artifacts/parity/index.html`. The report supports accepted web regression baselines and separately imported original-application screenshots, with overlays and pixel differences. See [the parity workflow](docs/parity.md) for setup, capture recipes and reference import commands. Original-application references are not bundled; missing captures are explicitly reported.
 

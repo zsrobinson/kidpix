@@ -40,3 +40,23 @@ Checks completed in this isolated checkout:
 - `git diff --check`: pass.
 
 Original native references remain **0/17**. No native runtime timing, original font rasterization, Safari/iPad hardware acceptance, native popup interior or rich-text/custom-size equivalence is claimed. Shared media and dependencies are reused through local symlinks; neither is committed or modified. No version, push or deployment occurred.
+
+## Parent integration
+
+Integrated above published 0.8.0, retaining its path/input fixes and scene getters.
+Readiness binds Text art without replacing the live font/select/number controls.
+`stepper-input.js` retains static Space and pointer gestures through asynchronous
+art binding, validates the original target, and cancels on Escape/interruption.
+Its click handling requires the recorded physical press; it does not infer a
+press from a later compatibility click.
+
+The parent also keeps Stamp library tiles and the category select intact during
+art readiness. Deterministic focus/DOM checks failed before that change and pass
+afterward; 24 consecutive quick local drags delivered drops and changed ink. The
+prior public intermittent drop failure remains unproven until public verification.
+
+WebKit's Canvas source-over rounding differs from Chromium at some translucent
+edges. The Text pixel tests retain the independent integer oracle for Chromium
+and independently compose the same pinned PNGs in WebKit Canvas for that engine.
+Both compare source placement/restoration and visible pixels with the existing
+tolerance; no rendering algorithm or media was changed to satisfy this test.

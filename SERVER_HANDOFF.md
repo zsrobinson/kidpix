@@ -217,7 +217,7 @@ Chromium-only delivery skip. See playwright.webkit.config.js and tablet-input.md
 Actual iPad hardware delivery, OS palm rejection, latency and subjective feel are
 still unverified. Original-runtime references remain0/17.
 
-## Integrated0.8 candidate — current local state
+## Integrated0.8 candidate — historical prepublication checkpoint
 
 Local main includes the two tablet branches through `ffcd5d8`, atop published
 0.7. Root resolved scene's actionState/destroy conflict and the two paint imports
@@ -245,3 +245,33 @@ Native host WebKit libraries remain uninstalled; the verified Docker route is
 available and documented. Actual iPad testing remains pending. Do not request
 another host password in response to automatic completion notices. Native references
 remain0/17 and full original-runtime feel remains unverified.
+
+## Published0.8 and current0.9 validation
+
+0.8.0 is live from `0b064ed21c219ec96f26db6cacaac84c06afac2e`; Cloudflare
+and GitHub checks succeeded. Its full public rerun passed235 cases and failed one
+Stamp drag assertion; no complete public pass is claimed. The reduced case
+reproduced two missing drops in eight quick drags. Evidence is in
+`artifacts/t3/stamp-drag-diagnosis/`.
+
+0.9 integrates Text steppers from965f8b5 as9236d56, retaining all0.8 fixes. Four
+source rows add16 programs and20 poses. Current total:46 secondary rows,144
+programs,193 poses, alongside16 primary actors with48 programs/453 poses. No
+media delta or additional font files are required. Existing four-family order
+and32-point default remain. Numeric edits use7–336; custom42 and unknown saved
+families survive. Source pins and clean backdrop verification passed.
+
+Parent fixes retain Text fields and Stamp library DOM through art readiness,
+preserve static Space/pointer identity across binding, and cancel interruption
+or changed targets. The independent final review found no new objections;15
+focused cases and7 additional pointer probes passed. Node193, assets9,751,
+build/dry run and WebKit67 with1 explicit Chromium-only skip passed. Full dev303
+and built262 cases passed. The final field-padding and settled-sticker capture
+changes passed45 affected cases in each Chromium lane and26 in WebKit. All17
+static captures were reviewed; the accepted report has zero web regressions or
+comparison errors. Two intentional baselines changed: Text controls and a sticker
+capture that now waits for Grab motion to finish. Source-only validation passed187 cases with6 asset-dependent skips, plus build
+and deployment dry run. The candidate is ready for final commit/publication and
+verification of the new public build.
+Native original references remain0/17, and actual iPad hardware acceptance is
+still pending. Evidence and current receipts belong in`artifacts/t3/release-090/`.

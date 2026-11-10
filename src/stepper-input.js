@@ -26,7 +26,7 @@ export function guardStepperInput(controls, { actions, getTarget, activate }) {
     if (event.key !== ' ') return;
     pending = null;
     if (control.hasAttribute('data-native-motion-index')) return;
-    const target = getTarget();
+    const target = getTarget(control.dataset.action);
     event.preventDefault();
     if (!control.disabled) pending = { control, action: control.dataset.action, target, cancelled: false };
   }, options);
@@ -35,7 +35,7 @@ export function guardStepperInput(controls, { actions, getTarget, activate }) {
     const press = pending;
     pending = null;
     event.preventDefault(); event.stopImmediatePropagation();
-    const target = getTarget();
+    const target = getTarget(press.action);
     if (press.cancelled || !press.control.isConnected || press.control.disabled
       || controlFor(event) !== press.control || doc.activeElement !== press.control || target !== press.target) {
       cancelled.add(press.action);
@@ -57,7 +57,7 @@ export function guardStepperInput(controls, { actions, getTarget, activate }) {
         const hit = doc.elementFromPoint(event.clientX, event.clientY);
         if (press.released && !press.cancelled && press.control.isConnected && !press.control.disabled
           && (event.pointerId === undefined || event.pointerId === press.pointerId)
-          && press.control.contains(hit) && getTarget() === press.target) activate(press.action);
+          && press.control.contains(hit) && getTarget(press.action) === press.target) activate(press.action);
         return;
       }
     }
@@ -73,7 +73,7 @@ export function guardStepperInput(controls, { actions, getTarget, activate }) {
     pointer = control && event.button === 0 && !control.disabled
       && !control.hasAttribute('data-native-motion-index')
       ? { control, action: control.dataset.action, pointerId: event.pointerId,
-          target: getTarget(), cancelled: false, released: false } : null;
+          target: getTarget(control.dataset.action), cancelled: false, released: false } : null;
   }, options);
   view.addEventListener('pointerup', event => {
     if (pointer?.pointerId === event.pointerId) pointer.released = true;

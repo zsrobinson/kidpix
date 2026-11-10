@@ -20,7 +20,7 @@ import { attachNativeRollovers } from './native-rollovers.js';
 import { applyNativeControlRegions } from './native-control-regions.js';
 import { createNativePaperPicker } from './native-paper.js';
 import { createNativeToolMotion } from './native-tool-motion.js';
-import { createNativeActionMotion } from './native-action-motion.js';
+import { createNativeActionMotion, actionTarget } from './native-action-motion.js';
 import { createNativeStampMotion } from './native-stamp-motion.js';
 import { createNativeSecondaryMotion } from './native-secondary-motion.js';
 
@@ -292,7 +292,7 @@ function history(direction, fromFace = false) {
   target.push(entry);
   if (fromFace) undoFaceRedo = direction === 'undo';
   syncHistory();
-  if (state.tray === 'text') actionMotionState();
+  if (state.tray === 'text') updateActionMotion();
 }
 
 const paperTextures = ['Smooth', 'Leaf', 'Stones', 'Fern', 'Swirl', 'Mosaic', 'Woodgrain', 'Woven'];
@@ -455,7 +455,7 @@ $('#tray-buttons').addEventListener('pointerdown', event => {
 }, { capture: true });
 guardStepperInput($('#tray-buttons'), {
   actions: [...TEXT_STEPPERS, ...VOICE_STEPPERS].map(stepper => stepper.action),
-  getTarget: () => actionMotionState().target,
+  getTarget: action => actionTarget(actionMotionState(), action),
   activate: action => activate(action),
 });
 const textRange = createTextRangeKeeper($('#objects'));
@@ -465,7 +465,7 @@ $('#tray-buttons').addEventListener('pointerdown', event => {
 $('#objects').addEventListener('focusin', event => {
   if (event.target.matches('.object-text')) {
     if (!event.target.matches(':active')) textRange.restore(event.target);
-    if (state.tray === 'text') actionMotionState();
+    if (state.tray === 'text') updateActionMotion();
   }
 });
 function applyTextStyle() { textRange.apply(() => scene.setTextStyle(textStyle())); }
@@ -496,7 +496,7 @@ function actionMotionState() {
     }
     syncTextValues();
   }
-  return { voice: state.voice, voiceCatalog: voiceCatalog.voices, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: JSON.stringify([capabilities.target, state.voice, voiceCatalog.generation]) };
+  return { voice: state.voice, voiceCatalog: voiceCatalog.voices, voiceGeneration: voiceCatalog.generation, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
 }
 const nativeActionMotion = createNativeActionMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
@@ -523,10 +523,23 @@ function syncVoiceSelect() {
 const voiceCatalog = createVoiceCatalog(window.speechSynthesis, () => {
   queueMicrotask(() => { if (state.tray === 'text') updateActionMotion(); });
 });
-let voiceSelectTarget;
+let voiceSelectSession;
+function beginVoiceSelect(control) {
+  const current = scene.actionState;
+  voiceSelectSession = { control, target: current.target, voice: current.textStyle?.voice ?? state.voice };
+}
 $('#tray-buttons').addEventListener('focusin', event => {
-  if (event.target.id === 'text-voice') voiceSelectTarget = scene.actionState.target;
+  if (event.target.id === 'text-voice') beginVoiceSelect(event.target);
 });
+$('#tray-buttons').addEventListener('pointerdown', event => {
+  if (event.target.id === 'text-voice') beginVoiceSelect(event.target);
+}, { capture: true });
+$('#tray-buttons').addEventListener('keydown', event => {
+  if (event.target.id !== 'text-voice') return;
+  if (event.key === 'Escape') {
+    if (voiceSelectSession?.control === event.target) voiceSelectSession.cancelled = true;
+  } else if (!['Tab', 'Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) beginVoiceSelect(event.target);
+}, { capture: true });
 $('#tray-buttons').addEventListener('focusout', event => {
   if (event.target.id === 'text-voice') queueMicrotask(syncVoiceSelect);
 });
@@ -1585,7 +1598,13 @@ app.addEventListener('change', async event => {
   } else if (['font', 'font-size', 'text-voice'].includes(target.id)) {
     if (target.id === 'font') state.font = target.value;
     else if (target.id === 'text-voice') {
-      if (document.activeElement === target && voiceSelectTarget !== scene.actionState.target) return;
+      const session = voiceSelectSession?.control === target ? voiceSelectSession : null;
+      const current = scene.actionState;
+      voiceSelectSession = null;
+      if (session && (session.cancelled || session.target !== current.target || session.voice !== (current.textStyle?.voice ?? state.voice))) {
+        syncVoiceSelect();
+        return;
+      }
       if (target.value && voiceCatalog.voices.filter(voice => voice.voiceURI === target.value).length !== 1) return;
       state.voice = target.value;
     }

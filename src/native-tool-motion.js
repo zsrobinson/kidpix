@@ -20,6 +20,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   actionForButton = button => `tool:${button.name}`,
   authoritativeFor, refreshCurrent,
   targetFor = () => null,
+  gestureTargetFor = targetFor,
   supported = tray => ['draw', 'paint', 'bucket', 'mixer', 'eraser', 'grab'].includes(tray),
 }) {
   const view = stage.ownerDocument.defaultView;
@@ -45,6 +46,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   let focusAction;
   let rendering = false;
   let targetIdentity;
+  let gestureIdentity;
   let authoritative = [];
 
   function syncAuthoritative(force = false) {
@@ -116,10 +118,15 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     abort?.abort(); abort = null; pending = null;
     view.cancelAnimationFrame(raf);
     owner?.controller.dispose(); owner?.canvas.remove(); owner = null;
-    tracking = null; authoritative = []; targetIdentity = undefined;
+    tracking = null; authoritative = []; targetIdentity = gestureIdentity = undefined;
     if (pointerId !== null && pointerCaptureTarget?.hasPointerCapture(pointerId)) pointerCaptureTarget.releasePointerCapture(pointerId); pointerId = null; pointerCaptureTarget = null; keyboardIndex = null; releaseIndex = undefined;
     soundActive = true; focusAction = null; cancelledKeyboardClick = false;
     layer.hidden = true;
+  }
+
+  function changedGesture() {
+    const index = tracking ?? keyboardIndex;
+    return index !== null && owner && gestureTargetFor(current, owner.manifest.buttons[index]) !== gestureIdentity;
   }
 
   function refreshState() {
@@ -130,7 +137,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       targetIdentity = nextTarget;
       current = next;
       syncAuthoritative();
-      if (changedTarget) cancel();
+      if (changedTarget || changedGesture()) cancel();
     }
   }
 
@@ -237,7 +244,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     layer.hidden = !ready;
     if (owner) {
       syncAuthoritative();
-      if (changedTarget) cancel();
+      if (changedTarget || changedGesture()) cancel();
       const selected = authoritativeFor ? null : selectedIndex(owner.manifest);
       if (selected !== null && owner.controller.snapshot()[selected].state !== 3) owner.controller.dispatch(selected, 0x2006);
       if (ready) { bind(); owner.controller.repaint(); }
@@ -268,6 +275,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   function cancel() {
     if (keyboardIndex !== null) cancelledKeyboardClick = true;
     tracking = null; releaseIndex = undefined;
+    gestureIdentity = undefined;
     owner?.controller.cancel();
     soundActive = false;
     if (pointerId !== null && pointerCaptureTarget?.hasPointerCapture(pointerId)) pointerCaptureTarget.releasePointerCapture(pointerId);
@@ -290,6 +298,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     if (!hit || event.button !== 0) return;
     releaseIndex = undefined; soundActive = true; cancelledKeyboardClick = false;
     if (!owner.controller.press(hit.index)) return;
+    gestureIdentity = gestureTargetFor(current, owner.manifest.buttons[hit.index]);
     tracking = hit.index; trackingInside = true; pointerId = event.pointerId;
     pointerCaptureTarget = hit.control;
     pointerCaptureTarget.setPointerCapture(event.pointerId);
@@ -327,7 +336,10 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       soundActive = true;
       if (!event.repeat && ['Enter', ' '].includes(event.key)) cancelledKeyboardClick = false;
     }
-    if (hit && !event.repeat && ['Enter', ' '].includes(event.key) && owner.controller.press(hit.index)) keyboardIndex = hit.index;
+    if (hit && !event.repeat && ['Enter', ' '].includes(event.key) && owner.controller.press(hit.index)) {
+      keyboardIndex = hit.index;
+      gestureIdentity = gestureTargetFor(current, owner.manifest.buttons[hit.index]);
+    }
     if (event.key === 'Escape') cancel();
   }, options);
   controls.addEventListener('keyup', event => {

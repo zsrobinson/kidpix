@@ -69,6 +69,11 @@ export function actionStates(manifest, current) {
   });
 }
 
+export function actionTarget(current, action) {
+  return action?.startsWith('voice-step:')
+    ? JSON.stringify([current.target, current.voice, current.voiceGeneration]) : current.target;
+}
+
 export function createNativeActionMotion(options) {
   const layer = options.stage.ownerDocument.createElement('div');
   layer.className = 'chrome native-secondary-motion';
@@ -84,6 +89,7 @@ export function createNativeActionMotion(options) {
     supported: tray => tray !== 'inactive', createController: createActionStateController,
     actionForButton: button => button.action, authoritativeFor: actionStates,
     targetFor: current => current.target,
+    gestureTargetFor: (current, button) => actionTarget(current, button.action),
   });
   return { ...motion, update(current) {
     const profile = actionProfile(current);

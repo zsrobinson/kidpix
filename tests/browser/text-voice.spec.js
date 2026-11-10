@@ -183,3 +183,43 @@ test('static fallback selection and history synchronize without an animation RAF
   await click(page,'undo');await expect(select(page)).toHaveValue('a');await click(page,'redo');await expect(select(page)).toHaveValue('b');
   await page.locator('.object-text').first().focus();await expect(select(page)).toHaveValue('a');await page.locator('.object-text').last().focus();await expect(select(page)).toHaveValue('b');
 });
+
+for (const art of [true, false]) for (const action of ['bold', 'font-size-step:1', 'edit:cut']) test(`catalog refresh preserves held ${action}, art ${art}`, async ({ page }) => {
+  if (!art) await page.route('**/secondary-motion/manifest.json', route => route.abort());
+  await model(page); await page.goto('/'); await click(page, 'tray:text');
+  if (art) await expect(canvas(page)).toBeVisible();
+  await page.locator('#paper-canvas').click({ position: { x: 150, y: 140 } });
+  await page.locator('.object-text').fill('First');
+  await select(page).selectOption('b');
+  if (action === 'edit:cut') {
+    await click(page, 'tray:grab');
+    if (art) await expect(page.locator(`#tray-buttons [data-action="${action}"]`)).toHaveAttribute('data-native-motion-index', /\d+/);
+  }
+  const button = page.locator(`#tray-buttons [data-action="${action}"]`);
+  await button.hover(); await page.mouse.down();
+  await refresh(page, ['a', 'b', 'c']);
+  await refresh(page, ['c', 'b', 'a']);
+  await page.mouse.up();
+  if (action === 'edit:cut') await expect(page.locator('.object-text')).toHaveCount(0);
+  else if (action === 'bold') await expect(page.locator('.object-text')).toHaveCSS('font-weight', '700');
+  else await expect(page.locator('#font-size')).toHaveValue('36');
+});
+
+test('a deferred native-select change cannot apply the previous target after blur', async ({ page }) => {
+  await object(page); await select(page).selectOption('a');
+  await page.locator('#paper-canvas').click({ position: { x: 420, y: 320 } });
+  await page.locator('.object-text').last().fill('Other'); await select(page).selectOption('b');
+  await page.locator('.object-text').first().focus();
+  await select(page).focus();
+  // Constructed delayed-change ordering tests the defensive boundary; it does
+  // not claim that a particular browser's native chooser emits this ordering.
+  await page.evaluate(() => {
+    const select = document.querySelector('#text-voice');
+    document.querySelectorAll('.object-text')[1].focus();
+    select.value = 'c'; select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(select(page)).toHaveValue('b');
+  await page.locator('.object-text').first().focus(); await expect(select(page)).toHaveValue('a');
+  await select(page).focus(); await select(page).selectOption('c');
+  await page.locator('.object-text').last().focus(); await expect(select(page)).toHaveValue('b');
+});

@@ -17,7 +17,7 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
 export function attachMode1Motion(manifest, root, sprites, layer, {
   onGroup = () => {}, onReady = () => {},
   bindings = libraryMotionNames.map((name, i) => ({ name, action: `tray:${actions[i]}` })),
-  mode = 1, readSelection, terminalAdoption = false, actorAttribute = 'nativeLibraryMotion',
+  mode = 1, readSelection, semanticCommands = false, terminalAdoption = false, actorAttribute = 'nativeLibraryMotion',
 } = {}) {
   const momentary = mode === 0;
   const authoritative = momentary || Boolean(readSelection);
@@ -91,7 +91,7 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
     paint(a); schedule();
   }
   function unavailable(a) { return a.control.hidden || a.control.matches(':disabled') || a.control.getAttribute('aria-disabled') === 'true'; }
-  function selected(a) { if (momentary) return false; return authoritative ? a.action === `tray:${selection}` : a.control.getAttribute('aria-pressed') === 'true'; }
+  function selected(a, value = selection) { if (a.mode === 0 || a.resetBeforeDispatch) return false; return a.isSelected ? a.isSelected(value) : authoritative ? a.action === `tray:${value}` : a.control.getAttribute('aria-pressed') === 'true'; }
   function terminal(a) {
     auxiliaryOff(a); stop(a.base); a.state = selected(a) ? 2 : 0;
     a.base = stream(a.record.stateScripts[a.state], { skipInitialCues: true });
@@ -105,14 +105,34 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
       if (reason !== 'liveSelection') { terminal(a); continue; }
       if (previous === value) continue;
       if (selected(a)) onGroup(a.record.group, a.record.name);
-      if (a.action === `tray:${previous}` || selected(a)) state(a, selected(a) ? 2 : 0);
+      if (selected(a, previous) || selected(a)) state(a, selected(a) ? 2 : 0);
     }
   }
   function settle(a, options) { state(a, selected(a) ? 2 : 0, options); }
+  function beforeActivation(action) {
+    const a = actors.find(a => a.action === action);
+    if (!a) return;
+    if (keyboard === a) { cancelledKey = keyboardKey; releaseKey(); keyboard = null; keyboardKey = null; }
+    if (fallbackContact === a) {
+      if (fallbackPointer) released = fallbackPointer;
+      finishFallback();
+    }
+    // Reset only this actor. Other held contacts remain owned until their own
+    // release or an existing application/modal lifecycle cancels them.
+    if (contact?.a === a) {
+      const held = contact; contact = null; released = held;
+      guard.release(root, held.id);
+    }
+    if (a.resetBeforeDispatch) {
+      if (a.ready) terminal(a);
+      if (activation === a) activation = null;
+    }
+  }
   function completeActivation() {
+    if (readSelection) updateSelection(readSelection());
     const a = activation; activation = null;
     if (!a || !a.ready) return;
-    if (momentary) state(a, 0);
+    if (a.mode === 0) state(a, 0);
     else if (selected(a)) state(a, 2); else terminal(a);
   }
   const keyContact = Symbol('mode1-key');
@@ -169,16 +189,17 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
     if (!authoritative) stop(a.base);
     a.aux = stream(a.record.rolloverScript); cues(a.aux); paint(a); schedule();
   }
-  for (const { name, action } of bindings) {
+  for (const { name, action, mode: bindingMode = mode, isSelected, resetBeforeDispatch = false } of bindings) {
+    const bindingMomentary = bindingMode === 0;
     const record = data?.buttons?.find(b => b.name === name);
     const control = root.querySelector(`[data-action="${action}"]`), idle = sprites.get(name);
-    if (!record || !control || !idle || (momentary ? record.stateScripts[2] || record.stateScripts[3] : !record.stateScripts[2])
+    if (!record || !control || !idle || (!bindingMomentary && record.stateScripts.length !== 4) || (bindingMomentary ? record.stateScripts[2] || record.stateScripts[3] : !record.stateScripts[2])
       || record.hotspotRegion?.status !== 'exact'
-      || [...(momentary ? [record.stateScripts[0], record.stateScripts[1]] : record.stateScripts), record.rolloverScript].some(id => !data.scripts[id]?.frames?.length || !(data.scripts[id].tickMs > 0) || data.unsupportedScripts?.[id])) continue;
+      || [...(bindingMomentary ? [record.stateScripts[0], record.stateScripts[1]] : record.stateScripts), record.rolloverScript].some(id => !data.scripts[id]?.frames?.length || !(data.scripts[id].tickMs > 0) || data.unsupportedScripts?.[id])) continue;
     const image = doc.createElement('img'), hover = doc.createElement('img');
     for (const img of [image, hover]) { img.className = 'native-sprite'; img.alt = ''; img.draggable = false; img.hidden = true; layer.append(img); }
     image.dataset[actorAttribute] = name; hover.dataset.nativeRollover = name;
-    const a = { record, action, control, idle, image, hover, ready: false, state: 0, generation: 0 };
+    const a = { record, action, mode: bindingMode, isSelected, resetBeforeDispatch, control, idle, image, hover, ready: false, state: 0, generation: 0 };
     actors.push(a);
     control.addEventListener('pointerenter', event => {
       a.inside = true; a.hoverAllowed = !event.buttons;
@@ -254,24 +275,29 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
     // Start its source state before main decides who owns the activation cue.
     // A semantic command is not a second contact. Its existing handler decides
     // whether to cancel other input (Save opens a modal; Export need not).
-    const semanticCommand = momentary && event.detail === 0;
+    const semanticCommand = semanticCommands && event.detail === 0;
     if (!semanticCommand && (contact || (guard.busy() && keyboard !== a))) { event.preventDefault(); event.stopImmediatePropagation(); return; }
     onGroup(a.record.group, a.record.name);
     if (keyboard !== a) state(a, 1);
     if (keyboard === a) { releaseKey(); keyboard = null; keyboardKey = null; }
     if (!authoritative) state(a, 2);
-    else activation = a;
+    else {
+      // Accepted mode1 commands reach their native proposal before the owner
+      // reset/reconciliation seam. Shared script IDs retain tick/cue progress.
+      if (semanticCommands && a.mode === 1) state(a, 2);
+      activation = a;
+    }
   }, { ...options, capture: true });
   root.addEventListener('keydown', event => {
     const a = hit(event);
     if (a && ['Enter', ' '].includes(event.key) && event.repeat) { event.preventDefault(); return; }
     if (a && ['Enter', ' '].includes(event.key) && !event.repeat) {
       if (contact || !guard.claim({ pointerId: keyContact }, root)) { event.preventDefault(); return; }
-      if (momentary) event.preventDefault();
+      if (momentary || semanticCommands) event.preventDefault();
       cancelledKey = null; keyboard = a; keyboardKey = event.key; state(a, 1);
     }
   }, options);
-  if (momentary) root.addEventListener('keyup', event => {
+  if (momentary || semanticCommands) root.addEventListener('keyup', event => {
     if (keyboard && event.key === keyboardKey && !fallbackContact) {
       event.preventDefault();
       const a = keyboard;
@@ -294,7 +320,7 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
   for (const type of ['pointercancel', 'lostpointercapture']) root.addEventListener(type, event => { if (contact?.id === event.pointerId) cancel(); }, options);
   for (const type of ['blur', 'pagehide']) view.addEventListener(type, cancel, options);
   doc.addEventListener('visibilitychange', () => { if (doc.hidden) cancel(); }, options);
-  return { updateSelection, completeActivation, cancel: name => {
+  return { updateSelection, beforeActivation, completeActivation, cancel: name => {
     if (name === undefined) cancel();
     else {
       const a = actors.find(a => a.record.name === name);

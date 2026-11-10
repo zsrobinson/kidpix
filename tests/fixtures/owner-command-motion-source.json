@@ -1,0 +1,1304 @@
+{
+  "macEaselSha256": "6ed6b36a445cb61c5b26e0f9436bcdb55d2cc9c2539af3e4437134fcad6bfd6c",
+  "binarySha256": "a4d270edd09540a3a696a2b3e95f6dab29d52fd6bd6f1d3ed679b7990ed799a5",
+  "disassemblySha256": "d1130230e50b57bebdeebc9ef7496fb6d4fd9332b35b52fe86836dd75bf19963",
+  "resourceHashes": {
+    "(b'MBTN', 75)": "056f19050f392680c2076d3349bc46debaec2cdaa484ac09ad00214f397c0137",
+    "(b'REGS', 1000)": "d6a4bfc5e03ac3e3bbc95e378c645ece7dac080f50d688bba9d28728e1301af4",
+    "(b'REGS', 1001)": "36682f93cf3930614e27efe90d5ac5fa5437e0524161f1b365b1a102da8dc7dd",
+    "(b'tBMH', 1000)": "b9eba5d104e37dd14384b256a4bd860999979fe67831e2f98d8a9f115c7a8e23"
+  },
+  "buttons": [
+    {
+      "row": 21,
+      "name": "new",
+      "command": 285,
+      "mode": 1,
+      "rawWords": [
+        1046,
+        1047,
+        1047,
+        1047,
+        1,
+        0,
+        285,
+        1,
+        0,
+        0,
+        1048,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rowSha256": "ba7ae64a0b9d574fb8d4de3c816454cb5e67dfda9ff2d417af49fdd1b061785d",
+      "initialBounds": {
+        "1046": [
+          899,
+          207,
+          954,
+          260
+        ],
+        "1047": [
+          899,
+          207,
+          954,
+          260
+        ],
+        "1048": [
+          899,
+          207,
+          954,
+          260
+        ]
+      },
+      "restTrackingInitialUnionLTRB": [
+        899,
+        207,
+        954,
+        260
+      ],
+      "hitBoundsLTRB": [
+        899,
+        207,
+        954,
+        260
+      ],
+      "staticIndicesZeroBased": [
+        62,
+        247,
+        248
+      ],
+      "staticVsTerminals": [
+        {
+          "variant": 0,
+          "sourceImage": 63,
+          "terminalRGBAEqual": {
+            "rest": true,
+            "tracking": false
+          },
+          "fileEqualsSource": true
+        },
+        {
+          "variant": 1,
+          "sourceImage": 248,
+          "terminalRGBAEqual": {
+            "rest": false,
+            "tracking": false
+          },
+          "fileEqualsSource": true
+        },
+        {
+          "variant": 2,
+          "sourceImage": 249,
+          "terminalRGBAEqual": {
+            "rest": false,
+            "tracking": false
+          },
+          "fileEqualsSource": true
+        }
+      ]
+    },
+    {
+      "row": 14,
+      "name": "print",
+      "command": 242,
+      "mode": 1,
+      "rawWords": [
+        1049,
+        1051,
+        1051,
+        1051,
+        1,
+        0,
+        242,
+        1,
+        0,
+        0,
+        1050,
+        1,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rowSha256": "c18d68da25101aa5381073f7306c3469e41199a88bc6ddbfbd0033972cb0fc78",
+      "initialBounds": {
+        "1049": [
+          954,
+          207,
+          1009,
+          260
+        ],
+        "1051": [
+          954,
+          207,
+          1009,
+          260
+        ],
+        "1050": [
+          954,
+          207,
+          1009,
+          260
+        ]
+      },
+      "restTrackingInitialUnionLTRB": [
+        954,
+        207,
+        1009,
+        260
+      ],
+      "hitBoundsLTRB": [
+        954,
+        207,
+        1009,
+        260
+      ],
+      "staticIndicesZeroBased": [
+        65,
+        249,
+        250
+      ],
+      "staticVsTerminals": [
+        {
+          "variant": 0,
+          "sourceImage": 66,
+          "terminalRGBAEqual": {
+            "rest": true,
+            "tracking": false
+          },
+          "fileEqualsSource": true
+        },
+        {
+          "variant": 1,
+          "sourceImage": 250,
+          "terminalRGBAEqual": {
+            "rest": false,
+            "tracking": false
+          },
+          "fileEqualsSource": true
+        },
+        {
+          "variant": 2,
+          "sourceImage": 251,
+          "terminalRGBAEqual": {
+            "rest": false,
+            "tracking": false
+          },
+          "fileEqualsSource": true
+        }
+      ]
+    },
+    {
+      "row": 13,
+      "name": "help",
+      "command": 239,
+      "mode": 1,
+      "rawWords": [
+        1079,
+        1080,
+        1080,
+        1080,
+        1,
+        0,
+        239,
+        1,
+        0,
+        0,
+        1081,
+        1,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rowSha256": "68c368a58aa10718dbcaa57e0a76fe3be389525fd34d06262ec73c143e6b502c",
+      "initialBounds": {
+        "1079": [
+          968,
+          289,
+          1004,
+          323
+        ],
+        "1080": [
+          968,
+          289,
+          1004,
+          323
+        ],
+        "1081": [
+          968,
+          289,
+          1004,
+          323
+        ]
+      },
+      "restTrackingInitialUnionLTRB": [
+        968,
+        289,
+        1004,
+        323
+      ],
+      "hitBoundsLTRB": [
+        968,
+        289,
+        1004,
+        323
+      ],
+      "staticIndicesZeroBased": [
+        84,
+        85,
+        86
+      ],
+      "staticVsTerminals": [
+        {
+          "variant": 0,
+          "sourceImage": 85,
+          "terminalRGBAEqual": {
+            "rest": true,
+            "tracking": false
+          },
+          "fileEqualsSource": true
+        },
+        {
+          "variant": 1,
+          "sourceImage": 86,
+          "terminalRGBAEqual": {
+            "rest": false,
+            "tracking": false
+          },
+          "fileEqualsSource": true
+        },
+        {
+          "variant": 2,
+          "sourceImage": 87,
+          "terminalRGBAEqual": {
+            "rest": false,
+            "tracking": false
+          },
+          "fileEqualsSource": true
+        }
+      ]
+    }
+  ],
+  "scripts": {
+    "1046": {
+      "rawHex": "003e03e800ee00200000002000000001038300bd03e101150000040400641001803e001a002701021001803d001a002701021001803f001a002701020002",
+      "rawSha256": "8e77b99fafbaf271c213f255faefd7d3d03e0b8a835664a0a0b7982a71fd766f",
+      "originXY": [
+        899,
+        189
+      ],
+      "rectXYWH": [
+        899,
+        207,
+        55,
+        53
+      ],
+      "groups": [
+        {
+          "tick": 0,
+          "rawImage": 32830,
+          "image": 62,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        },
+        {
+          "tick": 1,
+          "rawImage": 32829,
+          "image": 61,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        },
+        {
+          "tick": 2,
+          "rawImage": 32831,
+          "image": 63,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        }
+      ],
+      "tickMs": 100,
+      "waitTicks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [],
+      "rgbaSha256": [
+        "ef328fba826c2a4a88d79c7ace6ad97e581f51d7701f43951ff3dab99c75ca82",
+        "d78fe53dd38ec8d9eeefaddac1a84b4efcfdc8fe598beb6c8faced06d828e505",
+        "76b9f71f6c62453880ac5bfe393294d5e84abd3771050612bdee305dc6439e8a"
+      ],
+      "rgbaExact": true
+    },
+    "1047": {
+      "rawHex": "003e03e800ee00200000002000000001038300bd03e101150000040400640306000400011001803d001a002701021001803e001a002701021001803e001a002701020002",
+      "rawSha256": "e967161ab6a57f2aac622c1f4dc3b233a5a181497cf6a23a20fcd13fddf145a7",
+      "originXY": [
+        899,
+        189
+      ],
+      "rectXYWH": [
+        899,
+        207,
+        55,
+        53
+      ],
+      "groups": [
+        {
+          "tick": 0,
+          "rawImage": 32829,
+          "image": 61,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        },
+        {
+          "tick": 1,
+          "rawImage": 32830,
+          "image": 62,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        },
+        {
+          "tick": 2,
+          "rawImage": 32830,
+          "image": 62,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        }
+      ],
+      "tickMs": 100,
+      "waitTicks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [
+        {
+          "tick": 0,
+          "index": 4,
+          "sound": 1004,
+          "channel": 1
+        }
+      ],
+      "rgbaSha256": [
+        "d78fe53dd38ec8d9eeefaddac1a84b4efcfdc8fe598beb6c8faced06d828e505",
+        "ef328fba826c2a4a88d79c7ace6ad97e581f51d7701f43951ff3dab99c75ca82",
+        "ef328fba826c2a4a88d79c7ace6ad97e581f51d7701f43951ff3dab99c75ca82"
+      ],
+      "rgbaExact": true
+    },
+    "1048": {
+      "rawHex": "003e03e800ee00200000002000000001038300bd03e10115000004040064100180f9001a002701021001803f001a00270102100180f8001a002701021001803f001a002701020002",
+      "rawSha256": "26b7d467cf14e1658c00c1fee636e0a0f67e065555d9ccc589265e818d0c0769",
+      "originXY": [
+        899,
+        189
+      ],
+      "rectXYWH": [
+        899,
+        207,
+        55,
+        53
+      ],
+      "groups": [
+        {
+          "tick": 0,
+          "rawImage": 33017,
+          "image": 249,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        },
+        {
+          "tick": 1,
+          "rawImage": 32831,
+          "image": 63,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        },
+        {
+          "tick": 2,
+          "rawImage": 33016,
+          "image": 248,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        },
+        {
+          "tick": 3,
+          "rawImage": 32831,
+          "image": 63,
+          "sourceXY": [
+            26,
+            39
+          ],
+          "registrationXY": [
+            26,
+            21
+          ],
+          "boundsLTRB": [
+            899,
+            207,
+            954,
+            260
+          ]
+        }
+      ],
+      "tickMs": 100,
+      "waitTicks": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 4,
+      "sounds": [],
+      "rgbaSha256": [
+        "8a7390ac1ac4866d3b77cbe5fd5fa7b00411e9ea54944e131028adf45d63349a",
+        "76b9f71f6c62453880ac5bfe393294d5e84abd3771050612bdee305dc6439e8a",
+        "ece424174b8244a19b8855084f9bf4ab74a2fed28fbf5e9bb7b4b8793230a7dc",
+        "76b9f71f6c62453880ac5bfe393294d5e84abd3771050612bdee305dc6439e8a"
+      ],
+      "rgbaExact": true
+    },
+    "1049": {
+      "rawHex": "003e03e800ee0020000000200000000103ba00cf0400020a0000040400641001804100130010010210018040001300100102100180420013001001020002",
+      "rawSha256": "efcd04d07f2fd4aaded67db9cf81097f1d63e830e81a2b129bf3181eb0b18653",
+      "originXY": [
+        954,
+        207
+      ],
+      "rectXYWH": [
+        954,
+        207,
+        55,
+        53
+      ],
+      "groups": [
+        {
+          "tick": 0,
+          "rawImage": 32833,
+          "image": 65,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        },
+        {
+          "tick": 1,
+          "rawImage": 32832,
+          "image": 64,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        },
+        {
+          "tick": 2,
+          "rawImage": 32834,
+          "image": 66,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        }
+      ],
+      "tickMs": 100,
+      "waitTicks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [],
+      "rgbaSha256": [
+        "d9af49480956c40d9feac3aef8fd772ac8f9b2c4c2139ca0879b667e9ae1141f",
+        "ca99882e8ef5a2d69b0421081903301d0ccc0900ee9f088440b7654862136ae6",
+        "4ee7747190738bda225f96a6824f557489475e33c51d5fe816d2159b3a9e7641"
+      ],
+      "rgbaExact": true
+    },
+    "1051": {
+      "rawHex": "003e03e800ee0020000000200000000103ba00cf0400020a0000040400640306000400011001804000130010010210018041001300100102100180410013001001020002",
+      "rawSha256": "4841612f72da97f0df5e92d5d7794ef0fe5cbb25722e406b85b4029e4d3a421f",
+      "originXY": [
+        954,
+        207
+      ],
+      "rectXYWH": [
+        954,
+        207,
+        55,
+        53
+      ],
+      "groups": [
+        {
+          "tick": 0,
+          "rawImage": 32832,
+          "image": 64,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        },
+        {
+          "tick": 1,
+          "rawImage": 32833,
+          "image": 65,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        },
+        {
+          "tick": 2,
+          "rawImage": 32833,
+          "image": 65,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        }
+      ],
+      "tickMs": 100,
+      "waitTicks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [
+        {
+          "tick": 0,
+          "index": 4,
+          "sound": 1004,
+          "channel": 1
+        }
+      ],
+      "rgbaSha256": [
+        "ca99882e8ef5a2d69b0421081903301d0ccc0900ee9f088440b7654862136ae6",
+        "d9af49480956c40d9feac3aef8fd772ac8f9b2c4c2139ca0879b667e9ae1141f",
+        "d9af49480956c40d9feac3aef8fd772ac8f9b2c4c2139ca0879b667e9ae1141f"
+      ],
+      "rgbaExact": true
+    },
+    "1050": {
+      "rawHex": "003e03e800ee0020000000200000000103ba00cf0400020a000004040064100180fb00130010010210018042001300100102100180fa001300100102100180420013001001020002",
+      "rawSha256": "d069e5314bb171eb9c256c3c41ceb9f71f7f119ef1e819b821c5de3054ab3b21",
+      "originXY": [
+        954,
+        207
+      ],
+      "rectXYWH": [
+        954,
+        207,
+        55,
+        53
+      ],
+      "groups": [
+        {
+          "tick": 0,
+          "rawImage": 33019,
+          "image": 251,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        },
+        {
+          "tick": 1,
+          "rawImage": 32834,
+          "image": 66,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        },
+        {
+          "tick": 2,
+          "rawImage": 33018,
+          "image": 250,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        },
+        {
+          "tick": 3,
+          "rawImage": 32834,
+          "image": 66,
+          "sourceXY": [
+            19,
+            16
+          ],
+          "registrationXY": [
+            19,
+            16
+          ],
+          "boundsLTRB": [
+            954,
+            207,
+            1009,
+            260
+          ]
+        }
+      ],
+      "tickMs": 100,
+      "waitTicks": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 4,
+      "sounds": [],
+      "rgbaSha256": [
+        "8a7b60744f4e0a1def73ded4c4efbb9448b0a8e5319f2506d2e23b97ce897fad",
+        "4ee7747190738bda225f96a6824f557489475e33c51d5fe816d2159b3a9e7641",
+        "81c7a1c41492e0e1aa7b5a68cb87413dc0c2d0b710441729886f5a9e06057a4c",
+        "4ee7747190738bda225f96a6824f557489475e33c51d5fe816d2159b3a9e7641"
+      ],
+      "rgbaExact": true
+    },
+    "1079": {
+      "rawHex": "003e03e800ee0020000000200000000103c601120407015c00000404006410018059fe51ff0c010210018058fe51ff0c010210018056fe51ff0c010210018055fe51ff0c01020002",
+      "rawSha256": "7c5403edea728c4afca3c2db01daff142150e2af2640f4a8444b5624134c08b5",
+      "originXY": [
+        966,
+        274
+      ],
+      "rectXYWH": [
+        968,
+        289,
+        36,
+        34
+      ],
+      "groups": [
+        {
+          "tick": 0,
+          "rawImage": 32857,
+          "image": 89,
+          "sourceXY": [
+            -431,
+            -244
+          ],
+          "registrationXY": [
+            -433,
+            -259
+          ],
+          "boundsLTRB": [
+            968,
+            289,
+            1004,
+            323
+          ]
+        },
+        {
+          "tick": 1,
+          "rawImage": 32856,
+          "image": 88,
+          "sourceXY": [
+            -431,
+            -244
+          ],
+          "registrationXY": [
+            -433,
+            -259
+          ],
+          "boundsLTRB": [
+            968,
+            289,
+            1004,
+            323
+          ]
+        },
+        {
+          "tick": 2,
+          "rawImage": 32854,
+          "image": 86,
+          "sourceXY": [
+            -431,
+            -244
+          ],
+          "registrationXY": [
+            -433,
+            -259
+          ],
+          "boundsLTRB": [
+            968,
+            289,
+            1004,
+            323
+          ]
+        },
+        {
+          "tick": 3,
+          "rawImage": 32853,
+          "image": 85,
+          "sourceXY": [
+            -431,
+            -244
+          ],
+          "registrationXY": [
+            -433,
+            -259
+          ],
+          "boundsLTRB": [
+            968,
+            289,
+            1004,
+            323
+          ]
+        }
+      ],
+      "tickMs": 100,
+      "waitTicks": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 4,
+      "sounds": [],
+      "rgbaSha256": [
+        "848c09e3cfbaaa083b20abac68db6bdba7e77a8be48b22315127e1161efa88cc",
+        "97c767600725870dc2f70dc5edb1f442bd2b18ba27576a74f4cbc86724c15d40",
+        "cdb0bc4ed3f7733407bc8fd03267ac89fc9b90de95b71bc3959f48ce979128db",
+        "2e982d0cc4ce7ca5ca1e8e3e61c76f91c2e5cb0d101bf29d290f20d6d422ac97"
+      ],
+      "rgbaExact": true
+    },
+    "1080": {
+      "rawHex": "003e03e800ee0020000000200000000103c601120407015c00000404006403060007000110018056fe51ff0c010210018057fe51ff0c010210018058fe51ff0c010210018059fe51ff0c01020002",
+      "rawSha256": "c0afb12a8def1817a8492d3dae381f6f89638d3ebc9d6b4405826aa204b2f3b0",
+      "originXY": [
+        966,
+        274
+      ],
+      "rectXYWH": [
+        968,
+        289,
+        36,
+        34
+      ],
+      "groups": [
+        {
+          "tick": 0,
+          "rawImage": 32854,
+          "image": 86,
+          "sourceXY": [
+            -431,
+            -244
+          ],
+          "registrationXY": [
+            -433,
+            -259
+          ],
+          "boundsLTRB": [
+            968,
+            289,
+            1004,
+            323
+          ]
+        },
+        {
+          "tick": 1,
+          "rawImage": 32855,
+          "image": 87,
+          "sourceXY": [
+            -431,
+            -244
+          ],
+          "registrationXY": [
+            -433,
+            -259
+          ],
+          "boundsLTRB": [
+            968,
+            289,
+            1004,
+            323
+          ]
+        },
+        {
+          "tick": 2,
+          "rawImage": 32856,
+          "image": 88,
+          "sourceXY": [
+            -431,
+            -244
+          ],
+          "registrationXY": [
+            -433,
+            -259
+          ],
+          "boundsLTRB": [
+            968,
+            289,
+            1004,
+            323
+          ]
+        },
+        {
+          "tick": 3,
+          "rawImage": 32857,
+          "image": 89,
+          "sourceXY": [
+            -431,
+            -244
+          ],
+          "registrationXY": [
+            -433,
+            -259
+          ],
+          "boundsLTRB": [
+            968,
+            289,
+            1004,
+            323
+          ]
+        }
+      ],
+      "tickMs": 100,
+      "waitTicks": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 4,
+      "sounds": [
+        {
+          "tick": 0,
+          "index": 7,
+          "sound": 1007,
+          "channel": 1
+        }
+      ],
+      "rgbaSha256": [
+        "cdb0bc4ed3f7733407bc8fd03267ac89fc9b90de95b71bc3959f48ce979128db",
+        "f198e4890808e762d868a1eaf119b6e161dc70b3c2c350ed60fb96a33b233d3d",
+        "97c767600725870dc2f70dc5edb1f442bd2b18ba27576a74f4cbc86724c15d40",
+        "848c09e3cfbaaa083b20abac68db6bdba7e77a8be48b22315127e1161efa88cc"
+      ],
+      "rgbaExact": true
+    },
+    "1081": {
+      "rawHex": "003e03e800ee0020000000200000000103c601120407015c00000404006410018056fe51ff0c01020002",
+      "rawSha256": "4a584691708bcea13e386f4a24c4661ab9d90f1e84c29b97bae04d7a2b5af59e",
+      "originXY": [
+        966,
+        274
+      ],
+      "rectXYWH": [
+        968,
+        289,
+        36,
+        34
+      ],
+      "groups": [
+        {
+          "tick": 0,
+          "rawImage": 32854,
+          "image": 86,
+          "sourceXY": [
+            -431,
+            -244
+          ],
+          "registrationXY": [
+            -433,
+            -259
+          ],
+          "boundsLTRB": [
+            968,
+            289,
+            1004,
+            323
+          ]
+        }
+      ],
+      "tickMs": 100,
+      "waitTicks": [
+        0
+      ],
+      "endCheckTick": 1,
+      "sounds": [],
+      "rgbaSha256": [
+        "cdb0bc4ed3f7733407bc8fd03267ac89fc9b90de95b71bc3959f48ce979128db"
+      ],
+      "rgbaExact": true
+    }
+  },
+  "mediaFiles": {
+    "ui/button-animations.json": {
+      "size": 133073,
+      "sha256": "71d55e80c6580ee87807d343749ced3699d1a372c342a8f39c1b3b6415400a92"
+    },
+    "ui/button-animations/1046-0.png": {
+      "size": 5973,
+      "sha256": "9902a8874aada01766b5d9af38701a464ba99c2b793c2a010cebaee2dd95b638"
+    },
+    "ui/button-animations/1046-1.png": {
+      "size": 5803,
+      "sha256": "ed931cd369f2b3c756ccd0793a5c70efef7f01b03f6510b430aeba3389273945"
+    },
+    "ui/button-animations/1046-2.png": {
+      "size": 5981,
+      "sha256": "0b13bb8fa4fa9aa2b39c27a4a8d171c0fb09a0924734587847a7a3fcf4f41be0"
+    },
+    "ui/button-animations/1047-0.png": {
+      "size": 5803,
+      "sha256": "ed931cd369f2b3c756ccd0793a5c70efef7f01b03f6510b430aeba3389273945"
+    },
+    "ui/button-animations/1047-1.png": {
+      "size": 5973,
+      "sha256": "9902a8874aada01766b5d9af38701a464ba99c2b793c2a010cebaee2dd95b638"
+    },
+    "ui/button-animations/1047-2.png": {
+      "size": 5973,
+      "sha256": "9902a8874aada01766b5d9af38701a464ba99c2b793c2a010cebaee2dd95b638"
+    },
+    "ui/button-animations/1048-0.png": {
+      "size": 6006,
+      "sha256": "45a7f03118ad5b4aa5c8aead2c89ef449343701ee625ae42121fb1af528bb809"
+    },
+    "ui/button-animations/1048-1.png": {
+      "size": 5981,
+      "sha256": "0b13bb8fa4fa9aa2b39c27a4a8d171c0fb09a0924734587847a7a3fcf4f41be0"
+    },
+    "ui/button-animations/1048-2.png": {
+      "size": 6076,
+      "sha256": "a9eac0f8213a2b5d78c60b96929389b432a6a35f01428015f4a8f6776f0747af"
+    },
+    "ui/button-animations/1048-3.png": {
+      "size": 5981,
+      "sha256": "0b13bb8fa4fa9aa2b39c27a4a8d171c0fb09a0924734587847a7a3fcf4f41be0"
+    },
+    "ui/button-animations/1049-0.png": {
+      "size": 6326,
+      "sha256": "bed9ee154bbfb3b30dab0c345cee93f21e4e7225f2684a9b946b6fb592b766af"
+    },
+    "ui/button-animations/1049-1.png": {
+      "size": 6271,
+      "sha256": "f7886523b9cef16877db9d3ead8d7179a11a771e71ddc94dd2568f19d8f92850"
+    },
+    "ui/button-animations/1049-2.png": {
+      "size": 6337,
+      "sha256": "900a2db09d8dd7fd49183ddb133ada6135d4dd7e38c6ec543e8774a50c7e099b"
+    },
+    "ui/button-animations/1050-0.png": {
+      "size": 6326,
+      "sha256": "c35c547914fb2b91b8eb9e1ebacfee7dc7dcdb48159ce4949f4be40d7c0ab9cc"
+    },
+    "ui/button-animations/1050-1.png": {
+      "size": 6337,
+      "sha256": "900a2db09d8dd7fd49183ddb133ada6135d4dd7e38c6ec543e8774a50c7e099b"
+    },
+    "ui/button-animations/1050-2.png": {
+      "size": 6459,
+      "sha256": "d8843d8049b6acd66061ddfb0603aaea9064dfe67ac42ce87a4b64e2d26c4b5a"
+    },
+    "ui/button-animations/1050-3.png": {
+      "size": 6337,
+      "sha256": "900a2db09d8dd7fd49183ddb133ada6135d4dd7e38c6ec543e8774a50c7e099b"
+    },
+    "ui/button-animations/1051-0.png": {
+      "size": 6271,
+      "sha256": "f7886523b9cef16877db9d3ead8d7179a11a771e71ddc94dd2568f19d8f92850"
+    },
+    "ui/button-animations/1051-1.png": {
+      "size": 6326,
+      "sha256": "bed9ee154bbfb3b30dab0c345cee93f21e4e7225f2684a9b946b6fb592b766af"
+    },
+    "ui/button-animations/1051-2.png": {
+      "size": 6326,
+      "sha256": "bed9ee154bbfb3b30dab0c345cee93f21e4e7225f2684a9b946b6fb592b766af"
+    },
+    "ui/button-animations/1079-0.png": {
+      "size": 2894,
+      "sha256": "2fc05fe60abea717653aee2d2a087d5fc30c0799a2a5f0d60b247b15656c9ad9"
+    },
+    "ui/button-animations/1079-1.png": {
+      "size": 2887,
+      "sha256": "c86b7f443dc4b730ee6d1687b10a10c0f4734b70ed175fe40121e49456ce4ecb"
+    },
+    "ui/button-animations/1079-2.png": {
+      "size": 2693,
+      "sha256": "28efd74cdecd71902ecb9a88be5e42a0c2876dc5e8ab62c9f5b28ad31e508660"
+    },
+    "ui/button-animations/1079-3.png": {
+      "size": 2189,
+      "sha256": "a2ca806699d09b7319a498aa6c64bdd3d0dad00d03bd17c410baa21ee79d0d86"
+    },
+    "ui/button-animations/1080-0.png": {
+      "size": 2693,
+      "sha256": "28efd74cdecd71902ecb9a88be5e42a0c2876dc5e8ab62c9f5b28ad31e508660"
+    },
+    "ui/button-animations/1080-1.png": {
+      "size": 2866,
+      "sha256": "b063a74eb9d2db880abde8b9731f78aef55b3e2030bb2f2d165444385bd4054c"
+    },
+    "ui/button-animations/1080-2.png": {
+      "size": 2887,
+      "sha256": "c86b7f443dc4b730ee6d1687b10a10c0f4734b70ed175fe40121e49456ce4ecb"
+    },
+    "ui/button-animations/1080-3.png": {
+      "size": 2894,
+      "sha256": "2fc05fe60abea717653aee2d2a087d5fc30c0799a2a5f0d60b247b15656c9ad9"
+    },
+    "ui/button-animations/1081-0.png": {
+      "size": 2693,
+      "sha256": "28efd74cdecd71902ecb9a88be5e42a0c2876dc5e8ab62c9f5b28ad31e508660"
+    },
+    "ui/easel-1004.wav": {
+      "size": 6142,
+      "sha256": "55bde84abef5cb205135c8ee285f91e29bdde9488055b54e365f8227f200b8be"
+    },
+    "ui/easel-1007.wav": {
+      "size": 23206,
+      "sha256": "d7ee3ed4230539cfda3191f8e593b40b8a4f62cc44d3040afbca0d52a6e2aea1"
+    },
+    "ui/help-0.png": {
+      "size": 2189,
+      "sha256": "a2ca806699d09b7319a498aa6c64bdd3d0dad00d03bd17c410baa21ee79d0d86"
+    },
+    "ui/help-1.png": {
+      "size": 2693,
+      "sha256": "28efd74cdecd71902ecb9a88be5e42a0c2876dc5e8ab62c9f5b28ad31e508660"
+    },
+    "ui/help-2.png": {
+      "size": 2866,
+      "sha256": "b063a74eb9d2db880abde8b9731f78aef55b3e2030bb2f2d165444385bd4054c"
+    },
+    "ui/new-0.png": {
+      "size": 5981,
+      "sha256": "0b13bb8fa4fa9aa2b39c27a4a8d171c0fb09a0924734587847a7a3fcf4f41be0"
+    },
+    "ui/new-1.png": {
+      "size": 6076,
+      "sha256": "a9eac0f8213a2b5d78c60b96929389b432a6a35f01428015f4a8f6776f0747af"
+    },
+    "ui/new-2.png": {
+      "size": 6006,
+      "sha256": "45a7f03118ad5b4aa5c8aead2c89ef449343701ee625ae42121fb1af528bb809"
+    },
+    "ui/print-0.png": {
+      "size": 6337,
+      "sha256": "900a2db09d8dd7fd49183ddb133ada6135d4dd7e38c6ec543e8774a50c7e099b"
+    },
+    "ui/print-1.png": {
+      "size": 6459,
+      "sha256": "d8843d8049b6acd66061ddfb0603aaea9064dfe67ac42ce87a4b64e2d26c4b5a"
+    },
+    "ui/print-2.png": {
+      "size": 6326,
+      "sha256": "c35c547914fb2b91b8eb9e1ebacfee7dc7dcdb48159ce4949f4be40d7c0ab9cc"
+    },
+    "ui/ui.json": {
+      "size": 248477,
+      "sha256": "4d3ecec280f8aae26c4236d9b0bef1bbdb17f71c7cdca443b25085f475677e78"
+    }
+  }
+}

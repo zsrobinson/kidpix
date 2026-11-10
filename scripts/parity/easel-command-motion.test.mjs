@@ -8,7 +8,7 @@ const oracle=JSON.parse(readFileSync(new URL('../../tests/fixtures/easel-command
 const media=new URL('../../public/original/',import.meta.url);
 test('mode0 source rows and explicit browser command bindings',async()=>{
  const {commandMotionBindings}=await import('../../src/native-command-motion.js');
- assert.deepEqual(commandMotionBindings,[{name:'save',action:'save'},{name:'export',action:'stereo'}]);
+ assert.deepEqual(commandMotionBindings.slice(0,2),[{name:'save',action:'save'},{name:'export',action:'stereo'}]);
  assert.deepEqual(oracle.buttons.map(b=>b.rawWords.slice(0,4)),[[1038,1036,0,0],[1123,1124,0,0]]);
  assert.equal(Object.keys(oracle.scripts).length,6);
  assert.equal(Object.values(oracle.scripts).reduce((n,s)=>n+s.groups.length,0),20);

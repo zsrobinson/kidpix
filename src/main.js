@@ -1461,6 +1461,7 @@ const commands = {
   speak: readText,
   help: () => {
     state.extendedHelp = !state.extendedHelp;
+    nativeCommandMotion?.updateSelection(state.extendedHelp);
     showStatus(state.extendedHelp ? 'Move over a tool to see its name. Press Esc to close help.' : '', 0);
   },
   about: () => showDialog('KID PIX 3D', `Version ${__APP_VERSION__}. Paint Zone and Slide Show with artwork and libraries from the Mac trial.`, [['OK']]),
@@ -1619,7 +1620,7 @@ async function activate(action) {
   } else if (id === 'align') { state.align = value; applyTextStyle(); showTray(); }
   else if (id === 'edit') doEdit(value);
   else {
-    try { commands[id]?.(); }
+    try { nativeCommandMotion?.beforeActivation(id); commands[id]?.(); }
     finally { nativeCommandMotion?.completeActivation(); }
   }
 }
@@ -1765,6 +1766,7 @@ document.addEventListener('keydown', event => {
     $('#menu-items').hidden = true;
     $('#menu-trigger').setAttribute('aria-expanded', 'false');
     state.extendedHelp = false;
+    nativeCommandMotion?.updateSelection(state.extendedHelp);
     cancelRecordedPathInput();
     stopSlides();
     if (state.playing) playPicture(false);
@@ -1812,7 +1814,7 @@ loadNativeUi().then(manifest => {
   nativeCommandMotion?.dispose();
   nativeLibraryMotion = attachLibraryMotion(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { onGroup: (group, name) => nativeRollovers?.cancelGroup(group, name), onReady: name => nativeRollovers?.cancel(name) });
   nativeToolTabMotion = attachToolTabMotion(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { readSelection: () => state.tray, onGroup: (group, name) => nativeRollovers?.cancelGroup(group, name), onReady: name => nativeRollovers?.cancel(name) });
-  nativeCommandMotion = attachCommandMotion(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { onGroup: (group, name) => nativeRollovers?.cancelGroup(group, name), onReady: name => nativeRollovers?.cancel(name) });
+  nativeCommandMotion = attachCommandMotion(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { readSelection: () => state.extendedHelp, onGroup: (group, name) => nativeRollovers?.cancelGroup(group, name), onReady: name => nativeRollovers?.cancel(name) });
   nativeRollovers = attachNativeRollovers(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { ...paperOptions, fallbackNames: [...nativeLibraryMotion.names, ...nativeToolTabMotion.names, ...nativeCommandMotion.names], enabled: name => !nativeLibraryMotion.ready(name) && !nativeToolTabMotion.ready(name) && !nativeCommandMotion.ready(name) });
   const cancelLibraryRollover = nativeRollovers.cancel;
   const cancelLibraryGroup = nativeRollovers.cancelGroup;

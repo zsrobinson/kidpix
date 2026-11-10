@@ -15,6 +15,10 @@ test('mode1 rows retain native modes independently of browser reset policy',asyn
 });
 for(const b of oracle.buttons)test(`${b.name} independent deadlines, channels, registrations and file pixels`,{skip:!existsSync(new URL('ui/ui.json',media))},()=>{
  const manifest=JSON.parse(readFileSync(new URL('ui/button-animations.json',media)));
+ const record=manifest.buttons.find(record=>record.name===b.name);
+ assert.deepEqual(record.rawWords,b.rawWords);assert.deepEqual(record.stateScripts,b.rawWords.slice(0,4));
+ assert.equal(record.group,b.rawWords[14]);assert.equal(record.rolloverScript,b.rawWords[10]);
+ assert.deepEqual(record.hotspotRegion.rectsLTRB,[b.hitBoundsLTRB]);
  for(let i=0;i<3;i++){
   const id=[b.rawWords[0],b.rawWords[1],b.rawWords[10]][i],s=oracle.scripts[id],actual=manifest.scripts[id];
   assert.deepEqual(actual.rect,s.rectXYWH);assert.equal(actual.tickMs,100);

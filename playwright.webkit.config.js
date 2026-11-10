@@ -4,7 +4,7 @@ import base from './playwright.config.js';
 const baseURL = 'http://127.0.0.1:4176';
 export default defineConfig({
   ...base,
-  testMatch: ['text-voice.spec.js', 'firehose-integration.spec.js', 'ipad-input.spec.js', 'pencil-pressure.spec.js', 'stamp-editor.spec.js', 'text-steppers.spec.js', 'library-readiness.spec.js', 'path-input.spec.js', 'studio-color-picker.spec.js'],
+  testMatch: ['text-read.spec.js', 'text-voice.spec.js', 'firehose-integration.spec.js', 'ipad-input.spec.js', 'pencil-pressure.spec.js', 'stamp-editor.spec.js', 'text-steppers.spec.js', 'library-readiness.spec.js', 'path-input.spec.js', 'studio-color-picker.spec.js'],
   // These cases deliver real Chromium pen/touch through CDP. The shared
   // ownership, renderer and ordinary studio cases also run in WebKit.
   grepInvert: /browser-delivered pen capture|browser double-tap|later polygon pen contact/,

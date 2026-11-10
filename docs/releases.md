@@ -4,6 +4,8 @@ The current public build identifies its version, source revision and build time 
 
 ## 0.12.0
 
+- Public verification covered all 323 cases across 315 initial passes and eight unchanged rechecks. The initial full run failed eight loading/navigation cases; its cause remains unresolved. All 17 live captures pass the existing web comparison rules; no native reference was accepted.
+
 - Animated Text's previous/next voice arrows with eight source programs and ten poses, including both tracking groups, source cues and disabled boundaries. Enabled secondary scope is now 48 rows, 152 programs and 203 poses; the voice popup remains a native select.
 - Preserved saved voice URIs across asynchronous catalog updates, reordered lists, missing voices and duplicate identities. Selection, save/restore and Undo/Redo synchronize the selected text object's voice without silently choosing another voice.
 - Kept catalog changes scoped to voice gestures, preserving unrelated held formatting and Grab actions. Native-select sessions retain their target through blur, and selection/history update control values and artwork together.

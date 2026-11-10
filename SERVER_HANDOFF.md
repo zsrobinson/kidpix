@@ -405,3 +405,36 @@ comparison errors; native references remain0/17. Receipt directory:
 `artifacts/t3/release-0120/`. Ready for final release commit/push and exact-revision
 public verification; do not confuse the original expected-baseline exit1 with
 a failed behavior check.
+
+
+## Published0.12 and current Read candidate
+
+0.12.0 is live at b75a77293f642bbcc8c820c13a3af8202a14ded8, built
+2026-11-10T02:05:11.945Z. The initial public run passed315 and failed8 cases;
+all8 original cases passed a separate unchanged recheck. All323 cases are covered
+across runs; the initial full run was not clean. Every failure has an incomplete
+resource record. A separate CDP-observed Grab case passed with matching completed
+bodies, HTTP/3 and peak134 outstanding requests. The original failure cause
+remains unresolved. Preserve the initial traces and separate receipts under
+`artifacts/t3/release-0120/` and `artifacts/t3/public-0120-completion-probe/`.
+All17 public views pass the existing web comparison rules;15 are pixel-identical,
+Grab/Scissors differ only by1–2 channel values within their animation footprints.
+Accepted web baselines were unchanged by this public check.
+
+Current0.13 work integrates Read07e9303 and range fixcb4ab66 as45cec49/4d58f91.
+Read uses the selected text range/current box and owns speech separately from
+whole-picture/slide playback. Its row15 adds3 source programs/4 poses, bringing
+secondary scope to49 rows/155 programs/207 poses. Exact BR/block endpoints now
+survive focus restoration, preserving backward ranges and collapsed carets.
+Parent focused checks passed199 Node,111 related Chromium and29 Read WebKit
+cases, build/dryrun. Final independent review and full release gates remain
+pending. Existing media needs public hash verification before publishing.
+
+The unmodified Windows2.2.1.271 original reached its EULA in run42742090168
+with genuine installer PATH and loaded QuickTime modules. Both owned captures
+were independently inspected; no acceptance/input occurred. User confirmation
+to accept the15-day trial agreement is pending; continue web work independently.
+No PaintZone/About/drawing/Undo/animation/audio was reached. Native references
+remain0/17, and Windows remains distinct from Mac2.2/build615. Evidence:
+`artifacts/t3/windows-original-parent-review/trusted-path-result.json` and the
+linked isolated audit. Actual iPad hardware is still untested.

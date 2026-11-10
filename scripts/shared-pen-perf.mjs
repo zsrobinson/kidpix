@@ -1,6 +1,7 @@
 // Real-clock shared-path experiment. Synthetic in-page replay is NOT trusted pen input.
 // Same 240 chronological points/pressure/seed for every delivery pattern. Duration
 // varies with event rate and coalescing; both are explicit in each result.
+import { freshnessTransform, observeInk } from './ink-freshness-control.mjs';
 import { chromium, webkit } from '@playwright/test';
 import { createServer } from 'vite';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
@@ -13,6 +14,7 @@ import { idleOwnerTransform, assertOwnerWindow } from './shared-pen-idle-control
 import { studioControlPlugin, stageState, overlayState, assertBlankOverlays, emptyObjectsState, assertEmptyObjects } from './shared-pen-studio-control.mjs';
 import { displayControlTransform, installStrokeAttribution } from './shared-pen-display-control.mjs';
 import { applyMinimization, timingDiagnostic } from './shared-pen-minimize.mjs';
+const freshness=process.env.INK_FRESHNESS==='1', inkDelay=Number(process.env.INK_DELAY||0), inkObserve=process.env.INK_OBSERVE!=='0';
 const minimize=process.env.MINIMIZE || '';
 const coalesceDisplay=process.env.COALESCE_DISPLAY==='1', strokeCounters=process.env.STROKE_COUNTERS==='1', strokeAttribution=process.env.STROKE_ATTRIBUTION==='1';
 const controlMode = process.env.CONTROL_MODE || 'full';
@@ -74,20 +76,22 @@ const server = await createServer({ configLoader: 'runner', cacheDir: `${output}
   code=code.replace(optionsSeam, optionsSeam+' window.sharedPaintOptions = structuredClone(next);');
   if(process.env.DISPLAY_ALPHA==='0'){const seam="const display = canvas.getContext('2d', { willReadFrequently: true })";if(!code.includes(seam))throw Error('Display alpha seam changed');code=code.replace(seam,"const display = canvas.getContext('2d', { willReadFrequently: true, alpha: false })");}
   if(process.env.DISPLAY_READ_FREQUENTLY==='0'){const displaySeam="const display = canvas.getContext('2d', { willReadFrequently: true })";if(!code.includes(displaySeam))throw Error('Display seam changed');code=code.replace(displaySeam,"const display = canvas.getContext('2d')");}
+  if(freshness)code=freshnessTransform(code,inkDelay);
   return code;
  } }], server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: { ignored: ['**/*'] } } });
 let browser, page;
-const results = { minimize, helperHashes:Object.fromEntries(await Promise.all(['shared-pen-studio-control.mjs','shared-pen-pixels.mjs','shared-pen-idle-control.mjs','shared-pen-display-control.mjs','shared-pen-minimize.mjs'].map(async name=>[name,createHash('sha256').update(await readFile(new URL(name,import.meta.url))).digest('hex')]))), harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+const results = { minimize, helperHashes:Object.fromEntries(await Promise.all(['ink-freshness-control.mjs','shared-pen-studio-control.mjs','shared-pen-pixels.mjs','shared-pen-idle-control.mjs','shared-pen-display-control.mjs','shared-pen-minimize.mjs'].map(async name=>[name,createHash('sha256').update(await readFile(new URL(name,import.meta.url))).digest('hex')]))), harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
  motionSourceHashes: Object.fromEntries([...motionSources].map(([name,source]) => [name,createHash('sha256').update(source).digest('hex')])), motionRevision: motionRevision || null, engine, coalesceDisplay, strokeCounters, strokeAttribution, controlMode, presentation, idleOwners, sourceActors:controlMode==='minimal'?'absent; actual paint history only':'production studio', instrument, uiScenario, undoScript:uiScenario==='legacy-undo'?null:undoScript, uiTrace, legacySyncCatchup:process.env.LEGACY_SYNC_CATCHUP==='1', profiled:!!process.env.PROFILE, traced:!!process.env.TRACE, scene:process.env.SCENE||'blank', displayAlpha:process.env.DISPLAY_ALPHA!=='0', displayReadFrequently:process.env.DISPLAY_READ_FREQUENTLY!=='0', cpu: Number(process.env.CPU || 1), seed: 53, samples: 240,
  limitations: 'Desktop headless engine; RAF callback and intended-deadline proxies, no compositor visibility or physical iPad latency.', baselines: [], rows: [] };
 const stats = values => { const a = values.filter(Number.isFinite).sort((a,b)=>a-b); return { n:a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],worst:a.at(-1) }; };
 try {
  await server.listen();
  browser = await ({chromium,webkit}[engine]).launch(); results.browser = browser.version();
+ results.captureSupport={screenshots:'Playwright page.screenshot; may force rendering; no physical presentation timestamp',trace:'existing CDP devtools.timeline traces are attribution, not pixels or presentation',passiveFrames:engine==='chromium'?'CDP Page screencast available in protocol; not used/validated here':'No public Playwright WebKit CDP/frame stream; not guessed through private protocol'};
  page = await browser.newPage({ viewport: { width:1366,height:1024 }, deviceScaleFactor:2, hasTouch:true });
  const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
  if(strokeAttribution)await page.addInitScript(installStrokeAttribution);
- await page.addInitScript(({instrument,uiTrace})=>{
+ await page.addInitScript(({instrument,uiTrace,freshness})=>{
   const media=[];const NativeAudio=window.Audio;window.Audio=class extends NativeAudio { constructor(...args){super(...args);media.push(this);} };
   const activation=()=>navigator.userActivation?{isActive:navigator.userActivation.isActive,hasBeenActive:navigator.userActivation.hasBeenActive}:null;
   const inputs=[]; for(const type of ['pointerdown','click','keydown'])document.addEventListener(type,e=>inputs.push({type,trusted:e.isTrusted,target:e.target.id||e.target.dataset?.action,activation:activation()}),true);
@@ -104,7 +108,8 @@ try {
    document.addEventListener('pointermove',e=>{if(!m.enabled||e.target.id!=='paper-canvas')return;const row={start:performance.now(),stampAge:performance.now()-e.timeStamp,trusted:e.isTrusted,samples:e.getCoalescedEvents?.().length||1};m.events.push(row);e.__sharedPerf=row;requestAnimationFrame(()=>m.nextRAF.push(performance.now()-row.start));},true);
    document.addEventListener('pointermove',e=>{if(e.__sharedPerf)e.__sharedPerf.ms=performance.now()-e.__sharedPerf.start;});
   }
-  window.startSharedPerf=()=>{window.sharedStroke={calls:{},samples:[],listeners:{},requests:0};window.sharedUITrace=[];Object.assign(m,{enabled:true,started:performance.now(),events:[],canvas:{},frames:[],callbackTimes:[],nextRAF:[],delivery:[]});};
+  if(freshness)document.addEventListener('pointermove',e=>{if(!e.isTrusted||!m.enabled||e.target.id!=='paper-canvas')return;const samples=e.getCoalescedEvents?.().length||1;(m.inkTrustedDelivery ||= []).push({start:performance.now(),samples,lastIndex:(window.inkDelivered=(window.inkDelivered||0)+samples)});},true);
+  window.startSharedPerf=()=>{window.sharedStroke={calls:{},samples:[],listeners:{},requests:0};window.sharedUITrace=[];Object.assign(m,{enabled:true,started:performance.now(),ended:null,inkTrustedDelivery:null,events:[],canvas:{},frames:[],callbackTimes:[],nextRAF:[],delivery:[]});};
   let previous;function frame(now){if(m.enabled){m.callbackTimes.push(performance.now());if(previous>=m.started)m.frames.push(now-previous);}previous=now;requestAnimationFrame(frame);}requestAnimationFrame(frame);
   window.dispatchSharedPen=({type,points,due})=>{
    const canvas=document.querySelector('#paper-canvas');
@@ -114,9 +119,9 @@ try {
    if(type==='pointerup'||type==='pointercancel')m.beforeReleasePending=window.sharedDisplayState?.()||null;
    const start=performance.now();window.sharedMinEvent=type;canvas.dispatchEvent(event);window.sharedMinEvent=null;
    if(type==='pointerup'||type==='pointercancel')m.releasePending=window.sharedDisplayState?.()||null;
-   if(type==='pointermove')m.delivery.push({start,due,end:performance.now(),samples:points.length});
+   if(type==='pointermove')m.delivery.push({start,due,end:performance.now(),samples:points.length,lastIndex:(window.inkDelivered=(window.inkDelivered||0)+points.length)});
   };
- },{instrument,uiTrace});
+ },{instrument,uiTrace,freshness});
  const cdp=engine==='chromium'?await page.context().newCDPSession(page):null;
  if(cdp)await cdp.send('Emulation.setCPUThrottlingRate',{rate:results.cpu});
  const measureIdle=async(label)=>{await page.evaluate(()=>window.startSharedPerf());await page.waitForTimeout(2000);const m=await page.evaluate(()=>{window.sharedPerf.enabled=false;return window.sharedPerf;});results.baselines.push({label,frame:stats(m.frames),canvas:m.canvas});};
@@ -154,7 +159,9 @@ try {
   await page.waitForSelector('#paper-canvas[data-paint-ready="ready"]');await page.waitForTimeout(200);
   await page.evaluate(trusted=>{const c=document.querySelector('#paper-canvas');c.__capture??=[c.setPointerCapture,c.releasePointerCapture];[c.setPointerCapture,c.releasePointerCapture]=trusted?c.__capture:[()=>{},()=>{}];},driver==='cdp');
   const box=await page.locator('#paper-canvas').boundingBox();
-  const points=Array.from({length:241},(_,i)=>({x:box.x+(60+Math.abs(((i*10)%1200)-600))*box.width/720,y:box.y+(160+60*Math.sin(i/28.8))*box.height/542,pressure:.5+.35*Math.sin(i/40.8)}));
+  let points=Array.from({length:241},(_,i)=>({x:box.x+(60+Math.abs(((i*10)%1200)-600))*box.width/720,y:box.y+(160+60*Math.sin(i/28.8))*box.height/542,pressure:.5+.35*Math.sin(i/40.8)}));
+  if(freshness&&tool!=='pencil')throw Error('Freshness extent oracle is validated for monotonic black Pencil only');
+  if(freshness)points=Array.from({length:241},(_,i)=>({x:box.x+(60+i*2.5)*box.width/720,y:box.y+270*box.height/542,pressure:.5+.35*Math.sin(i/40.8),nativeX:60+i*2.5}));
   const send=async(type,pts,due)=>{
    if(driver==='cdp')return cdp.send('Input.dispatchMouseEvent',{type:{pointerdown:'mousePressed',pointermove:'mouseMoved',pointerup:'mouseReleased'}[type],x:pts.at(-1).x,y:pts.at(-1).y,button:'left',buttons:type==='pointerup'?0:1,clickCount:type==='pointermove'?0:1,pointerType:'pen',force:type==='pointerup'?0:pts.at(-1).pressure});
    return page.evaluate(payload=>window.dispatchSharedPen(payload),{type,points:pts,due});
@@ -197,7 +204,8 @@ try {
   const stageDuring=minimize?await page.evaluate(stageState):null;
   if(stageDuring&&JSON.stringify(stageDuring.chain.map(({tag,id,rect,geometry})=>({tag,id,rect,geometry})))!==JSON.stringify(stage.chain.map(({tag,id,rect,geometry})=>({tag,id,rect,geometry}))))throw Error('Minimization changed paper ancestry geometry');
   const timing=minimize?await timingDiagnostic(page):null;
-  await page.evaluate(()=>window.startSharedPerf());
+  await page.evaluate(()=>{window.startSharedPerf();window.inkDelivered=0;window.inkConsumed=[];});
+  const finishObserver=freshness?await observeInk(page,output,`${tool}-${driver}-${hz}x${batch}-${trial}`,box,inkObserve):null;
   const wallStart=performance.now();
   if(driver==='inpage')await page.evaluate(async({points,hz,batch,legacy})=>{
    const channel=new MessageChannel();let continuation;channel.port1.onmessage=()=>continuation();
@@ -222,7 +230,10 @@ try {
    await send('pointerup',[points.at(-1)]);
   }
   const elapsed=performance.now()-wallStart;
-  const m=await page.evaluate(async()=>{window.sharedPerf.enabled=false;window.sharedPerf.ended=performance.now();window.sharedPerf.ownerEnd=window.sharedIdleOwners?.filter(o=>o.state().active).map(o=>o.state());window.sharedIdleOwners?.forEach(o=>{if(o.state().parked)o.resume();});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));window.sharedPerf.stroke=window.sharedStroke;window.sharedPerf.displayAfterDrain=window.sharedDisplayState?.()||null;return window.sharedPerf;});
+  if(freshness)await page.evaluate(()=>{window.sharedPerf.enabled=false;window.sharedPerf.ended=performance.now();});
+  const inkCaptures=finishObserver?await finishObserver(points):null;
+  const inkConsumed=freshness?await page.evaluate(()=>window.inkConsumed):null;
+  const m=await page.evaluate(async()=>{window.sharedPerf.enabled=false;window.sharedPerf.ended=window.sharedPerf.ended||performance.now();window.sharedPerf.ownerEnd=window.sharedIdleOwners?.filter(o=>o.state().active).map(o=>o.state());window.sharedIdleOwners?.forEach(o=>{if(o.state().parked)o.resume();});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));window.sharedPerf.stroke=window.sharedStroke;window.sharedPerf.displayAfterDrain=window.sharedDisplayState?.()||null;return window.sharedPerf;});
   const ownerResumed=idleOwners==='off'?null:await page.evaluate(()=>window.sharedIdleOwners.filter(o=>o.state().active).map(o=>o.state()));
   if(ownerBefore)assertOwnerWindow(ownerBefore,m.ownerEnd,ownerResumed,idleOwners==='parked');
   const uiAfter=await page.evaluate(()=>window.sharedUIState());
@@ -244,7 +255,7 @@ try {
   await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}-studio.png`,studioPNG);
   const callbackGaps=m.callbackTimes.slice(1).map((t,i)=>t-m.callbackTimes[i]);
   const leadingGap=(m.callbackTimes[0]??m.ended)-m.started,trailingGap=m.ended-(m.callbackTimes.at(-1)??m.started);
-  const row={stageDuring,minimization,minRestored,timing,trial,tool,driver,objectsBefore,objectsAfter,overlaysBefore,overlaysAfter,chromeState,studioPixels,ownerBefore,ownerEnd:m.ownerEnd,ownerResumed,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
+  const row={inkCaptures,inkConsumed,inkDelay,inkObserve,stageDuring,minimization,minRestored,timing,trial,tool,driver,objectsBefore,objectsAfter,overlaysBefore,overlaysAfter,chromeState,studioPixels,ownerBefore,ownerEnd:m.ownerEnd,ownerResumed,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
    actualEvents:instrument?m.events.length:null,actualSamples:instrument?m.events.reduce((n,e)=>n+e.samples,0):null,trusted:instrument?m.events.filter(e=>e.trusted).length:null,
    callbackFrame:stats(callbackGaps),callbackCount:m.callbackTimes.length,callbackHz:m.callbackTimes.length*1000/(m.ended-m.started),leadingGap,trailingGap,maxObservedOrCensoredGap:Math.max(leadingGap,trailingGap,...callbackGaps),
    syntheticDeliveredEvents:m.delivery.length,syntheticDeliveredSamples:m.delivery.reduce((n,e)=>n+e.samples,0),
@@ -288,6 +299,7 @@ try {
   return failures;
  });
  if(process.env.MAX_MOTION_RGBA_BYTES){const bytes=results.motionCanvases.reduce((sum,c)=>sum+c.rgbaBytes,0);if(bytes>Number(process.env.MAX_MOTION_RGBA_BYTES))results.budgetFailures.push({metric:'motionRGBABytes',value:bytes,max:Number(process.env.MAX_MOTION_RGBA_BYTES)});}
+ if(freshness&&inkObserve)for(const r of results.rows){const valid=r.inkCaptures.filter(c=>c.after.active&&c.before.delivery.length>8);if(valid.length<3)results.budgetFailures.push({metric:'inkCaptureCoverage',value:valid.length,min:3});for(const c of valid)if(c.bound.staleMs>75)results.budgetFailures.push({metric:'intermediateInkStaleLowerBoundMs',value:c.bound.staleMs,max:75,file:c.file});}
  if(results.budgetFailures.length){console.error(JSON.stringify({budgetFailures:results.budgetFailures}));process.exitCode=1;}
 } finally {
  if(page)results.finalUI=await page.evaluate(()=>window.sharedUIState?.()).catch(e=>({error:String(e)}));

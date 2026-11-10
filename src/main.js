@@ -19,6 +19,7 @@ import { loadNativeUi, nativeButtonParts, nativeCursor, renderNativeDrawing, ren
 import { commandButtons, libraryGroups, optionTitle, place, toolGroups, trayState } from './trays.js';
 import { createNativeAnimation } from './native-animation.js';
 import { attachToolTabMotion } from './native-tool-tab-motion.js';
+import { attachCommandMotion } from './native-command-motion.js';
 import { attachLibraryMotion } from './native-library-motion.js';
 import { attachNativeRollovers } from './native-rollovers.js';
 import { applyNativeControlRegions } from './native-control-regions.js';
@@ -1548,9 +1549,10 @@ const commands = {
 
 let nativeLibraryMotion;
 let nativeToolTabMotion;
+let nativeCommandMotion;
 
 async function activate(action) {
-  if (firehose?.busy) { nativeToolTabMotion?.completeActivation(); return; }
+  if (firehose?.busy) { nativeToolTabMotion?.completeActivation(); nativeCommandMotion?.cancel(); return; }
   const [id, value] = action.split(':');
   const group = state.tray;
   if (id === 'tray') { if (!nativeLibraryMotion?.ownsCue(action) && !nativeToolTabMotion?.ownsCue(action)) playUiSound(libKeys.has(value) && value !== 'stamp' ? 1000 : 1002); stopMicrophone(); selectTray(value); nativeToolTabMotion?.completeActivation(); }
@@ -1616,7 +1618,10 @@ async function activate(action) {
     if (change) { Object.assign(state, change); applyTextStyle(); updateActionMotion(); syncTool(); }
   } else if (id === 'align') { state.align = value; applyTextStyle(); showTray(); }
   else if (id === 'edit') doEdit(value);
-  else commands[id]?.();
+  else {
+    try { commands[id]?.(); }
+    finally { nativeCommandMotion?.completeActivation(); }
+  }
 }
 
 app.addEventListener('click', event => {
@@ -1804,13 +1809,15 @@ loadNativeUi().then(manifest => {
   if (manifest.undoAnimations) undoAnimation = createNativeAnimation($('#native-buttons'), nativeSprites.get('undo-face'), playAnimationSound);
   nativeLibraryMotion?.dispose();
   nativeToolTabMotion?.dispose();
+  nativeCommandMotion?.dispose();
   nativeLibraryMotion = attachLibraryMotion(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { onGroup: (group, name) => nativeRollovers?.cancelGroup(group, name), onReady: name => nativeRollovers?.cancel(name) });
   nativeToolTabMotion = attachToolTabMotion(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { readSelection: () => state.tray, onGroup: (group, name) => nativeRollovers?.cancelGroup(group, name), onReady: name => nativeRollovers?.cancel(name) });
-  nativeRollovers = attachNativeRollovers(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { ...paperOptions, fallbackNames: [...nativeLibraryMotion.names, ...nativeToolTabMotion.names], enabled: name => !nativeLibraryMotion.ready(name) && !nativeToolTabMotion.ready(name) });
+  nativeCommandMotion = attachCommandMotion(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { onGroup: (group, name) => nativeRollovers?.cancelGroup(group, name), onReady: name => nativeRollovers?.cancel(name) });
+  nativeRollovers = attachNativeRollovers(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { ...paperOptions, fallbackNames: [...nativeLibraryMotion.names, ...nativeToolTabMotion.names, ...nativeCommandMotion.names], enabled: name => !nativeLibraryMotion.ready(name) && !nativeToolTabMotion.ready(name) && !nativeCommandMotion.ready(name) });
   const cancelLibraryRollover = nativeRollovers.cancel;
   const cancelLibraryGroup = nativeRollovers.cancelGroup;
-  nativeRollovers.cancel = name => { cancelLibraryRollover(name); nativeLibraryMotion.cancel(name); nativeToolTabMotion.cancel(name); };
-  nativeRollovers.cancelGroup = (group, name) => { cancelLibraryGroup(group, name); nativeLibraryMotion.cancelGroup(group, name); nativeToolTabMotion.cancelGroup(group, name); };
+  nativeRollovers.cancel = name => { cancelLibraryRollover(name); nativeLibraryMotion.cancel(name); nativeToolTabMotion.cancel(name); nativeCommandMotion.cancel(name); };
+  nativeRollovers.cancelGroup = (group, name) => { cancelLibraryGroup(group, name); nativeLibraryMotion.cancelGroup(group, name); nativeToolTabMotion.cancelGroup(group, name); nativeCommandMotion.cancelGroup(group, name); };
   if (manifest.paperAnimations) {
     nativePaperPicker = createNativePaperPicker({
       manifest: manifest.paperAnimations,

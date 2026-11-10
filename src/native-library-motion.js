@@ -17,9 +17,10 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
 export function attachMode1Motion(manifest, root, sprites, layer, {
   onGroup = () => {}, onReady = () => {},
   bindings = libraryMotionNames.map((name, i) => ({ name, action: `tray:${actions[i]}` })),
-  readSelection, terminalAdoption = false, actorAttribute = 'nativeLibraryMotion',
+  mode = 1, readSelection, terminalAdoption = false, actorAttribute = 'nativeLibraryMotion',
 } = {}) {
-  const authoritative = Boolean(readSelection);
+  const momentary = mode === 0;
+  const authoritative = momentary || Boolean(readSelection);
   let selection = readSelection?.();
   let activation = null, fallbackContact = null, fallbackPointer = null, adoptionTimer;
   const data = manifest.buttonAnimations;
@@ -90,7 +91,7 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
     paint(a); schedule();
   }
   function unavailable(a) { return a.control.hidden || a.control.matches(':disabled') || a.control.getAttribute('aria-disabled') === 'true'; }
-  function selected(a) { return authoritative ? a.action === `tray:${selection}` : a.control.getAttribute('aria-pressed') === 'true'; }
+  function selected(a) { if (momentary) return false; return authoritative ? a.action === `tray:${selection}` : a.control.getAttribute('aria-pressed') === 'true'; }
   function terminal(a) {
     auxiliaryOff(a); stop(a.base); a.state = selected(a) ? 2 : 0;
     a.base = stream(a.record.stateScripts[a.state], { skipInitialCues: true });
@@ -111,7 +112,8 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
   function completeActivation() {
     const a = activation; activation = null;
     if (!a || !a.ready) return;
-    if (selected(a)) state(a, 2); else terminal(a);
+    if (momentary) state(a, 0);
+    else if (selected(a)) state(a, 2); else terminal(a);
   }
   const keyContact = Symbol('mode1-key');
   function releaseKey() { guard.release(root, keyContact); }
@@ -132,7 +134,7 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
     a.loading = true;
     const pendingEpoch = epoch, generation = a.generation;
     try {
-      await Promise.all([...new Set([...a.record.stateScripts, a.record.rolloverScript])].flatMap(id => data.scripts[id].frames.map(f => preloadButtonImage(view, url(f.image)))));
+      await Promise.all([...new Set([...a.record.stateScripts.filter(Boolean), a.record.rolloverScript])].flatMap(id => data.scripts[id].frames.map(f => preloadButtonImage(view, url(f.image)))));
       if (listeners.signal.aborted || pendingEpoch !== epoch || generation !== a.generation || unavailable(a)) return;
       if (terminalAdoption && (fallbackContact === a || keyboard === a)) { a.decoded = true; return; }
       adopt(a);
@@ -142,7 +144,7 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
   }
   function adopt(a) {
     a.ready = true; a.decoded = false;
-    if (authoritative) selection = readSelection();
+    if (readSelection) selection = readSelection();
     onReady(a.record.name);
     if (terminalAdoption) terminal(a); else settle(a, { skipInitialCues: selected(a) });
   }
@@ -170,9 +172,9 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
   for (const { name, action } of bindings) {
     const record = data?.buttons?.find(b => b.name === name);
     const control = root.querySelector(`[data-action="${action}"]`), idle = sprites.get(name);
-    if (!record || !control || !idle || !record.stateScripts[2]
+    if (!record || !control || !idle || (momentary ? record.stateScripts[2] || record.stateScripts[3] : !record.stateScripts[2])
       || record.hotspotRegion?.status !== 'exact'
-      || [...record.stateScripts, record.rolloverScript].some(id => !data.scripts[id]?.frames?.length || !(data.scripts[id].tickMs > 0) || data.unsupportedScripts?.[id])) continue;
+      || [...record.stateScripts.filter(Boolean), record.rolloverScript].some(id => !data.scripts[id]?.frames?.length || !(data.scripts[id].tickMs > 0) || data.unsupportedScripts?.[id])) continue;
     const image = doc.createElement('img'), hover = doc.createElement('img');
     for (const img of [image, hover]) { img.className = 'native-sprite'; img.alt = ''; img.draggable = false; img.hidden = true; layer.append(img); }
     image.dataset[actorAttribute] = name; hover.dataset.nativeRollover = name;
@@ -236,7 +238,7 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
     // Capture retargets the compatibility click to the layer. Preserve the
     // existing semantic activation exactly once using the original control.
     if (inside) held.a.control.click();
-    if (authoritative && held.a.state === 1) terminal(held.a);
+    if (authoritative && held.a.state === 1) { if (momentary) settle(held.a); else terminal(held.a); }
   }, options);
   root.addEventListener('click', event => {
     const sameReleasedControl = released && (event.target === root || released.a.control.contains(event.target));
@@ -262,7 +264,15 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
     if (a && ['Enter', ' '].includes(event.key) && event.repeat) { event.preventDefault(); return; }
     if (a && ['Enter', ' '].includes(event.key) && !event.repeat) {
       if (contact || !guard.claim({ pointerId: keyContact }, root)) { event.preventDefault(); return; }
+      if (momentary) event.preventDefault();
       cancelledKey = null; keyboard = a; keyboardKey = event.key; state(a, 1);
+    }
+  }, options);
+  if (momentary) root.addEventListener('keyup', event => {
+    if (keyboard && event.key === keyboardKey && !fallbackContact) {
+      event.preventDefault();
+      const a = keyboard;
+      a.control.click();
     }
   }, options);
   if (terminalAdoption) {

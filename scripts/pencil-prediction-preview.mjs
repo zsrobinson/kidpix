@@ -11,9 +11,16 @@ const injection = {
   name: 'private-prediction-fixture', enforce: 'pre',
   transform(source, id) {
     if (id.endsWith('/src/paint.js')) {
-      let fixture = source.replace('function strokeTo(current, end, targetContext = preview) {',
+      let fixture = source
+      const once = (needle, replacement) => {
+        assert.equal(fixture.split(needle).length, 2, `Prediction fixture seam changed: ${needle}`)
+        fixture = fixture.replace(needle, replacement)
+      }
+      once('function strokeTo(current, end, targetContext = preview) {',
         'function strokeTo(current, end, targetContext = preview) { if (targetContext === preview) hooks.__predictionTrace?.({ end: { ...end }, last: { ...current.last }, step: current.step, remainder: current.remainder });')
-        .replace('return () => {\n    seed', 'return () => { window.__predictionRngCalls = (window.__predictionRngCalls || 0) + 1;\n    seed')
+      once('return () => {\n    seed', 'return () => { window.__predictionRngCalls = (window.__predictionRngCalls || 0) + 1;\n    seed')
+      once('    if (current.nativeMarker) {', '    if (current.nativeMarker) { hooks.__predictionNativeTrace?.({ path: "marker", tool: baseBrush.tool, id: dab.id, src: image.src });')
+      once('      drawOriginalDab(preview, point, brush, dab, image, random, current.step++)', '      hooks.__predictionNativeTrace?.({ path: "original", tool: baseBrush.tool, id: dab.id, src: image.src }); drawOriginalDab(preview, point, brush, dab, image, random, current.step++)')
       if (process.env.PENCIL_PREVIEW_FAULT === 'disable') fixture = fixture.replaceAll('hooks.pencilPredictionPreview === true', 'false')
       return fixture
     }
@@ -42,7 +49,7 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
       })
       continue
     }
-    for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]]) {
+    for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]].filter(([name]) => !process.env.PENCIL_PREVIEW_ENGINE || process.env.PENCIL_PREVIEW_ENGINE === name)) {
       const browser = await launcher.launch()
       const context = await browser.newContext({ viewport: { width: 1366, height: 1024 } })
       await context.tracing.start({ screenshots: true, snapshots: true })
@@ -51,6 +58,7 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
       let success = false
       try {
         const page = await context.newPage()
+        if (process.env.PENCIL_PREVIEW_FAULT === 'missing-assets') await page.route('**/original/tools/brushes/**', route => route.abort())
         await page.addInitScript(fault => { window.__predictionEnabled = true; window.__predictionErrorFault = fault === 'pageerror' }, process.env.PENCIL_PREVIEW_FAULT)
         await page.goto(`http://127.0.0.1:${built ? 4612 : 4611}/`)
         await page.waitForFunction(() => window.__predictionTest && document.querySelector('#paper-canvas')?.dataset.paintReady === 'ready')
@@ -76,7 +84,7 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
         await page.clock.pauseAt(new Date('2026-11-10T00:01:00Z'))
         const result = await page.evaluate(async () => {
           const { createPaint, paint: studio, state, scene, createComposite } = window.__predictionTest
-          const checks = []
+          const checks = [], assetErrors = []
           if (window.__predictionErrorFault) queueMicrotask(() => { throw Error('injected prediction fixture page error') })
           const equal = (a, b, label) => { if (a !== b) throw Error(label); checks.push(label) }
           const different = (a, b, label) => { if (a === b) throw Error(label); checks.push(label) }
@@ -109,10 +117,16 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
             canvas ||= frame.contentDocument.createElement('canvas')
             canvas.width = native ? 720 : 256; canvas.height = native ? 542 : 128; canvas.style.cssText = `position:fixed;left:0;top:0;width:${canvas.width}px;height:${canvas.height}px`
             frame.contentDocument.body.append(canvas); canvas.setPointerCapture = () => {}; canvas.releasePointerCapture = () => {}
-            const trace = []; const paint = createPaint(canvas, { originalTools: native ? new URL('/original/tools/', location.href).href : '', soundEffects: false, pencilPredictionPreview: enabled, __predictionTrace: row => trace.push(row) })
-            await paint.setOptions({ size: 9, color: '#123456', ...options })
+            const trace = [], nativeTrace = []; const paint = createPaint(canvas, { originalTools: native ? new URL('/original/tools/', location.href).href : '', soundEffects: false, pencilPredictionPreview: enabled, __predictionTrace: row => trace.push(row), __predictionNativeTrace: row => nativeTrace.push(row), onError: error => assetErrors.push(String(error)) })
+            const asset = await paint.setOptions({ size: 9, color: '#123456', ...options })
+            if (assetErrors.length) throw Error(`Fixture paint asset errors: ${assetErrors.join('; ')}`)
+            if (native) {
+              if (!asset || typeof asset.decode !== 'function') throw Error('Native fixture requires a decoded brush asset')
+              await asset.decode()
+              if (!asset.complete || asset.naturalWidth <= 0 || asset.naturalHeight <= 0) throw Error('Native fixture brush has no decoded pixels')
+            }
             const compose = (opts = {}) => { const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height; paint.renderTo(c.getContext('2d'), opts); return rgba(c) }
-            return { paint, canvas, compose, trace, end: () => { paint.destroy(); frame.remove() } }
+            return { paint, canvas, compose, trace, nativeTrace, asset, end: () => { paint.destroy(); frame.remove() } }
           }
           const actual = [{ x: 55.4, y: 45, pressure: .2 }, { x: 83.8, y: 45, pressure: .7 }]
           const future = [{ x: 121.1, y: 55.5, pressure: .3 }, { x: 165, y: 66.5, pressure: .9 }]
@@ -171,6 +185,10 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
               send(item.canvas, 'pointerdown', 20, 45, .2)
               send(item.canvas, 'pointermove', 84, 45, .8, item === f ? future : [])
             }
+            for (const item of [f,control]) {
+              equal(item.nativeTrace.length > 0, true, `native ${tool} original branch is used`)
+              equal(item.nativeTrace.every(row => row.path === (tool === 'marker' ? 'marker' : 'original') && row.tool === tool && row.id === (tool === 'marker' ? 1011 : 1002) && row.src === item.asset.src), true, `native ${tool} uses the decoded source brush`)
+            }
             different(rgba(control.canvas), before, `native ${tool} fixture actually renders ink`)
             equal(rgba(f.canvas), rgba(control.canvas), `native ${tool} prediction exclusion`)
             for (const item of [f,control]) send(item.canvas, 'pointerup', 84, 45, 0)
@@ -212,7 +230,7 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
           different(mid, canonical.toDataURL(), 'actual studio default Pencil is eligible with private opt-in')
           send(c, 'pointermove', 70, 280, .2); equal(c.toDataURL(), (() => { studio.renderTo(canonical.getContext('2d'), { includePreview: true, includeForeground: false }); return canonical.toDataURL() })(), 'actual app correction exact')
           send(c, 'pointerup', 70, 280, 0)
-          window.__predictionFixture = { make, send, rgba, checks }
+          window.__predictionFixture = { make, send, rgba, checks, assetErrors }
           return { checks, constructorModeledPoints: count }
         })
         // Timer and interruption checks cross a task boundary with controlled time.
@@ -251,6 +269,7 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
           }, lifecycle)
           result.checks.push(`lifecycle ${lifecycle} and late callback`)
         }
+        assert.deepEqual(await page.evaluate(() => window.__predictionFixture.assetErrors), [], 'Paint asset errors invalidate prediction fixture acceptance')
         assert.deepEqual(pageErrors, [], 'Browser page errors invalidate prediction fixture acceptance')
         receipts.push({ engine, built, trustedPenProbe, pageErrors, ...result })
         success = true

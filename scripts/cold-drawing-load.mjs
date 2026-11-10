@@ -1,4 +1,5 @@
 // Isolated actual-studio cold readiness probe. No production changes or fake clock.
+import { coldPaintTransform } from './cold-drawing-control.mjs';
 import { chromium, webkit } from '@playwright/test';
 import { createServer, build } from 'vite';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -22,14 +23,7 @@ const plugin={name:'cold-probe-only',enforce:'pre',transform(code,id){
  return patch(code,'  }));\n  abort();\n  return new Map(entries);','  })));\n  abort();\n  return new Map(entries);');
  }
  if(!id.endsWith('/src/paint.js'))return;
- code=patch(code,'makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))','makeRandom(53)');
- if(instrument){
-  code=patch(code,'function setOptions(next) {','function setOptions(next) { window.coldLog?.push({kind:"options",t:performance.now(),next,contact});');
-  code=patch(code,'function cancel() {','function cancel() { window.coldLog?.push({kind:"cancel",t:performance.now(),contact});');
-  code=patch(code,'function strokeTo(current, end) {','function strokeTo(current, end) { window.coldLog?.push({kind:"sample",t:performance.now(),end,contact});');
-  code=patch(code,'function render() {','function render() { window.coldLog?.push({kind:"render",t:performance.now(),contact});');
- }
- return code;
+ return coldPaintTransform(code,{instrument});
 }};
 let server,browser;
 const result={node:process.version,revision:process.env.REVISION||execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),harness:hash(await readFile(new URL(import.meta.url))),engine,instrument,built,cpu:Number(process.env.CPU||1),decodeLimit:Number(process.env.DECODE_LIMIT||0),rows:[],limitations:'Synthetic pen with test-only capture shim. Real clocks. Timing is enqueue/handler/RAF proxy, not hardware or photons. Source exposure and RNG seed shared across lanes; counter wrappers only INSTRUMENT=1.'};

@@ -427,8 +427,9 @@ whole-picture/slide playback. Its row15 adds3 source programs/4 poses, bringing
 secondary scope to49 rows/155 programs/207 poses. Exact BR/block endpoints now
 survive focus restoration, preserving backward ranges and collapsed carets.
 Parent focused checks passed199 Node,111 related Chromium and29 Read WebKit
-cases, build/dryrun. Final independent review and full release gates remain
-pending. Existing media needs public hash verification before publishing.
+cases, build/dryrun. Final independent review found no objections after37 cases
+per browser and24 Node checks; its three old-mapping regressions failed as expected.
+All10 existing media keys match public hashes. Full release gates remain pending.
 
 The unmodified Windows2.2.1.271 original reached its EULA in run42742090168
 with genuine installer PATH and loaded QuickTime modules. Both owned captures
@@ -438,3 +439,19 @@ No PaintZone/About/drawing/Undo/animation/audio was reached. Native references
 remain0/17, and Windows remains distinct from Mac2.2/build615. Evidence:
 `artifacts/t3/windows-original-parent-review/trusted-path-result.json` and the
 linked isolated audit. Actual iPad hardware is still untested.
+
+
+Final0.13 gates passed399 development,350 built,163 WebKit with one explicit
+Chromium-only skip,199 Node, assets/build/dryrun and source-only193 with six
+asset-dependent skips. Final review has no objections. All17 web captures pass
+existing comparisons;16 are pixel-identical and Text differs only by254 pixels
+of maximum channel difference1 inside Read. No web baseline was changed.
+All10 required public keys match; no upload. Ready for final release commit/push
+and exact-revision public verification; receipts `artifacts/t3/release-0130/`.
+
+Next source audit `artifacts/t3/text-clipboard-next/README.md` proves Text240/241/242
+operate on editor character ranges and OS text flavors. Generic scene object
+Cut/Copy/Paste is unsuitable. A dedicated plaintext/internal text clipboard
+adapter is supportable, with explicit browser availability/history/lifecycle
+policy. Native rich styles and inherited capability/focus details remain
+unresolved. Preserve source/runtime distinctions when implementing that slice.

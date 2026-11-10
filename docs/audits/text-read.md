@@ -79,3 +79,20 @@ build-after-br,dryrun-after-br}.log`. Earlier failed probes remain intact.
 Native references stay0/17; these are browser/model checks, not physical iPad,
 audible speech, or native runtime acceptance. Root integration and final review
 remain pending.
+
+
+## Integrated0.13 release validation
+
+Integrated as45cec49 and4d58f91 above live0.12 b75a772. Parent checks pass199
+Node,399 development,350 built and163 WebKit cases with one explicit
+Chromium-only skip. Source-only export passes193 with six asset-dependent skips,
+build and Worker dry run. All10 required public keys match full hashes; no upload.
+All17 static captures pass existing comparisons. Sixteen are pixel-identical;
+Text's254 differing pixels have maximum channel difference1, confined to the
+Read footprint. Existing baselines remain unchanged. Independent final review
+found no objections after37 cases per browser and24 Node checks; three old-module
+regressions fail, and deliberately corrupted rendered pixels are rejected.
+
+Release receipts and logs: `artifacts/t3/release-0130/`. Exact-revision public
+verification follows publication. These checks establish browser/model behavior;
+native0/17, actual iPad, audible delivery and native timing remain unverified.

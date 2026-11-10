@@ -2,13 +2,16 @@
 
 The Ubuntu source recovery exports 59 controls from 11 original MBTN tables,
 179 complete programs and 235 authored draw groups. The runtime enables
-46 unique source rows, 144 programs and 193 draw groups. These include the initial
+49 unique source rows, 155 programs and 207 draw groups. These include the initial
 23 selector rows plus Text alignment/formatting/font/size arrows, Grab clipboard
 and ordering actions, and Stamp category arrows/sizes/editor entry. Size rows are
 shared by multiple owners; these counts describe unique source rows, not rendered
 button instances. The four Text steppers add 16 programs and 20 poses; see
 [their source and value contract](text-steppers.md). Native popup interiors,
-Text clipboard/voice controls and remaining Grab navigation are not enabled.
+Text clipboard controls and remaining Grab navigation are not enabled. The two
+voice arrows add eight programs/ten poses, and Read adds three programs/four
+poses. Voice popups remain native browser selects; see [voice ownership](text-voice-controls.md)
+and [selected-text Read](text-read.md) for recovered rules and browser adaptations.
 
 ## Source and state rules
 

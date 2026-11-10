@@ -23,6 +23,7 @@ Before publishing, also run `npm run test:browser:build`. It builds the actual C
 
 The browser suite covers:
 
+- Selected-range/current-box Read, directional Unicode/multiline ranges through focus changes, source Read artwork, and deterministic speech ownership across Text, Picture Play and Firehose. These model browser callbacks; audible device output remains a separate acceptance step.
 - Seventeen comparison states across all eight tool tabs: empty Paint Zone, pencil straight line, filled box, painting tray, large Air Brush selection, original Paint Shape, native Stamp Editor, background tray, placed sticker and Slide Show with one picture.
 - Drawing, exact canvas undo/redo, saving a picture containing ink and a sticker, clearing it, reopening it, and checking exported PNG dimensions and an ink pixel.
 - Drawing at an 800×600 viewport to verify pointer-to-page coordinate mapping.

@@ -2,6 +2,14 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.13.0
+
+- Read speaks the selected range in the current text box, falling back to that box when the caret is collapsed. Whole-picture Play retains its existing ordered text queue and each object's voice.
+- Restored Read's three original programs and four poses, including shared tracking/running progress, source sound gates and completion artwork. Enabled secondary scope is 49 rows, 155 programs and 207 poses.
+- Owned speech requests prevent late completion callbacks and held Stop gestures from affecting replacement requests or other playback. Selection, text, voice, object and browser interruption retire the appropriate request.
+- Preserved directional UTF-16 ranges, surrogate boundaries, multiline text and exact trailing-break caret/selection positions through focus changes. No media upload is needed; all ten required existing keys match public checksums.
+- Verified 199 Node checks, 399 development cases, 350 built cases and 163 WebKit cases with one explicit Chromium-only skip. Source-only validation passed 193 cases with six asset-dependent skips, build and deployment dry run. Final independent review found no objections; all 17 captures pass existing web comparisons without changing baselines. Native references remain 0/17; physical iPad and audible speech delivery are unverified.
+
 ## 0.12.0
 
 - Public verification covered all 323 cases across 315 initial passes and eight unchanged rechecks. The initial full run failed eight loading/navigation cases; its cause remains unresolved. All 17 live captures pass the existing web comparison rules; no native reference was accepted.

@@ -76,6 +76,19 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
     });
   }
 
+  // A page transaction can deactivate one retained actor until it settles.
+  // Releasing ownership never synthesizes hover or restarts a source timeline.
+  function suspend(name) {
+    const targets = name === undefined ? [...actors.values()] : [actors.get(name)].filter(Boolean);
+    const releases = targets.map(actor => actor.suspend());
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      releases.forEach(release => release());
+    };
+  }
+
   // Browser lifecycle adaptation of native controller deactivation/destruction.
   // Retained actors must not keep sounding in an inactive or discarded window.
   view.addEventListener('blur', () => cancel(), options);
@@ -120,6 +133,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
     const framesReady = Promise.all(clip.frames.map(frame => preload(frame.image)));
     // Missing assets leave the existing static binding in charge.
     framesReady.catch(() => {});
+    let suspensions = 0;
     let inside = false;
     let blockedUntilLeave = false;
     let generation = 0;
@@ -130,7 +144,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
     const pendingAudio = new Map();
 
     function unavailable() {
-      return control.getAttribute('aria-pressed') === 'true'
+      return suspensions > 0 || control.getAttribute('aria-pressed') === 'true'
         || control.getAttribute('aria-disabled') === 'true'
         || control.matches(':disabled') || control.hidden;
     }
@@ -146,7 +160,11 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
       pendingAudio.clear();
     }
 
-    actors.set(button.name, { group, stop });
+    actors.set(button.name, { group, stop, suspend() {
+      suspensions++;
+      stop();
+      return () => { suspensions--; };
+    } });
 
     function playSound(sound) {
       const channel = sound.channel ?? 1;
@@ -257,5 +275,6 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
   // the hover marker. Keep the existing callable-disposer integration intact.
   dispose.cancel = cancel;
   dispose.cancelGroup = cancelGroup;
+  dispose.suspend = suspend;
   return dispose;
 }

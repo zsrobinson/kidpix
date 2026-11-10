@@ -134,3 +134,35 @@ or full media sync was needed. All17 static captures remain pixel-identical to0.
 web baseline acceptance was unnecessary. Enlarged
 actor placement, native runtime/reference capture and native paper semantics
 remain objections to a full-parity claim, not reasons to enable guessed effects.
+
+## Physical iPad bubbling follow-up (2026-11-10)
+
+Accepted clear now suspends the main-button Firehose rollover for the transaction.
+The retained script1091 player (channel1 / Easel1029) was independent of
+RBubbleCleaner and its one-shot WaterCleaner7433. Ordinary press/leave deliberately
+kept1091 alive; clear previously never acquired it, so it continued restarting
+1029 after wipe completion. The actual controller + clear Node probe reproduces
+this, without claiming audible Safari reproduction.
+
+`attachNativeRollovers(...).suspend(name)` force-stops that actor and invalidates
+pending decode, returning an idempotent release. Nested suspensions compose.
+While suspended, new entry cannot start that actor. Release never synthesizes
+hover or cues. `createFirehoseOperation` takes optional `suspendRollover`, acquires
+it before settle/begin, and releases even if transaction release throws. Main
+passes the Firehose-only hook. Unrelated players and ordinary fresh-entry cues
+remain owned by their existing controllers. Controller replacement still calls
+the prior disposer before replacing its layer.
+
+This is a deliberate browser transaction policy reflecting the user's accepted
+clear behavior, not a new claim about native command266 choreography. Historical
+word12=294 retention still applies to ordinary leave/press. No global mute, hose
+actor placement, timing change or source timeline restart was added.
+
+Focused regression: `node --test scripts/parity/firehose-ownership.test.mjs`.
+Baseline e904502 fails the exact active1029 assertion (1 versus0); the initial
+completion probe also observed continued callback growth after the wipe.
+Coverage includes ordinary retained repeat before activation, pending decode,
+busy refusal, cancel/reentry, rapid repeat, settle/begin/composite/commit failures,
+pagehide/hidden/disposal, nested release, refused playback and unrelated audio.
+Actual browser acceptance is deferred to the coordinating task; the browser spec
+is `tests/browser/ipad-lifecycle-deferred.spec.js`. Native references remain0/17.

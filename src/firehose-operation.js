@@ -3,7 +3,7 @@ import { createNativeBigEraser } from './native-big-eraser.js';
 
 // Browser page transaction. The source renderer owns only paths/timing/audio;
 // this scope owns mutation exclusion, composite stacking and caller rollback.
-export function createFirehoseOperation({ surface, canvas, original, settle, begin, composite, onError }) {
+export function createFirehoseOperation({ surface, canvas, original, settle, begin, composite, onError, suspendRollover = () => undefined }) {
   const inputOwner = interactionOwner(surface.ownerDocument);
   let active = null;
   let disposed = false;
@@ -22,7 +22,10 @@ export function createFirehoseOperation({ surface, canvas, original, settle, beg
     active = null;
     generation++;
     try { run.transaction?.release(committed); }
-    finally { run.frozen?.remove(); run.overlay?.remove(); surface.removeAttribute('aria-busy'); }
+    finally {
+      try { run.releaseRollover?.(); }
+      finally { run.frozen?.remove(); run.overlay?.remove(); surface.removeAttribute('aria-busy'); }
+    }
   }
   function cancel(reason) {
     const run = active;
@@ -51,6 +54,7 @@ export function createFirehoseOperation({ surface, canvas, original, settle, beg
       const run = { generation: ++generation };
       active = run;
       try {
+        run.releaseRollover = suspendRollover();
         settle();
         run.transaction = begin();
         run.frozen = composite();

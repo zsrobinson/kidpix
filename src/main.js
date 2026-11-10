@@ -1119,6 +1119,7 @@ function createComposite(result = document.createElement('canvas')) {
 
 // This operation owns the whole picture, independently of rollover and panel choices.
 firehose = createFirehoseOperation({ surface, canvas, original,
+  suspendRollover: () => nativeRollovers?.suspend('firehose'),
   settle() {
     speech.retire('TextRead');
     cancelRecordedPathInput();

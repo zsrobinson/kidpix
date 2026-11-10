@@ -1,3 +1,4 @@
+import { observeUiAudio } from './ui-audio.js';
 import { original } from './library.js';
 import { place } from './trays.js';
 
@@ -23,12 +24,15 @@ export function createNativeAnimation(layer, idle, playSound, { schedule = setTi
   const decoded = new Map();
   const ownedSounds = new Map();
   const pendingSounds = new Map();
+  const soundCleanup = new Map();
 
   function stop() {
     generation++;
     cancel(animationFrame);
     image.hidden = true;
     idle.hidden = false;
+    for (const cleanup of soundCleanup.values()) cleanup();
+    soundCleanup.clear();
     for (const audio of ownedSounds.values()) audio.pause();
     ownedSounds.clear();
     pendingSounds.clear();
@@ -40,6 +44,8 @@ export function createNativeAnimation(layer, idle, playSound, { schedule = setTi
     const channel = cue.channel ?? 1;
     const previous = ownedSounds.get(channel);
     if (previous) {
+      soundCleanup.get(previous)?.();
+      soundCleanup.delete(previous);
       previous.pause();
       pendingSounds.delete(previous);
       ownedSounds.delete(channel);
@@ -49,11 +55,11 @@ export function createNativeAnimation(layer, idle, playSound, { schedule = setTi
     ownedSounds.set(channel, audio);
     pendingSounds.set(audio, channel);
     const finished = () => {
+      soundCleanup.delete(audio);
       pendingSounds.delete(audio);
       if (ownedSounds.get(channel) === audio) ownedSounds.delete(channel);
     };
-    audio.addEventListener('ended', finished, { once: true });
-    audio.addEventListener('error', finished, { once: true });
+    soundCleanup.set(audio, observeUiAudio(audio, finished));
   }
 
   async function play(clip, tickMs) {

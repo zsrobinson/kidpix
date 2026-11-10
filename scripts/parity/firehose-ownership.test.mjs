@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 // actual controller body; no copied scheduling/ownership implementation.
 const rolloverSource = readFileSync(new URL('../../src/native-rollovers.js', import.meta.url), 'utf8')
   .replace("import { original } from './library.js';", "const original = name => '/original/' + name;")
+  .replace("'./ui-audio.js'", JSON.stringify(new URL('../../src/ui-audio.js', import.meta.url).href))
   .replace("'./trays.js'", JSON.stringify(new URL('../../src/trays.js', import.meta.url).href));
 const { attachNativeRollovers } = await import(`data:text/javascript;base64,${Buffer.from(rolloverSource).toString('base64')}`);
 import { createFirehoseOperation } from '../../src/firehose-operation.js';

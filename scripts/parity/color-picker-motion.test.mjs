@@ -48,7 +48,8 @@ test('sound completion gates readiness at scheduled boundaries, audio failure re
   assert.deepEqual(f.ready, []); assert.equal(f.paints.at(-1).frameIndex, 6);
   audio.dispatchEvent(new Event('error')); f.advance(29); assert.deepEqual(f.ready, []);
   f.advance(1); assert.deepEqual(f.ready, [630]);
-  f.picker.dispose(); assert.equal(audio.paused, true);
+  f.picker.dispose();
+  assert.equal(audio.paused, undefined, 'completed handle was released; dispose only stops still-owned audio');
 });
 
 test('delayed RAF delivers one native pose and schedules the next from delivery', async () => {

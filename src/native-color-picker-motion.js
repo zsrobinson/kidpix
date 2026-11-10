@@ -1,3 +1,4 @@
+import { observeUiAudio } from './ui-audio.js';
 // BigPicker.MHK / RColorPicker. Coordinates are native 1024×768 scene pixels.
 // No DOM listeners: the Easel adapter owns scaled pointer coordinates and menus.
 export function colorPickerContains(region, x, y) {
@@ -33,7 +34,7 @@ export function drawColorPickerFrame(context, manifest, clip, frame, imageFor) {
 
 // render({phase, clip, frame, frameIndex}) receives null frame when fully closed.
 // prepare() resolves after images decode. playSound(cue) may return an Audio-like
-// object; ended/error completion gates native finite playback. No object means
+// object; browser terminal events/play rejection gate native finite playback. No object means
 // sound is disabled/unavailable and cannot delay completion. readColor(x,y)
 // supplies the native screen sampler (the adapter may sample its composed canvas).
 export function createNativeColorPickerMotion({ manifest, prepare = async () => {},
@@ -65,14 +66,12 @@ export function createNativeColorPickerMotion({ manifest, prepare = async () => 
     audio.add(sound);
     if (sound.ended || sound.error) return;
     pendingAudio.add(sound);
-    const done = () => { pendingAudio.delete(sound); };
-    const cleanup = () => {
-      sound.removeEventListener?.('ended', done);
-      sound.removeEventListener?.('error', done);
-    };
+    const cleanup = observeUiAudio(sound, () => {
+      pendingAudio.delete(sound);
+      audio.delete(sound);
+      cleanupAudio.delete(cleanup);
+    });
     cleanupAudio.add(cleanup);
-    sound.addEventListener?.('ended', done, { once: true });
-    sound.addEventListener?.('error', done, { once: true });
   }
   function paint() {
     render({ phase, clip, frame: clip.frames[frameIndex], frameIndex });

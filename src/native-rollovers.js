@@ -1,3 +1,4 @@
+import { playUiAudio, observeUiAudio } from './ui-audio.js';
 import { original } from './library.js';
 import { place } from './trays.js';
 
@@ -142,6 +143,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
     let idleWasHidden = false;
     const ownedAudio = new Map();
     const pendingAudio = new Map();
+    const audioCleanup = new Map();
 
     function unavailable() {
       return suspensions > 0 || control.getAttribute('aria-pressed') === 'true'
@@ -155,6 +157,8 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
       image.hidden = true;
       if (hidingIdle) idle.hidden = idleWasHidden;
       hidingIdle = false;
+      for (const cleanup of audioCleanup.values()) cleanup();
+      audioCleanup.clear();
       for (const audio of ownedAudio.values()) audio.pause();
       ownedAudio.clear();
       pendingAudio.clear();
@@ -170,6 +174,8 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
       const channel = sound.channel ?? 1;
       const previous = ownedAudio.get(channel);
       if (previous) {
+        audioCleanup.get(previous)?.();
+        audioCleanup.delete(previous);
         previous.pause();
         pendingAudio.delete(previous);
       }
@@ -179,12 +185,12 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
       ownedAudio.set(channel, audio);
       pendingAudio.set(audio, channel);
       const finished = () => {
+        audioCleanup.delete(audio);
         pendingAudio.delete(audio);
         if (ownedAudio.get(channel) === audio) ownedAudio.delete(channel);
       };
-      audio.addEventListener('ended', finished, { once: true });
-      audio.addEventListener('error', finished, { once: true });
-      audio.play()?.catch(finished);
+      playUiAudio(audio);
+      audioCleanup.set(audio, observeUiAudio(audio, finished));
     }
 
     async function start() {

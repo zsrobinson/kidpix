@@ -1,3 +1,4 @@
+import { playUiAudio } from './ui-audio.js';
 import { createSpeechCoordinator } from './speech-coordinator.js';
 import { VOICE_STEPPERS, voiceStep, voiceOptions, createVoiceCatalog } from './text-voices.js';
 import { createFirehoseOperation } from './firehose-operation.js';
@@ -336,9 +337,7 @@ function playUiSound(id) {
 function playAnimationSound(id) {
   const audio = new Audio(original(`ui/easel-${id}.wav`));
   audio.volume = .65;
-  // The actor owns this handle. Rejection must release its completion slot.
-  audio.play().catch(() => audio.dispatchEvent(new Event('error')));
-  return audio;
+  return playUiAudio(audio);
 }
 
 function animateUndoGuy() {

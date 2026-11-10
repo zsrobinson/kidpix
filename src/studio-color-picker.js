@@ -1,3 +1,4 @@
+import { playUiAudio, observeUiAudio } from './ui-audio.js';
 import { createNativeColorPickerMotion, drawColorPickerFrame, colorPickerContains, colorPickerHit } from './native-color-picker-motion.js';
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 
@@ -11,16 +12,13 @@ export function createStudioColorPicker({ studio, palette, trigger, original, ge
   const context = actor.getContext('2d', { willReadFrequently: true });
   const owner = interactionOwner(studio.ownerDocument);
   let picker, manifest, images, request, generation = 0, contact, failed = false;
-  const sounds = new Set();
+  const sounds = new Map();
   function sound(cue) {
     if (!cue.audio) return null;
     const audio = new Audio(original(`ui/color-picker-motion/${cue.audio}`));
-    sounds.add(audio);
-    const done = () => sounds.delete(audio);
-    audio.addEventListener('ended', done, { once: true });
-    audio.addEventListener('pause', done, { once: true });
-    audio.addEventListener('error', done, { once: true });
-    audio.play().catch(() => { audio.dispatchEvent(new Event('error')); done(); });
+    playUiAudio(audio);
+    const cleanup = observeUiAudio(audio, () => sounds.delete(audio));
+    if (!audio.ended && !audio.error) sounds.set(audio, cleanup);
     return audio;
   }
   function release() {
@@ -42,7 +40,7 @@ export function createStudioColorPicker({ studio, palette, trigger, original, ge
     drawColorPickerFrame(context, manifest, clip, clip.frames[0], path => images.get(path));
   }
   function stopSounds() {
-    for (const audio of sounds) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
+    for (const [audio, cleanup] of sounds) { cleanup(); audio.pause(); audio.removeAttribute('src'); audio.load(); }
     sounds.clear();
   }
   function reset() {

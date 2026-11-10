@@ -1,3 +1,4 @@
+import { playUiAudio, observeUiAudio } from './ui-audio.js';
 import { createDrawingMotionController, loadDrawingMotionAssets, paintDrawingMotionFrame } from './native-drawing-motion.js';
 import { regionClipPath } from './native-control-regions.js';
 import { place } from './trays.js';
@@ -102,11 +103,9 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     const audio = new view.Audio(resolve(cue.src));
     audio.volume = .65;
     let complete = false;
-    const finish = () => { complete = true; };
-    audio.addEventListener('ended', finish, { once: true });
-    audio.addEventListener('error', finish, { once: true });
-    audio.play()?.catch(finish);
-    return { stop() { audio.pause(); complete = true; }, isComplete: () => complete || audio.ended };
+    playUiAudio(audio);
+    const release = observeUiAudio(audio, () => { complete = true; });
+    return { stop() { release(); audio.pause(); complete = true; }, isComplete: () => complete || audio.ended };
   }
 
   function render(snapshot) {

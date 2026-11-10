@@ -1,3 +1,4 @@
+import { createTextClipboard } from './text-clipboard.js';
 import { editorText } from './editor-text.js';
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 import { makeId } from './id.js';
@@ -41,6 +42,8 @@ export function createScene(root, surface, onChange) {
   let selected = null;
   let clipboard = null;
   let before = null;
+  let documentEpoch = 0, textRevision = 0, disposed = false;
+  let beforeRange = null;
   let mode = 'paint';
   let playing = false;
   let animation;
@@ -54,7 +57,48 @@ export function createScene(root, surface, onChange) {
 
   const current = () => objects.find(object => object.id === selected);
   const snapshot = () => structuredClone(objects);
-  const changed = (prior) => onChange(prior, snapshot());
+  const changed = (prior, ranges) => onChange(prior, snapshot(), ranges);
+  const editorFor = id => [...root.children].find(node => node.dataset.object === id)?.querySelector('.object-text');
+  function selectionAt(id, range, focus = true) {
+    const editor = editorFor(id);
+    if (!editor || !range) return;
+    if (focus) editor.focus({ preventScroll: true });
+    const model = editorText(editor);
+    root.ownerDocument.getSelection().setBaseAndExtent(...model.point(range.anchor), ...model.point(range.focus));
+  }
+  function flushText() {
+    if (!before) return;
+    const prior = before; before = null;
+    if (JSON.stringify(prior) !== JSON.stringify(objects)) changed(prior, {
+      before: beforeRange, after: textClipboard.target() });
+    beforeRange = null;
+  }
+  const textClipboard = createTextClipboard({ epoch: () => documentEpoch,
+    current: () => ({ id: current()?.id, editor: editorFor(current()?.id), revision: textRevision,
+      editable: !disposed && mode === 'text' && !playing && !suspended && current()?.kind === 'text' }),
+    replace(token, next) {
+      if (JSON.stringify(textClipboard.target()) !== JSON.stringify(token)) return false;
+      flushText();
+      if (JSON.stringify(textClipboard.target()) !== JSON.stringify(token)) return false;
+      const prior = snapshot(), object = current(), editor = editorFor(object.id);
+      const nodes = [...editor.childNodes], oldText = object.text;
+      try {
+        object.text = next.text; editor.textContent = next.text; textRevision++;
+        selectionAt(object.id, next);
+      } catch {
+        object.text = oldText; editor.replaceChildren(...nodes); textRevision++;
+        try { selectionAt(object.id, token); } catch { /* Retain the original editor on selection failure. */ }
+        before = null; beforeRange = null;
+        notify();
+        return false;
+      }
+      // Focus callbacks can establish a new blur baseline; replace it after commit.
+      before = null; beforeRange = null;
+      changed(prior, { before: token, after: { ...next, objectId: object.id } });
+      notify();
+      return true;
+    },
+  });
   const coordinates = event => {
     const bounds = surface.getBoundingClientRect();
     return {
@@ -64,6 +108,7 @@ export function createScene(root, surface, onChange) {
   };
 
   function render() {
+    textRevision++;
     root.replaceChildren();
     for (const object of objects) {
       const node = document.createElement('div');
@@ -83,10 +128,15 @@ export function createScene(root, surface, onChange) {
           text.setAttribute('aria-label', 'Picture text');
           text.spellcheck = true;
           text.addEventListener('focus', () => {
-            before = snapshot();
+            before ??= snapshot();
             selected = object.id;
+            beforeRange = textClipboard.target();
           });
-          text.addEventListener('input', () => { object.text = editorText(text).text; notify(); });
+          text.addEventListener('beforeinput', () => {
+            before ??= snapshot();
+            if (before.find(item => item.id === object.id)?.text === object.text) beforeRange = textClipboard.target();
+          });
+          text.addEventListener('input', () => { before ??= snapshot(); object.text = editorText(text).text; textRevision++; notify(); });
           text.addEventListener('blur', () => {
             if (before) {
               const prior = before.find(item => item.id === object.id);
@@ -94,9 +144,9 @@ export function createScene(root, surface, onChange) {
                 objects = objects.filter(item => item !== object);
                 if (selected === object.id) selected = null;
                 node.remove();
-              } else if (prior?.text !== object.text) changed(before);
+              } else if (prior?.text !== object.text) flushText();
             }
-            before = null;
+            before = null; beforeRange = null;
           });
         }
         node.append(text);
@@ -136,6 +186,7 @@ export function createScene(root, surface, onChange) {
   }
 
   function add(object) {
+    flushText();
     const prior = snapshot();
     object.id = makeId();
     objects.push(object);
@@ -206,6 +257,7 @@ export function createScene(root, surface, onChange) {
   }
 
   return {
+    textClipboard, flushText,
     settle() {
       root.ownerDocument.activeElement?.blur();
       finishInactive();
@@ -274,6 +326,7 @@ export function createScene(root, surface, onChange) {
       }
     },
     setTextStyle(style) {
+      flushText();
       const object = current();
       if (object?.kind !== 'text') return;
       const prior = snapshot();
@@ -282,6 +335,7 @@ export function createScene(root, surface, onChange) {
       changed(prior);
     },
     edit(command) {
+      flushText();
       const object = current();
       const prior = snapshot();
       if (command === 'paste' && clipboard) {
@@ -313,6 +367,7 @@ export function createScene(root, surface, onChange) {
     },
     chooseMode(next) {
       if (mode !== next) {
+        flushText();
         mode = next;
         render();
       }
@@ -506,17 +561,22 @@ export function createScene(root, surface, onChange) {
           ['font', 'size', 'bold', 'italic', 'underline', 'align', 'voice'].map(key => [key, key === 'voice' ? object[key] || '' : object[key]])) : null };
     },
     destroy() {
+      disposed = true; documentEpoch++; textClipboard.clear();
       finishInactive();
       listeners.abort();
       cancelAnimationFrame(animation);
     },
     snapshot,
-    restore(state, { textTarget = null } = {}) {
+    restore(state, { textTarget = null, textSelection = null, history = false } = {}) {
+      before = null; beforeRange = null;
+      if (!history) { documentEpoch++; textClipboard.clear(); }
       readRevision++;
       objects = structuredClone(state);
       previews.clear();
-      selected = objects.find(object => object.id === textTarget && object.kind === 'text')?.id ?? null;
+      selected = objects.find(object => object.id === (textSelection?.objectId ?? textTarget) && object.kind === 'text')?.id ?? null;
       render();
+      selectionAt(selected, textSelection);
+      before = null; beforeRange = null;
     },
   };
 }

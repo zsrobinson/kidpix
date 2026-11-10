@@ -5,7 +5,7 @@ import { createNativeToolMotion } from './native-tool-motion.js';
 import { regionClipPath } from './native-control-regions.js';
 
 export function actionProfile({ tray, selected }) {
-  if (tray === 'text') return { table: 9383, rows: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 17, 18] };
+  if (tray === 'text') return { table: 9383, rows: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18] };
   if (tray === 'grab') return { table: 926, rows: selected === 'grab' ? [2, 3, 4, 6, 7, 8, 9] : [2, 3, 4] };
   return null;
 }
@@ -20,7 +20,7 @@ export function actionManifest(data, profile) {
   const buttons = profile.rows.map(index => {
     const source = rows.find(row => row.index === index);
     const policy = policyFor(profile.table, index);
-    const allowed = { 9383: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 17, 18], 926: [2, 3, 4, 6, 7, 8, 9],
+    const allowed = { 9383: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18], 926: [2, 3, 4, 6, 7, 8, 9],
       18700: [0, 1, 2, 3], 18202: [0, 1, 2] }[profile.table] ?? [];
     if (!allowed.includes(index) || !source || !policy.binding || !regionClipPath(source.region)
       || source.rolloverParameters?.join() !== (profile.table === 926 ? '1,0,0' : '0,0,0')) throw new Error('Unsupported action row');
@@ -40,7 +40,7 @@ export function actionManifest(data, profile) {
   });
   // Text's live font/number fields and Grab's unbound navigation column
   // must stay outside the opaque restoration, including vacated pose pixels.
-  const restorationGroups = profile.table === 9383 ? [[2, 3], [4, 5], [6, 7, 8, 9, 10, 11], [15], [17, 18]]
+  const restorationGroups = profile.table === 9383 ? [[2, 3], [4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14], [15], [17, 18]]
     : profile.table === 926 ? [[2, 3, 4], [6, 7, 8, 9]] : null;
   const restorationRects = restorationGroups?.flatMap(rows => {
     const parts = buttons.filter(button => rows.includes(button.index))
@@ -65,12 +65,13 @@ export function actionStates(manifest, current) {
     }
     return { active: action === 'speak' ? Boolean(current.readActive) : action.startsWith('align:') ? current.align === action.slice(6)
       : ['bold', 'italic', 'underline'].includes(action) ? Boolean(current[action]) : false,
-    disabled: action === 'speak' ? Boolean(current.readDisabled) : action.startsWith('edit:') ? !current.capabilities?.[action.slice(5)] : false };
+    disabled: action.startsWith('text-clipboard:') ? !current.textCapabilities?.[action.split(':')[1]] : action === 'speak' ? Boolean(current.readDisabled) : action.startsWith('edit:') ? !current.capabilities?.[action.slice(5)] : false };
   });
 }
 
 export function actionTarget(current, action) {
   if (action === 'speak') return current.readIdentity;
+  if (action?.startsWith('text-clipboard:')) return JSON.stringify([current.textIdentity, action.endsWith(':paste') ? current.textClipboardGeneration : null]);
   return action?.startsWith('voice-step:')
     ? JSON.stringify([current.target, current.voice, current.voiceGeneration]) : current.target;
 }

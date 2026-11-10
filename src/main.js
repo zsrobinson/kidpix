@@ -240,7 +240,7 @@ function drawForeground() {
   paint.renderForegroundTo(foreground);
 }
 
-const scene = createScene($('#objects'), surface, (before, after) => remember({ before, after, kind: 'scene' }));
+const scene = createScene($('#objects'), surface, (before, after, ranges) => remember({ before, after, ranges, kind: 'scene' }));
 const paint = createPaint(canvas, {
   includeForeground: false,
   onBigErase: () => clearPicture(),
@@ -275,11 +275,12 @@ function history(direction, fromFace = false) {
   // A held moving-paint stroke becomes a history entry during cleanup. Finish
   // it before selecting the unified entry so the two history stacks agree.
   paint.cancel();
+  scene.flushText();
   const source = direction === 'undo' ? undoStack : redoStack;
   const target = direction === 'undo' ? redoStack : undoStack;
   const entry = source.pop();
   if (!entry) return;
-  if (entry.kind === 'scene') scene.restore(entry[direction === 'undo' ? 'before' : 'after'], { textTarget: scene.actionState.target });
+  if (entry.kind === 'scene') scene.restore(entry[direction === 'undo' ? 'before' : 'after'], { textTarget: scene.actionState.target, history: true, textSelection: entry.ranges?.[direction === 'undo' ? 'before' : 'after'] });
   else if (entry.kind === 'sound') state[entry.track] = entry[direction === 'undo' ? 'before' : 'after'];
   else if (entry.kind === 'clear') {
     if (entry.paint) paint[direction]();
@@ -450,11 +451,11 @@ const nativeSecondaryMotion = createNativeSecondaryMotion({
 // Formatting chrome keeps the editor's caret/range during pointer activation.
 $('#tray-buttons').addEventListener('pointerdown', event => {
   const action = event.target.closest('[data-action]')?.dataset.action;
-  if (state.tray === 'text' && (['bold', 'italic', 'underline', 'speak'].includes(action) || action?.startsWith('align:') || action?.startsWith('font-step:') || action?.startsWith('font-size-step:') || action?.startsWith('voice-step:'))
+  if (state.tray === 'text' && (['bold', 'italic', 'underline', 'speak'].includes(action) || action?.startsWith('text-clipboard:') || action?.startsWith('align:') || action?.startsWith('font-step:') || action?.startsWith('font-size-step:') || action?.startsWith('voice-step:'))
     && document.activeElement?.matches('.object-text')) event.preventDefault();
 }, { capture: true });
 guardStepperInput($('#tray-buttons'), {
-  actions: [...TEXT_STEPPERS, ...VOICE_STEPPERS].map(stepper => stepper.action).concat('speak'),
+  actions: [...TEXT_STEPPERS, ...VOICE_STEPPERS].map(stepper => stepper.action).concat('speak', 'text-clipboard:cut', 'text-clipboard:copy', 'text-clipboard:paste'),
   getTarget: action => actionTarget(actionMotionState(), action),
   activate: action => activate(action),
 });
@@ -529,7 +530,13 @@ function actionMotionState() {
     }
     syncTextValues();
   }
-  return { ...readState(), voice: state.voice, voiceCatalog: voiceCatalog.voices, voiceGeneration: voiceCatalog.generation, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
+  const textTarget = scene.textClipboard.target();
+  const textCapabilities = scene.textClipboard.capabilities(textTarget);
+  for (const action of ['cut', 'copy', 'paste']) {
+    const control = $('#tray-buttons').querySelector(`[data-action="text-clipboard:${action}"]`);
+    if (control) control.disabled = state.tray !== 'text' || !textCapabilities[action];
+  }
+  return { textCapabilities, textIdentity: JSON.stringify(textTarget), textClipboardGeneration: scene.textClipboard.generation, ...readState(), voice: state.voice, voiceCatalog: voiceCatalog.voices, voiceGeneration: voiceCatalog.generation, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
 }
 const nativeActionMotion = createNativeActionMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
@@ -713,6 +720,9 @@ function showTray() {
         ${button('italic', 'Italic', 183, 716, 30, 32).replace('title=', `aria-pressed="${state.italic}" title=`)}
         ${button('underline', 'Underline', 212, 716, 30, 32).replace('title=', `aria-pressed="${state.underline}" title=`)}
         ${['left', 'center', 'right'].map((align, index) => button(`align:${align}`, `Align ${align}`, 252 + index * 38, 715, 33, 35).replace('title=', `aria-pressed="${state.align === align}" title=`)).join('')}
+        ${button('text-clipboard:cut', 'Cut Text', 409, 647, 41, 86)}
+        ${button('text-clipboard:copy', 'Copy Text', 449, 647, 42, 43)}
+        ${button('text-clipboard:paste', 'Paste Text', 449, 690, 42, 43)}
         ${button('speak', 'Read Aloud', 493, 647, 61, 86)}
       `;
       if (!TEXT_FONTS.some(entry => entry.value === state.font)) $('#font').add(new Option(state.font, state.font));
@@ -1538,6 +1548,9 @@ async function activate(action) {
     if (group === 'grab') { state.selectionStyle = value; state.cookie = null; }
     else state.drawStyle = value;
     showTray();
+  } else if (id === 'text-clipboard') {
+    if (state.tray === 'text' && scene.textClipboard.perform(value)) showStatus({cut:'Text cut.',copy:'Text copied.',paste:'Text pasted.'}[value]);
+    updateActionMotion();
   } else if (id === 'cookie') { state.selectionStyle = 'cookie-cutter'; state.cookie = Number(value); showTray(); }
   else if (id === 'effect') {
     if (state.tray === 'paint' && state.tools.paint === 'spray' && !state.alt) paint.resetNativeSpray();

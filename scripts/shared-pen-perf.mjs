@@ -11,6 +11,8 @@ import path from 'node:path';
 import { snapshotPNG, samePixels } from './shared-pen-pixels.mjs';
 import { idleOwnerTransform, assertOwnerWindow } from './shared-pen-idle-control.mjs';
 import { studioControlPlugin, stageState, overlayState, assertBlankOverlays, emptyObjectsState, assertEmptyObjects } from './shared-pen-studio-control.mjs';
+import { displayControlTransform, installStrokeAttribution } from './shared-pen-display-control.mjs';
+const coalesceDisplay=process.env.COALESCE_DISPLAY==='1', strokeCounters=process.env.STROKE_COUNTERS==='1', strokeAttribution=process.env.STROKE_ATTRIBUTION==='1';
 const controlMode = process.env.CONTROL_MODE || 'full';
 if(process.env.MOTION_REVISION && process.env.IDLE_OWNERS && process.env.IDLE_OWNERS!=='off')throw Error('Do not combine source revision and idle suppression');
 const idleOwners = process.env.IDLE_OWNERS || 'off';
@@ -59,6 +61,7 @@ const server = await createServer({ configLoader: 'runner', cacheDir: `${output}
     if(window.sharedPerf?.enabled)window.sharedUITrace.push({time:sharedTraceStart,actor:'motion-callback',tray:current.tray,refreshCurrent:Boolean(refreshCurrent),refreshMs:sharedRefreshEnd-sharedTraceStart,stepMs:performance.now()-sharedRefreshEnd});`);
   }
   if (!id.endsWith('/src/paint.js')) return code;
+  code=displayControlTransform(code,{coalesce:coalesceDisplay,counters:strokeCounters,attribution:strokeAttribution});
   const seam = 'makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))';
   if (!code.includes(seam)) throw Error('Seed seam changed');
   code=code.replace(seam, 'makeRandom(53)');
@@ -70,8 +73,8 @@ const server = await createServer({ configLoader: 'runner', cacheDir: `${output}
   return code;
  } }], server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: { ignored: ['**/*'] } } });
 let browser, page;
-const results = { helperHashes:Object.fromEntries(await Promise.all(['shared-pen-studio-control.mjs','shared-pen-pixels.mjs','shared-pen-idle-control.mjs'].map(async name=>[name,createHash('sha256').update(await readFile(new URL(name,import.meta.url))).digest('hex')]))), harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
- motionSourceHashes: Object.fromEntries([...motionSources].map(([name,source]) => [name,createHash('sha256').update(source).digest('hex')])), motionRevision: motionRevision || null, engine, controlMode, presentation, idleOwners, sourceActors:controlMode==='minimal'?'absent; actual paint history only':'production studio', instrument, uiScenario, undoScript:uiScenario==='legacy-undo'?null:undoScript, uiTrace, legacySyncCatchup:process.env.LEGACY_SYNC_CATCHUP==='1', profiled:!!process.env.PROFILE, traced:!!process.env.TRACE, scene:process.env.SCENE||'blank', displayAlpha:process.env.DISPLAY_ALPHA!=='0', displayReadFrequently:process.env.DISPLAY_READ_FREQUENTLY!=='0', cpu: Number(process.env.CPU || 1), seed: 53, samples: 240,
+const results = { helperHashes:Object.fromEntries(await Promise.all(['shared-pen-studio-control.mjs','shared-pen-pixels.mjs','shared-pen-idle-control.mjs','shared-pen-display-control.mjs'].map(async name=>[name,createHash('sha256').update(await readFile(new URL(name,import.meta.url))).digest('hex')]))), harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+ motionSourceHashes: Object.fromEntries([...motionSources].map(([name,source]) => [name,createHash('sha256').update(source).digest('hex')])), motionRevision: motionRevision || null, engine, coalesceDisplay, strokeCounters, strokeAttribution, controlMode, presentation, idleOwners, sourceActors:controlMode==='minimal'?'absent; actual paint history only':'production studio', instrument, uiScenario, undoScript:uiScenario==='legacy-undo'?null:undoScript, uiTrace, legacySyncCatchup:process.env.LEGACY_SYNC_CATCHUP==='1', profiled:!!process.env.PROFILE, traced:!!process.env.TRACE, scene:process.env.SCENE||'blank', displayAlpha:process.env.DISPLAY_ALPHA!=='0', displayReadFrequently:process.env.DISPLAY_READ_FREQUENTLY!=='0', cpu: Number(process.env.CPU || 1), seed: 53, samples: 240,
  limitations: 'Desktop headless engine; RAF callback and intended-deadline proxies, no compositor visibility or physical iPad latency.', baselines: [], rows: [] };
 const stats = values => { const a = values.filter(Number.isFinite).sort((a,b)=>a-b); return { n:a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],worst:a.at(-1) }; };
 try {
@@ -79,6 +82,7 @@ try {
  browser = await ({chromium,webkit}[engine]).launch(); results.browser = browser.version();
  page = await browser.newPage({ viewport: { width:1366,height:1024 }, deviceScaleFactor:2, hasTouch:true });
  const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
+ if(strokeAttribution)await page.addInitScript(installStrokeAttribution);
  await page.addInitScript(({instrument,uiTrace})=>{
   const media=[];const NativeAudio=window.Audio;window.Audio=class extends NativeAudio { constructor(...args){super(...args);media.push(this);} };
   const activation=()=>navigator.userActivation?{isActive:navigator.userActivation.isActive,hasBeenActive:navigator.userActivation.hasBeenActive}:null;
@@ -96,14 +100,16 @@ try {
    document.addEventListener('pointermove',e=>{if(!m.enabled||e.target.id!=='paper-canvas')return;const row={start:performance.now(),stampAge:performance.now()-e.timeStamp,trusted:e.isTrusted,samples:e.getCoalescedEvents?.().length||1};m.events.push(row);e.__sharedPerf=row;requestAnimationFrame(()=>m.nextRAF.push(performance.now()-row.start));},true);
    document.addEventListener('pointermove',e=>{if(e.__sharedPerf)e.__sharedPerf.ms=performance.now()-e.__sharedPerf.start;});
   }
-  window.startSharedPerf=()=>{window.sharedUITrace=[];Object.assign(m,{enabled:true,started:performance.now(),events:[],canvas:{},frames:[],callbackTimes:[],nextRAF:[],delivery:[]});};
+  window.startSharedPerf=()=>{window.sharedStroke={calls:{},samples:[],listeners:{},requests:0};window.sharedUITrace=[];Object.assign(m,{enabled:true,started:performance.now(),events:[],canvas:{},frames:[],callbackTimes:[],nextRAF:[],delivery:[]});};
   let previous;function frame(now){if(m.enabled){m.callbackTimes.push(performance.now());if(previous>=m.started)m.frames.push(now-previous);}previous=now;requestAnimationFrame(frame);}requestAnimationFrame(frame);
   window.dispatchSharedPen=({type,points,due})=>{
    const canvas=document.querySelector('#paper-canvas');
    const make=p=>new PointerEvent(type,{pointerId:77,pointerType:'pen',clientX:p.x,clientY:p.y,pressure:type==='pointerup'?0:p.pressure,buttons:type==='pointerup'?0:1,button:0,bubbles:true});
    const event=make(points.at(-1));
    if(type==='pointermove')Object.defineProperty(event,'getCoalescedEvents',{value:()=>points.map(make)});
+   if(type==='pointerup'||type==='pointercancel')m.beforeReleasePending=window.sharedDisplayState?.()||null;
    const start=performance.now();canvas.dispatchEvent(event);
+   if(type==='pointerup'||type==='pointercancel')m.releasePending=window.sharedDisplayState?.()||null;
    if(type==='pointermove')m.delivery.push({start,due,end:performance.now(),samples:points.length});
   };
  },{instrument,uiTrace});
@@ -208,7 +214,7 @@ try {
    await send('pointerup',[points.at(-1)]);
   }
   const elapsed=performance.now()-wallStart;
-  const m=await page.evaluate(async()=>{window.sharedPerf.enabled=false;window.sharedPerf.ended=performance.now();window.sharedPerf.ownerEnd=window.sharedIdleOwners?.filter(o=>o.state().active).map(o=>o.state());window.sharedIdleOwners?.forEach(o=>{if(o.state().parked)o.resume();});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return window.sharedPerf;});
+  const m=await page.evaluate(async()=>{window.sharedPerf.enabled=false;window.sharedPerf.ended=performance.now();window.sharedPerf.ownerEnd=window.sharedIdleOwners?.filter(o=>o.state().active).map(o=>o.state());window.sharedIdleOwners?.forEach(o=>{if(o.state().parked)o.resume();});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));window.sharedPerf.stroke=window.sharedStroke;window.sharedPerf.displayAfterDrain=window.sharedDisplayState?.()||null;return window.sharedPerf;});
   const ownerResumed=idleOwners==='off'?null:await page.evaluate(()=>window.sharedIdleOwners.filter(o=>o.state().active).map(o=>o.state()));
   if(ownerBefore)assertOwnerWindow(ownerBefore,m.ownerEnd,ownerResumed,idleOwners==='parked');
   const uiAfter=await page.evaluate(()=>window.sharedUIState());
@@ -237,7 +243,7 @@ try {
    deliveryInterval:stats((m.delivery.length?m.delivery:m.events).slice(1).map((e,i)=>e.start-(m.delivery.length?m.delivery:m.events)[i].start)),
    achievedEventHz:(m.delivery.length?m.delivery:m.events).length>1?((m.delivery.length?m.delivery:m.events).length-1)*1000/((m.delivery.length?m.delivery:m.events).at(-1).start-(m.delivery.length?m.delivery:m.events)[0].start):null,
    oldestSampleDeadlineAge:stats(m.delivery.filter(e=>Number.isFinite(e.due)).map(e=>e.start-e.due+(batch-1)*1000/(hz*batch))),
-   canvas:m.canvas,contextAttributes:pixels.contextAttributes,nonOpaquePixels:pixels.nonOpaque,...snapshotPNG(pixels.afterRelease),stableAfterRelease:pixels.stable,raw:m};
+   stroke:m.stroke,releasePending:m.releasePending,displayAfterDrain:m.displayAfterDrain,canvas:m.canvas,contextAttributes:pixels.contextAttributes,nonOpaquePixels:pixels.nonOpaque,...snapshotPNG(pixels.afterRelease),stableAfterRelease:pixels.stable,raw:m};
   results.rows.push(row);console.log(JSON.stringify({...row,raw:undefined,uiBefore:undefined,uiAfter:undefined}));
   if(instrument&&(row.actualEvents!==row.expectedEvents||row.actualSamples!==240))throw Error('Delivered event/sample count mismatch');
   if(driver!=='cdp'&&m.delivery.reduce((n,e)=>n+e.samples,0)!==240)throw Error('Synthetic replay dropped samples');
@@ -245,6 +251,22 @@ try {
   if(controlMode==='minimal')await page.evaluate(()=>{if(!window.minimalPaint.canUndo)throw Error('Missing minimal history');window.minimalPaint.undo();});
   else await page.locator('[data-action="undo"]').first().evaluate(el=>el.click());
  }
+ if(strokeCounters)results.lifecycle=await page.evaluate(async()=>{
+  const paint=window.sharedBenchPaint,c=paint.canvas,box=c.getBoundingClientRect(),rows=[];
+  for(const operation of ['release','cancel','destroy']){
+   paint.clear();window.startSharedPerf();
+   const points=[60,120,180].map(x=>({x:box.x+x*box.width/720,y:box.y+160*box.height/542,pressure:0.7}));
+   window.dispatchSharedPen({type:'pointerdown',points:[points[0]]});
+   window.dispatchSharedPen({type:'pointermove',points:points.slice(1)});
+   const pendingBefore=window.sharedDisplayState?.()||null;
+   if(operation==='release')window.dispatchSharedPen({type:'pointerup',points:[points.at(-1)]});else paint[operation]();
+   const pendingAfter=window.sharedDisplayState?.()||null,immediate=c.toDataURL(),renders=window.sharedStroke.calls.render.count;
+   await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+   rows.push({operation,pendingBefore,pendingAfter,immediate,afterDrain:c.toDataURL(),extraRenders:window.sharedStroke.calls.render.count-renders});
+   window.sharedPerf.enabled=false;
+  }
+  return rows;
+ });
  results.syntheticPixelMismatches=results.rows.filter(r=>r.driver!=='cdp'&&!samePixels(r,results.rows.find(p=>p.tool===r.tool&&p.driver!=='cdp'))).map(({tool,driver,eventHz,batch,trial})=>({tool,driver,eventHz,batch,trial}));
  if(results.syntheticPixelMismatches.length)throw Error('Synthetic replay pixels differ across patterns');
  results.errors=errors;if(errors.length)throw Error(errors.join('\n'));

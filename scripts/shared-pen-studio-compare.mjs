@@ -11,7 +11,7 @@ export function compareStudioRuns(runs) {
  assert(first,'Missing rows');
  let strokes=0;
  for(const run of runs){
-  for(const key of ['engine','browser','harnessSha256','instrument','uiTrace','seed','samples','scene','uiScenario','displayAlpha','displayReadFrequently','cpu','helperHashes'])assert.deepEqual(run[key],reference[key],key);
+  for(const key of ['engine','browser','harnessSha256','instrument','uiTrace','seed','samples','scene','uiScenario','displayAlpha','displayReadFrequently','cpu','helperHashes','strokeCounters','strokeAttribution'])assert.deepEqual(run[key],reference[key],key);
   assert.equal(run.uiScenario,'quiescent');assert.equal(run.instrument,false);assert.equal(run.uiTrace,false);
   assert.equal(run.idleOwners==='off'||!run.idleOwners,reference.idleOwners==='off'||!reference.idleOwners,'Owner instrumentation mismatch');
   assert.deepEqual(run.errors,[]);assert.deepEqual(run.budgetFailures,[]);

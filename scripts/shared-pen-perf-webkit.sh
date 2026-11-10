@@ -30,6 +30,7 @@ docker run --pull never --rm --init --name "$container" --network host --cap-dro
  --env "PRESENTATION=${PRESENTATION:-default}" \
  --env "CONTROL_MODE=${CONTROL_MODE:-full}" \
  --env "UI_SCENARIO=${UI_SCENARIO:-legacy-undo}" --env "UNDO_SCRIPT=${UNDO_SCRIPT:-1095}" --env "UI_TRACE=${UI_TRACE:-0}" \
+ --env "COALESCE_DISPLAY=${COALESCE_DISPLAY:-0}" --env "STROKE_COUNTERS=${STROKE_COUNTERS:-0}" --env "STROKE_ATTRIBUTION=${STROKE_ATTRIBUTION:-0}" \
  --env "DISPLAY_ALPHA=${DISPLAY_ALPHA:-1}" \
  --env "DISPLAY_READ_FREQUENTLY=${DISPLAY_READ_FREQUENTLY:-1}" \
  --env "TOOLS=${TOOLS:-pencil,chalk,crayon,marker}" --env "PATTERNS=${PATTERNS:-60x1,120x1,240x1,60x2,60x4}" \

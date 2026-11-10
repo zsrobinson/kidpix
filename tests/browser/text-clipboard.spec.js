@@ -15,6 +15,8 @@ async function start(page, fallback=false) {
     for(const name of ['read','readText','write','writeText']) if(navigator.clipboard) Object.defineProperty(navigator.clipboard,name,{value:()=>{window.clipboardCalls.push(name);throw Error('OS clipboard forbidden');}});
     window.cues=[];HTMLMediaElement.prototype.play=function(){window.cues.push(this.src);return Promise.resolve();};
   });
+  // Install before the app registers its RAF loop; pause only in timing cases.
+  await page.clock.install();
   await page.goto('/');await click(page,'tray:text');
 }
 async function box(page, text='abcdef',x=140,y=120) {
@@ -174,7 +176,7 @@ test('all source rows/programs/registrations/sprites and real visible rest/hover
   expect(createHash('sha256').update(clean.data).digest('hex')).toBe('455373eaa3f21b2246f50fa7f398abdc4dcfdefc040d6891183220b3eb92d654');
   await start(page);await box(page);await range(page,1,4);await control(page,'copy').click();
   await expect(canvas(page)).toBeVisible();
-  await page.clock.install();await page.clock.pauseAt(new Date(Date.now()+60000));
+  await page.clock.pauseAt(new Date(Date.now()+60000));
   const ids={cut:[18191,18192,18193],copy:[18185,18186,18187],paste:[18188,18189,18190]};
   const cueCount=(page,id)=>page.evaluate(id=>window.cues.filter(s=>new URL(s,location.href).pathname.endsWith(`/${id}.wav`)).length,id);
   for(const [action,cue] of [['cut',18071],['copy',18059],['paste',18060]]){
@@ -252,7 +254,7 @@ test('Read retires on range mutation, Undo never restarts it, and Copy has no sp
   await control(page,'cut').click();await expect(page.locator('[data-action="speak"]')).toHaveAttribute('aria-pressed','false');
   await click(page,'undo');expect(await page.evaluate(()=>window.speechCalls.filter(c=>c[0]==='speak').length)).toBe(1);
 });
-for(const action of ['text-clipboard:paste','bold']) test(`@module clipboard generation cancels only held Paste, ${action}`,async({page})=>{
+for(const action of ['text-clipboard:paste','bold','font-size-step:1','voice-step:1','edit:copy','text-clipboard:copy','text-clipboard:cut']) test(`@module clipboard generation cancels only held Paste, ${action}`,async({page})=>{
   await page.goto('/');await page.evaluate(async action=>{
     const {createTextClipboard}=await import('/src/text-clipboard.js');const {guardStepperInput}=await import('/src/stepper-input.js');
     const {actionTarget}=await import('/src/native-action-motion.js');
@@ -265,7 +267,7 @@ for(const action of ['text-clipboard:paste','bold']) test(`@module clipboard gen
     b.id='generation-action';
   },action);
   await page.locator('#generation-action').focus();await page.keyboard.down('Space');await page.evaluate(()=>window.changeTextClipboard());await page.keyboard.up('Space');
-  expect(await page.evaluate(()=>window.generationCalls)).toEqual(action==='bold'?['bold']:[]);
+  expect(await page.evaluate(()=>window.generationCalls)).toEqual(action==='text-clipboard:paste'?[]:[action]);
 });
 
 
@@ -304,4 +306,14 @@ test('Escape cancels a source Read pointer while picture text retains focus',asy
   expect(await page.evaluate(()=>window.cancelReadCalls)).toEqual([]);
   await expect(read).toHaveAttribute('aria-pressed','false');
   expect(await offsets(page)).toEqual([1,4]);
+});
+
+test('source clipboard capture denial cancels safely and permits a fresh pointer', async ({page}) => {
+  await start(page);await box(page);await range(page,1,4);await expect(canvas(page)).toBeVisible();
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await control(page,'cut').evaluate(b=>{b.setPointerCapture=()=>{throw new DOMException('capture unavailable','InvalidStateError');};});
+  await control(page,'cut').click();
+  expect(errors).toEqual([]);await expect(page.locator('.object-text')).toHaveText('abcdef');
+  await control(page,'cut').evaluate(b=>delete b.setPointerCapture);
+  await control(page,'cut').click();await expect(page.locator('.object-text')).toHaveText('aef');
 });

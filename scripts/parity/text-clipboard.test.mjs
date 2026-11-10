@@ -60,8 +60,11 @@ test('chrome retains exact range; document clear discards payload and retained r
 });
 test('Paste generation invalidates only Paste gestures and capability art stays momentary',()=>{
   const a={target:'A',textIdentity:'range',textClipboardGeneration:1},b={...a,textClipboardGeneration:2};
-  for(const action of ['bold','voice-step:1','edit:cut','text-clipboard:copy']) assert.equal(actionTarget(a,action),actionTarget(b,action));
+  for(const action of ['bold','font-size-step:1','voice-step:1','edit:cut','text-clipboard:copy','text-clipboard:cut']) assert.equal(actionTarget(a,action),actionTarget(b,action));
   assert.notEqual(actionTarget(a,'text-clipboard:paste'),actionTarget(b,'text-clipboard:paste'));
+  const voice = {...a,voiceGeneration:2};
+  assert.notEqual(actionTarget(a,'voice-step:1'),actionTarget(voice,'voice-step:1'));
+  for(const action of ['bold','font-size-step:1','edit:copy','text-clipboard:cut','text-clipboard:copy','text-clipboard:paste']) assert.equal(actionTarget(a,action),actionTarget(voice,action));
   assert.deepEqual(actionStates({buttons:[{action:'text-clipboard:cut',policy:policyFor(9383,12)}]}, {textCapabilities:{cut:false}}),[{active:false,disabled:true}]);
 });
 test('independent nine source programs: tracking redraws same sprite and plays each cue once at 100ms',()=>{

@@ -130,7 +130,12 @@ for (const [kind,selector,index,x,y] of [
   await page.mouse.move(1023,767);
   const before=await page.evaluate(()=>window.uiMedia.length);
   await page.mouse.move(x,y);
-  if(kind === "secondary") await page.mouse.down();
+  // This case isolates the playing-audio gate. WebKit may deny pointer capture;
+  // that correctly cancels the proposal and is covered separately by clipboard.
+  if(kind === "secondary") {
+    await page.locator('[data-action="style:line"]').focus();
+    await page.keyboard.down('Space');
+  }
   await page.waitForFunction(before=>window.uiMedia.slice(before).some(a=>a.didPlay),before);
   await page.clock.pauseAt(new Date(Date.now()+1000));await page.clock.runFor(3000);
   const snap=()=>actor.evaluate((canvas,index)=>JSON.parse(canvas.dataset.motionSnapshot)[index],index);
@@ -138,7 +143,7 @@ for (const [kind,selector,index,x,y] of [
   await page.evaluate(before=>window.uiMedia.slice(before).forEach(a=>a.pause()),before);
   await page.clock.runFor(220);
   if(kind === 'primary') expect((await snap()).auxiliary).toBe(false);
-  else { expect((await snap()).finished).toBe(true); await page.mouse.up(); }
+  else { expect((await snap()).finished).toBe(true); await page.keyboard.up('Space'); }
   await page.mouse.move(1023,767);await page.mouse.move(x,y);
   if(kind === 'secondary') {
     await page.locator('[data-action="style:curve"]').focus();

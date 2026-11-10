@@ -9,6 +9,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.Audio = class extends EventTarget { constructor() { super(); this.ended = true; } play() { return Promise.resolve(); } pause() {} };
   });
+  await page.clock.install();
   await page.goto('/');
   await expect(page.locator('[data-native-tool-motion="draw"]')).toBeVisible();
 });
@@ -16,7 +17,7 @@ async function start(page, tray) {
   await click(page, `tray:${tray}`);
   await expect(actor(page)).toBeVisible();
 }
-async function clock(page) { await page.clock.install(); await page.clock.pauseAt(new Date(Date.now() + 60000)); }
+async function clock(page) { await page.clock.pauseAt(new Date(Date.now() + 60000)); }
 async function textObject(page, text = 'Action text') {
   await start(page, 'text');
   await page.locator('#paper-canvas').click({ position: { x: 150, y: 140 } });
@@ -121,8 +122,10 @@ async function expectSourcePixels(page, owner, view) {
   const top = Math.min(...allParts.map(part => part.y));
   const right = Math.max(...allParts.map(part => part.x + sourceManifest.sprites[`${part.collection}:${part.sprite}`].width));
   const bottom = Math.max(...allParts.map(part => part.y + sourceManifest.sprites[`${part.collection}:${part.sprite}`].height));
-  const expected = new PNG({ width: 1024, height: 768 });
+  let expected = new PNG({ width: 1024, height: 768 });
+  const layers = [];
   const overlay = (src, x, y, clip = [left, top, right - left, bottom - top]) => {
+    layers.push({png: PNG.sync.write(src).toString('base64'), x, y, clip});
     for (let sy = 0; sy < src.height; sy++) for (let sx = 0; sx < src.width; sx++) {
       const dx = x + sx, dy = y + sy;
       if (dx < clip[0] || dy < clip[1] || dx >= clip[0] + clip[2] || dy >= clip[1] + clip[3] || dy >= 768) continue;
@@ -143,6 +146,23 @@ async function expectSourcePixels(page, owner, view) {
     for (const part of script.frames[state.frameIndex].parts) overlay(png(sourceManifest.sprites[`${script.collection}:${part.sprite}`].image), part.x, part.y,
       state.auxiliary ? button.auxiliaryClipRect : [0, 0, 1024, 768]);
   }
+  // WebKit rounds premultiplied Canvas source-over differently from Chromium.
+  // Keep Chromium's independent integer oracle; compose the same pinned source
+  // PNGs with WebKit's own Canvas rules for its pixel/placement comparison.
+  // No app renderer, timeline or asset loader is used by either oracle.
+  if (test.info().project.use.browserName === 'webkit') {
+    const reference = await page.evaluate(async layers => {
+      const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 768;
+      const context = canvas.getContext('2d');
+      for (const layer of layers) {
+        const image = new Image(); image.src = `data:image/png;base64,${layer.png}`; await image.decode();
+        context.save(); context.beginPath(); context.rect(...layer.clip); context.clip();
+        context.drawImage(image, layer.x, layer.y); context.restore();
+      }
+      return canvas.toDataURL();
+    }, layers);
+    expected = PNG.sync.read(Buffer.from(reference.split(',')[1], 'base64'));
+  }
   const actual = PNG.sync.read(Buffer.from((await canonicalMotionFrame(actor(page, owner))).split(',')[1], 'base64'));
   const studio = PNG.sync.read(await page.locator('#studio').screenshot());
   expect([studio.width, studio.height]).toEqual([1024, 768]);
@@ -160,8 +180,8 @@ async function expectSourcePixels(page, owner, view) {
   }
   expect(canvasBad, `${owner} source canvas channels ${JSON.stringify(firstBad)}`).toBe(0);
   if (visibleBad) {
-    await page.screenshot({ path: `artifacts/t3/action-runtime/${owner.replace(':', '-')}-actual.png` });
-    await import('node:fs').then(fs => fs.writeFileSync(`artifacts/t3/action-runtime/${owner.replace(':', '-')}-expected.png`, PNG.sync.write(expected)));
+    await page.screenshot({ path: test.info().outputPath(`${owner.replace(':', '-')}-actual.png`) });
+    await import('node:fs').then(fs => fs.writeFileSync(test.info().outputPath(`${owner.replace(':', '-')}-expected.png`), PNG.sync.write(expected)));
   }
   expect(visibleBad, `${owner} visible studio channels`).toBe(0);
 }

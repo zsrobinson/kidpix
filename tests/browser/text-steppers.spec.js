@@ -11,6 +11,7 @@ async function alignClock(page) {
   await page.clock.runFor((16 - now % 16) % 16);
 }
 async function start(page) {
+  await page.clock.install();
   await page.goto('/'); await click(page,'tray:text');
   await expect(actor(page)).toBeVisible();
 }
@@ -58,7 +59,7 @@ test('asset failure leaves usable static arrows and retries on reentry',async ({
 async function expectSourcePixels(page, owner, view) {
   const states = await snap(page, owner);
   const scripts = states.map(state => sourceManifest.scripts[state.script]);
-  const allParts = Object.values(sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11,15,17,18] : [2,3,4,6,7,8,9]).includes(b.index)))
+  const allParts = Object.values(sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18] : [2,3,4,6,7,8,9]).includes(b.index)))
     .flatMap(button => [...button.stateScripts, button.rolloverScript].filter(Boolean))
     .flatMap(id => sourceManifest.scripts[id].frames.flatMap(frame => frame.parts.map(part => ({ ...part, collection: sourceManifest.scripts[id].collection }))));
   const left = Math.min(...allParts.map(part => part.x));
@@ -85,7 +86,7 @@ async function expectSourcePixels(page, owner, view) {
   overlay(png(backdrop.pages[0].image), backdrop.rect[0], backdrop.rect[1]);
   for (let index = 0; index < states.length; index++) {
     const state = states[index], script = scripts[index];
-    const button = sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11,15,17,18] : [2,3,4,6,7,8,9]).includes(b.index)).find(button => button.stateScripts.includes(state.script) || button.rolloverScript === state.script);
+    const button = sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18] : [2,3,4,6,7,8,9]).includes(b.index)).find(button => button.stateScripts.includes(state.script) || button.rolloverScript === state.script);
     for (const part of script.frames[state.frameIndex].parts) overlay(png(sourceManifest.sprites[`${script.collection}:${part.sprite}`].image), part.x, part.y,
       state.auxiliary ? button.auxiliaryClipRect : [0, 0, 1024, 768]);
   }
@@ -113,7 +114,7 @@ async function expectSourcePixels(page, owner, view) {
   for (let y = top; y < Math.min(bottom, 768); y++) for (let x = left; x < right; x++) {
     const offset = (y * 1024 + x) * 4;
     // Independent source footprints, excluding the unbound navigation column.
-    const owned = (view === 'text' ? [[257,643,43,62],[334,643,43,62],[160,714,194,33],[493,647,61,86],[731,659,43,62]] : [[409,647,82,86],[542,651,324,82]])
+    const owned = (view === 'text' ? [[257,643,43,62],[334,643,43,62],[160,714,194,33],[409,647,82,86],[493,647,61,86],[731,659,43,62]] : [[409,647,82,86],[542,651,324,82]])
       .some(([left, top, width, height]) => x >= left && x < left + width && y >= top && y < top + height);
     if (!owned) expected.data.fill(0, offset, offset + 4);
     for (let c = 0; c < 4; c++) {
@@ -147,7 +148,7 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 
 test('four arrows: both source tracking poses, hover, rest, boundaries, vacated studio pixels',async ({page}) => {
   await start(page);
-  await page.clock.install(); await page.clock.pauseAt(new Date(Date.now()+60000));
+  await page.clock.pauseAt(new Date(Date.now()+60000));
   await page.locator('#font').selectOption('serif');
   for (const action of ['font-step:-1','font-step:1','font-size-step:1','font-size-step:-1']) {
     // Interior reset without moving popup focus.
@@ -219,7 +220,7 @@ test('saved unknown font and size survive selection and undo without coercion',a
   await expect(page.locator('#font-size')).toHaveValue('42');
 });
 test('same tray rerender retains held arrow stream and commits once',async ({page}) => {
-  await object(page); await page.clock.install(); await page.clock.pauseAt(new Date(Date.now()+60000));
+  await object(page); await page.clock.pauseAt(new Date(Date.now()+60000));
   await control(page,'font-size-step:1').hover(); await alignClock(page); await page.mouse.down(); await page.clock.runFor(112);
   expect((await snap(page)).find(s=>s.name==='font-size-step:1').frameIndex).toBe(1);
   await click(page,'tray:text');

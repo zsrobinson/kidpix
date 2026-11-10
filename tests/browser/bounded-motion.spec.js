@@ -1,9 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
+// Independent raw clipboard fixture: each new script is visited once in the Text profile.
+const clipboard = JSON.parse(readFileSync('tests/fixtures/text-clipboard-source.json'));
+const clipboardFrames = Object.values(clipboard.programs).reduce((n, s) => n + s.frames.length, 0);
 
 test('bounded backing stores preserve every source frame against full native targets @module', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto('/');
-  const result = await page.evaluate(async () => {
+  const result = await page.evaluate(async clipboardIds => {
     const { loadDrawingMotionAssets, paintDrawingMotionFrame } = await import('/src/native-drawing-motion.js');
     const { motionCanvasBounds } = await import('/src/native-tool-motion.js');
     const { secondaryManifest, secondaryProfiles } = await import('/src/native-secondary-motion.js');
@@ -14,11 +19,11 @@ test('bounded backing stores preserve every source frame against full native tar
     for(const tray of ['draw','paint','eraser','mixer']) for(const selected of ['pencil','brush','sound','spray','round'])
       for(const eraserShape of tray === 'eraser' ? ['round','square'] : ['round'])
         for(const profile of secondaryProfiles({tray,selected,eraserShape})) manifests.push(secondaryManifest(secondary,profile));
-    for(const profile of [{table:9383,rows:[2,3,4,5,6,7,8,9,10,11,15,17,18]},
+    for(const profile of [{table:9383,rows:[2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18]},
       {table:926,rows:[2,3,4]}, {table:926,rows:[2,3,4,6,7,8,9]},
       {table:18700,rows:[1,2]}, {table:18700,rows:[3]}, {table:18202,rows:[0,1,2]}]) manifests.push(actionManifest(secondary,profile));
     const chrome = new Image(); chrome.src=resolve('paint-empty.png');await chrome.decode();
-    let frames=0;const failures=[];const seen=new Set();
+    let frames=0;const failures=[];const seen=new Set();const clipboardCoverage=[];
     for(const manifest of manifests){
       const key=Object.keys(manifest.scripts).sort().join(',');if(seen.has(key))continue;seen.add(key);
       const assets=await loadDrawingMotionAssets(manifest,{resolve});
@@ -32,6 +37,7 @@ test('bounded backing stores preserve every source frame against full native tar
       const fullCtx=full.getContext('2d',{willReadFrequently:true}),localCtx=local.getContext('2d',{willReadFrequently:true});
       localCtx.translate(-left,-top);
       for(const [id,script] of Object.entries(manifest.scripts))for(const [i,frame] of script.frames.entries()){
+        if (manifest.buttons.some(b => b.action?.startsWith('text-clipboard:')) && clipboardIds.includes(id)) clipboardCoverage.push(`${id}:${i}`);
         const clipRect = manifest.buttons.find(b=>b.rolloverScript===Number(id))?.auxiliaryClipRect;
         for(const [ctx,origin] of [[fullCtx,[0,0]],[localCtx,[left,top]]]){
           ctx.clearRect(origin[0],origin[1],ctx.canvas.width,ctx.canvas.height);
@@ -43,9 +49,11 @@ test('bounded backing stores preserve every source frame against full native tar
         if(count)failures.push({id,i,count});frames++;
       }
     }
-    return {frames,failures};
-  });
+    return {frames,failures,clipboardCoverage};
+  }, Object.keys(clipboard.programs));
   console.log(JSON.stringify({boundedSourceFrames:result.frames,differences:result.failures.length}));
-  expect(result.frames).toBe(672);
+  expect(result.frames).toBe(672 + clipboardFrames);
   expect(result.failures).toEqual([]);
+  expect(result.clipboardCoverage.sort()).toEqual(Object.entries(clipboard.programs)
+    .flatMap(([id, s]) => s.frames.map((_, i) => `${id}:${i}`)).sort());
 });

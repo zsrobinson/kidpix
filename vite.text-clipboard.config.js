@@ -1,6 +1,6 @@
 import { defineConfig, mergeConfig } from 'vite';
 import base from './vite.config.js';
 export default defineConfig(env => mergeConfig(base(env), {
-  cacheDir: 'artifacts/t3/text-clipboard-runtime/cache',
-  build: { outDir: 'artifacts/t3/text-clipboard-runtime/build' },
+  cacheDir: 'artifacts/t3/text-clipboard-current/cache',
+  build: { outDir: 'artifacts/t3/text-clipboard-current/build' },
 }));

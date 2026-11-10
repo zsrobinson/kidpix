@@ -318,7 +318,10 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     gestureIdentity = gestureTargetFor(current, owner.manifest.buttons[hit.index]);
     tracking = hit.index; trackingInside = true; pointerId = event.pointerId;
     pointerCaptureTarget = hit.control;
-    pointerCaptureTarget.setPointerCapture(event.pointerId);
+    // Capture can be denied during pointer lifecycle changes. Retire the
+    // proposal rather than leave a held command live after that failure.
+    try { pointerCaptureTarget.setPointerCapture(event.pointerId); }
+    catch { cancel(); }
   }, options);
   controls.addEventListener('pointermove', event => {
     if (tracking === null || event.pointerId !== pointerId) return;
@@ -408,7 +411,8 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       // Transfer capture before children disappear, preserving tracking through
       // same-owner size/color/option renders without a spurious cancellation.
       pointerCaptureTarget = controls;
-      controls.setPointerCapture(pointerId);
+      try { controls.setPointerCapture(pointerId); }
+      catch { cancel(); }
     }
   }, get backdropPath() { return owner?.backdrop?.path; }, repaint: () => owner?.controller.repaint(), cancel,
     dispose() { reset(); listeners.abort(); } };

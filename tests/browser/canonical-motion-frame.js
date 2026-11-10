@@ -24,7 +24,7 @@ export async function canonicalMotionFrame(locator) {
       const [tray,,indices] = identity.action.split(':');
       table = tray === 'text' ? 9383 : 926;
       rows = indices.split('-').map(Number);
-      expect(rows).toEqual(tray === 'text' ? [2,3,4,5,6,7,8,9,10,11,15,17,18]
+      expect(rows).toEqual(tray === 'text' ? [2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18]
         : rows.length === 3 ? [2,3,4] : [2,3,4,6,7,8,9]);
     }
     rectangles = secondary.tables[table].buttons.filter(b => !rows || rows.includes(b.index))

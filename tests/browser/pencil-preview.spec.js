@@ -34,13 +34,15 @@ test('fresh default, keyboard and assistive once-only toggle and reload persiste
   await page.reload(); await expect(choice(page)).toHaveAttribute('aria-checked', 'true');
 });
 
-test('touch choice activates once', async ({ page }) => {
-  test.skip(!test.info().project.use.hasTouch, 'touch context required');
-  await ready(page); await menu(page);
-  await choice(page).tap();
-  await expect(choice(page)).toHaveAttribute('aria-checked', 'true');
-  await menu(page); await choice(page).tap();
-  await expect(choice(page)).toHaveAttribute('aria-checked', 'false');
+test.describe('touch choice', () => {
+  test.use({ hasTouch: true });
+  test('activates once', async ({ page }) => {
+    await ready(page); await menu(page);
+    await choice(page).tap();
+    await expect(choice(page)).toHaveAttribute('aria-checked', 'true');
+    await menu(page); await choice(page).tap();
+    await expect(choice(page)).toHaveAttribute('aria-checked', 'false');
+  });
 });
 for (const mode of ['denied', 'malformed']) test(`${mode} storage safely defaults off`, async ({ page }) => {
   await page.addInitScript(mode => {

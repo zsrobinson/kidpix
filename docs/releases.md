@@ -2,6 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.22.0 — candidate
+
+- Add an explicit “Pencil preview (experimental)” switch in the Paint Zone menu, off by default. A browser preference remembers explicit choices without changing saved projects or document history.
+- Use browser-provided estimates only for eligible pen/freehand Pencil strokes. Keep temporary marks out of saved ink, exports, clipboard and Undo/Redo; clear them on correction, release, cancellation, expiry or switching the option off.
+- Preserve existing native tools and display settings. Independent integrated review, full release gates and public acceptance are pending. No new media is required.
+- Physical Pencil accuracy and latency benefit remain unverified. Native references remain 0/17; the enlarged vacuum stays disabled.
+
 ## 0.21.0
 
 - Animate New, Print and Help with their nine recovered programs and 29 source-verified frames. New and Print reset before their existing synchronous dispatch; Help follows its actual on/off state.

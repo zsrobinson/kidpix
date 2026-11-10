@@ -47,3 +47,33 @@ pose11 and cleaner completion with target/clip/display metadata if static tracin
 cannot resolve them. Preserve original poses and keep the actor disabled until
 geometry and lifetime are proved. This report adds no guessed actor animation,
 new effect implementation, media, native execution or full-parity claim.
+
+## Corrected owner/base trace
+
+A later byte-checked trace corrects the helper-output interpretation in the
+earlier placement artifact. At `0x15b22a`, outputs are `(-drawX,-drawY,
+headerX+drawX,headerY+drawY)`. The reset branch writes header-plus-draw into
+the base pair `+0x60/+0x62` and negative draw into offsets `+0x64/+0x66`.
+Normal replacement with valid REGS and non-sentinel `+0xc4` retains the base
+and writes the negative first-draw coordinates into the offsets. Script3900's
+first draw is zero, so that branch has zero offsets; its header origin is not
+added to the retained base. This supersedes steps3/4 of the older ignored
+`firehose-actor-placement/README.md`; the original evidence is preserved.
+
+The ordinary button constructor supplies no position, but successful first
+selection can replace its zero base. Ordinary redraw and explicit position
+writers also change that base. Forwarded event266 handlers, position history,
+script-range bank selection and REGS handle validity remain unclosed. Therefore
+the correction does not establish a numeric activation origin, inherited clip,
+final presentation or terminal lifetime. Keep the enlarged actor disabled.
+
+Primary addressed instructions, hashes, an independent GNU disassembly and
+24 exact byte guards are retained in `artifacts/t3/vacuum-owner-entry/`.
+Reproduce without executing original code:
+
+```sh
+python3 artifacts/t3/vacuum-owner-entry/probe.py --source /home/zsrobinson/code/kidpix
+```
+
+The checks passed on the server. No application, source media or runtime
+behavior changed; native references remain0/17.

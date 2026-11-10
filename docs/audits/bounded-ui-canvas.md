@@ -120,7 +120,7 @@ Validation in this checkout:
 - Chromium motion:108/109 on the combined run; the one fake-clock cue assertion
  observed frame0 instead of1. Its isolated unchanged rerun passes1/1. Every source
  pixel/visible-stack case passes, including all ordinary selectors, Text, Grab,
- Stamp, registrations and vacated pixels. This timing flake remains recorded.
+ Stamp, registrations and vacated pixels. The cause remains inconclusive; an isolated pass does not establish harmless phase variation. The failed run is retained.
 - 48/48 focused Chromium pressure/ownership/path/shared-history cases.
 - 26/26 built-entry cases, including Marker blending/spacing/paper, Airbrush
  release/export/history/blur and studio pen pressure/undo/redo, plus captures.
@@ -170,3 +170,23 @@ matchers and a positive interception gate make the intended unavailable-art
 condition explicit. All25 voice cases pass in the staged WebKit correction;
 Chromium development/built confirmation and a clean full WebKit rerun follow.
 No application behavior or pixel tolerance changes in that fixture correction.
+
+
+## Final combined acceptance
+
+Full combined runs passed408 development cases with one opt-in BFCache skip,
+357 built cases with one opt-in skip, and166 WebKit cases with three explicit
+skips. The initial WebKit failure above remains retained; the clean rerun uses
+the corrected query-aware fixture. Strengthened voice checks also pass25/25 in
+both Chromium development and built entry points. Node223, assets, build/dryrun,
+and source-only211/12asset skips with build/dryrun pass.
+
+Independent review found no blocking representation defect and verified33 Node
+checks and22 independently computed source unions. It found a P3 enumeration gap:
+square-Eraser table18201 was absent from the differential. Both shapes are now
+enumerated, and all672 distinct source frames are byte-identical on full/bounded
+targets in separate Chromium and WebKit confirmations. No tolerance changed.
+All17 combined static captures are pixel-identical to accepted0.14 captures.
+The earlier combined timing failure remains inconclusive; the parent full suites
+pass the unchanged timing assertion. No claim of physical latency, foreground-idle
+recovery, native execution or60Hz presentation is implied.

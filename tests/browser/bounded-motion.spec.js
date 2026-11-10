@@ -12,7 +12,8 @@ test('bounded backing stores preserve every source frame against full native tar
     const [primary, secondary] = await Promise.all(['tool-motion','secondary-motion'].map(async p => (await fetch(resolve(`${p}/manifest.json`))).json()));
     const manifests = Object.values(primary.trays);
     for(const tray of ['draw','paint','eraser','mixer']) for(const selected of ['pencil','brush','sound','spray','round'])
-      for(const profile of secondaryProfiles({tray,selected,eraserShape:'round'})) manifests.push(secondaryManifest(secondary,profile));
+      for(const eraserShape of tray === 'eraser' ? ['round','square'] : ['round'])
+        for(const profile of secondaryProfiles({tray,selected,eraserShape})) manifests.push(secondaryManifest(secondary,profile));
     for(const profile of [{table:9383,rows:[2,3,4,5,6,7,8,9,10,11,15,17,18]},
       {table:926,rows:[2,3,4]}, {table:926,rows:[2,3,4,6,7,8,9]},
       {table:18700,rows:[1,2]}, {table:18700,rows:[3]}, {table:18202,rows:[0,1,2]}]) manifests.push(actionManifest(secondary,profile));
@@ -45,6 +46,6 @@ test('bounded backing stores preserve every source frame against full native tar
     return {frames,failures};
   });
   console.log(JSON.stringify({boundedSourceFrames:result.frames,differences:result.failures.length}));
-  expect(result.frames).toBeGreaterThan(500);
+  expect(result.frames).toBe(672);
   expect(result.failures).toEqual([]);
 });

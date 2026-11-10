@@ -51,6 +51,10 @@ export function guardStepperInput(controls, { actions, getTarget, activate }) {
     activate(press.action);
   }, options);
   view.addEventListener('click', event => {
+    // An independent keyboard/assistive or programmatic command supersedes
+    // this held fallback. Release before another chrome owner handles it.
+    if (event.detail === 0 && !controls.contains(event.target)
+      && event.target.closest?.('[data-action]')) cancel();
     const control = controlFor(event);
     if (control && event.detail === 0 && (pending && !pending.cancelled || pointer && !pointer.released && !pointer.cancelled)) {
       event.preventDefault(); event.stopImmediatePropagation(); return;

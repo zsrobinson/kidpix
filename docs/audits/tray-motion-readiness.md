@@ -16,6 +16,8 @@ The existing fallback input guard also covers Grab actions, Text formatting and 
 
 Accepted fallback pointer-up invokes the canonical action once. This avoids losing a valid action when rejected incidental touch suppresses the browser's later compatibility click. The guard consumes that physical click, including WebKit's touch-to-mouse compatibility event with a different pointer ID. Keyboard/assistive semantic activation remains available after cancellation. Escape, blur, page hide, hidden visibility and capture loss release ownership; unrelated key releases do not finish Space tracking.
 
+An explicit semantic command outside the guarded tray supersedes its held fallback gesture. The window capture listener cancels and releases that gesture before another chrome owner checks availability. Physical incidental contacts still go through the shared first-contact guard. The existing clipboard target-change tests now also assert that the requested tray transition actually happened.
+
 The shared owner is installed before fallback capture listeners and rejects competing physical contacts before they can cancel the original gesture. Existing native-owned controls retain their native dispatch. No program bytes, media, audio completion code, drawing samples, pressure or history rules change.
 
 ## Acceptance
@@ -27,3 +29,9 @@ The original primary readiness cases fail on the prior implementation. Extending
 Initial probe corrections are retained: the scene's selection class is `is-selected`; Undo can intentionally restore no selection; consumed compatibility clicks are not a command-count oracle. These corrections do not change the original missing-Cut assertions. Later semantic activation, fresh touch, actual object removal and history remain explicit checks.
 
 This fixes a reproduced browser readiness/input race. It does not establish physical iPad latency, the cause of foreground animation loss, native timing or audible feel. Accepted native references remain 0/17; the enlarged vacuum actor remains disabled.
+
+## Broad-suite cancellation correction
+
+The first independent focused review found no source objection, but the subsequent full WebKit run exposed four existing clipboard regressions: held pointer/Space Cut/Paste with fallback artwork, followed by a semantic Grab tray command. Newly shared ownership caused the tool-tab owner to reject that explicit command. The tray stayed Text, leaving the old clipboard action eligible at release. A tight four-case WebKit development run reproduced all four failures.
+
+Canceling fallback ownership at the independent semantic command boundary makes those four cases pass, along with competing physical touch and unrelated Shift-release controls. This is distinct from allowing a second physical contact to steal a held gesture. The initial full runs were interrupted, their results are retained, and they are not counted as passed release gates. Fresh frozen-source full runs and an independent narrow recheck are required.

@@ -84,7 +84,10 @@ for(const fallback of [false,true]) for(const input of ['pointer','Space']) for(
   if(change==='range') await range(page,0,2);
   if(change==='text') await page.locator('.object-text').first().evaluate(e=>{e.textContent='Changed';e.dispatchEvent(new InputEvent('input',{bubbles:true}));});
   if(change==='target') await range(page,0,2,1);
-  if(change==='tray') await click(page,'tray:grab');
+  if(change==='tray') {
+    await click(page,'tray:grab');
+    await expect(page.locator('[data-action="tray:grab"]')).toHaveAttribute('aria-pressed','true');
+  }
   if(change==='history') await click(page,'undo');
   if(change==='document') { await page.locator('#picture-file').setInputFiles({name:'fresh.kidpix-web',mimeType:'application/json',buffer:saved}); await expect(control(page,'paste')).toBeDisabled(); }
   if(change==='blur') await page.evaluate(()=>window.dispatchEvent(new Event('blur')));

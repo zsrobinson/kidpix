@@ -85,3 +85,25 @@ production build and syntax/diff checks passed. No browser/server was started.
 Evidence is under `artifacts/t3/text-clipboard-runtime/`: `wipe-before.log`,
 `wipe-after-final.log`, `focus-before.log`, `node-parent-final.log` and
 `build-parent-final.log`. Root public0.13 verification remains untouched.
+
+## Browser checkpoint before iPad-performance pivot
+
+Parent browser acceptance found and fixed Escape delivery for source pointer
+controls retaining editor focus: the shared motion manager now cancels active
+held gestures on document Escape. A real Cut regression failed in Chromium,
+built Chromium and WebKit before the fix and passes afterward. Read pointer
+cancellation is also covered. Canceled-action checks compare directional selection
+as well as text, catching identical-text Paste that could otherwise hide a ghost
+history/selection mutation.
+
+The retry fixture now gates the retried image body until a static press is held,
+releases it after leaving the hit region, and explicitly verifies the source
+owner becomes ready without committing that canceled press. Its initial hover
+expectation was premature: a fresh owner restores rest, and pointer hover is
+separately checked after binding. No source-pixel tolerance changed.
+
+Final focused runs:82 Chromium dev,79 built Chromium and82 pinned WebKit cases
+passed, with220 Node tests and private build. Existing broader Text/action/paint
+regressions and final independent browser review remain pending. Source/clipboard
+work is checkpointed and deferred while reported iPad idle, clipping and pen
+latency issues take priority. Nothing from this candidate is merged or published.

@@ -391,6 +391,10 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     }
   }, { ...options, capture: true });
   controls.addEventListener('focusout', () => { if (keyboardIndex !== null && !rendering) cancel(); }, options);
+  // Formatting/action pointers can retain editor focus outside the controls.
+  stage.ownerDocument.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && (tracking !== null || keyboardIndex !== null)) cancel();
+  }, options);
   view.addEventListener('blur', cancel, options);
   view.addEventListener('pagehide', cancel, options);
   stage.ownerDocument.addEventListener('visibilitychange', () => { if (stage.ownerDocument.hidden) cancel(); }, options);

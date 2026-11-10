@@ -27,6 +27,14 @@ async function range(page,a,f,index=0) {
   },[a,f]);
 }
 const offsets = page => page.evaluate(()=>[getSelection().anchorOffset,getSelection().focusOffset]);
+const selectionFingerprint = page => page.evaluate(()=>{
+  const selection=getSelection();
+  const point=(node,offset)=>{
+    const element=node?.nodeType===1?node:node?.parentElement;
+    return [element?.closest('[data-object]')?.dataset.object??null,node?.nodeName??null,offset];
+  };
+  return [point(selection.anchorNode,selection.anchorOffset),point(selection.focusNode,selection.focusOffset)];
+});
 for(const fallback of [false,true]) for(const [a,f] of [[2,5],[5,2]]) test(`range Copy/Cut/Paste and identity/history; fallback ${fallback}, ${a}:${f}`,async({page})=>{
   await start(page,fallback);await box(page);await range(page,a,f);
   const id=await page.locator('[data-object]').first().getAttribute('data-object');
@@ -79,9 +87,10 @@ for(const fallback of [false,true]) for(const input of ['pointer','Space']) for(
   if(change==='document') { await page.locator('#picture-file').setInputFiles({name:'fresh.kidpix-web',mimeType:'application/json',buffer:saved}); await expect(control(page,'paste')).toBeDisabled(); }
   if(change==='blur') await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
   if(change==='cancel') await page.keyboard.press('Escape');
-  const before=await page.locator('.object-text').allTextContents();
+  const before=await page.locator('.object-text').allTextContents(), beforeSelection=await selectionFingerprint(page);
   if(input==='pointer')await page.mouse.up();else await page.keyboard.up('Space');
   expect(await page.locator('.object-text').allTextContents()).toEqual(before);
+  expect(await selectionFingerprint(page)).toEqual(beforeSelection);
   expect(await page.evaluate(()=>window.clipboardCalls)).toEqual([]);
 });
 
@@ -191,14 +200,22 @@ test('x449 browser overlap activates Copy once and leaves characters/Read/other 
   await expect(control(page,'paste')).toBeEnabled();await expect(page.locator('[data-action="speak"]')).toHaveAttribute('aria-pressed','false');
 });
 test('source media failure falls back, preserves range, and a retry keeps the held owner safe',async({page})=>{
-  let fail=true,failed=0;await page.route('**/secondary-motion/sprites/18000-601.png*',r=>{if(fail){failed++;return r.abort();}return r.continue();});
-  await start(page);await box(page);await range(page,1,4);
-  await control(page,'copy').click();expect(await offsets(page)).toEqual([1,4]);
-  expect(failed).toBeGreaterThan(0);await expect(canvas(page)).toBeHidden();
-  fail=false;await control(page,'cut').hover();await expect(canvas(page)).toBeVisible();
-  await expectProgram(page,'cut',18193);await page.mouse.down();await page.mouse.move(400,600);await page.mouse.up();
-  await expect(page.locator('.object-text')).toHaveText('abcdef');
-  await control(page,'cut').click();await expect(page.locator('.object-text')).toHaveText('aef');
+  let fail=true,failed=0,releaseRetry;
+  const retryGate=new Promise(resolve=>{releaseRetry=resolve;});
+  await page.route('**/secondary-motion/sprites/18000-601.png*',async route=>{
+    if(fail){failed++;return route.abort();}
+    await retryGate;return route.continue();
+  });
+  try {
+    await start(page);await box(page);await range(page,1,4);
+    await control(page,'copy').click();expect(await offsets(page)).toEqual([1,4]);
+    expect(failed).toBeGreaterThan(0);await expect(canvas(page)).toBeHidden();
+    fail=false;await control(page,'cut').hover();await page.mouse.down();
+    await page.mouse.move(400,600);releaseRetry();await expect(canvas(page)).toBeVisible();
+    await page.mouse.up();await expectProgram(page,'cut',18191);
+    await expect(page.locator('.object-text')).toHaveText('abcdef');
+    await control(page,'cut').click();await expect(page.locator('.object-text')).toHaveText('aef');
+  } finally { releaseRetry(); }
 });
 for(const backward of [false,true]) test(`built app BR/multinode/Unicode range and caret replacement, backward ${backward}`,async({page})=>{
   await start(page);await box(page);
@@ -267,4 +284,24 @@ test('wipe Undo/Redo preserves text copied afterward', async ({ page }) => {
  await click(page,'redo');await expect(page.locator('.object-text')).toHaveText('Fresh');
  await range(page,5,5);await control(page,'paste').click();
  await expect(page.locator('.object-text')).toHaveText('FreshFresh');
+});
+
+
+test('Escape cancels a source Read pointer while picture text retains focus',async({page})=>{
+  await page.addInitScript(()=>{
+    window.cancelReadCalls=[];
+    window.SpeechSynthesisUtterance=class {constructor(text){this.text=text;}};
+    speechSynthesis.getVoices=()=>[{voiceURI:'a',name:'A'}];
+    speechSynthesis.speak=utterance=>window.cancelReadCalls.push(utterance.text);
+    speechSynthesis.cancel=()=>{};
+  });
+  await start(page);await box(page);await range(page,1,4);
+  await expect(canvas(page)).toBeVisible();
+  const read=page.locator('[data-action="speak"]');
+  await read.hover();await page.mouse.down();
+  await expect(page.locator('.object-text')).toBeFocused();
+  await page.keyboard.press('Escape');await page.mouse.up();
+  expect(await page.evaluate(()=>window.cancelReadCalls)).toEqual([]);
+  await expect(read).toHaveAttribute('aria-pressed','false');
+  expect(await offsets(page)).toEqual([1,4]);
 });

@@ -53,6 +53,13 @@ Brace lists denote every individual key, not a URL. The parent should verify the
 
 ## Limitations and release boundary
 
+Release validation passed195 Node,370 development,323 built and134 WebKit cases
+with one explicit Chromium-only skip. The source-only export passed189 with six
+asset-dependent skips, build and deployment dry run. All17 static captures were
+reviewed; Text's1369 changed pixels are confined to the voice select/arrows, and
+the other16 captures are pixel-identical. The intentional web baseline update
+has zero remaining comparison/regression errors and changes no native reference.
+
 Read stays static with its existing behavior. Native Read uses a selected range, otherwise the current text box; current `Scene.speak()` queues whole-picture text and has no per-request TextRead speech owner. Read motion requires that separate scope/lifecycle implementation. Play and SlideShow keep their existing whole-picture speech semantics and ownership; voice UI changes do not start, stop or cancel speech.
 
 Native references remain **0/17**; actual iPad untested. Browser reconstruction and Docker WebKit do not establish native timing, audible cue latency, native popup internals, speech availability/pronunciation, Safari device interaction or OS voice ordering. Popup motion is deliberately deferred; public media verification and parent release gates remain parent-owned.

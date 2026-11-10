@@ -104,7 +104,7 @@ and cue, with a frozen browser composite and one unified clear transaction.
 See [the integration audit](audits/firehose-integration.md) for source facts,
 browser cancellation/paper policies, focused verification and disabled actor.
 This does not change the native reference count (0/17).
-# Text voice selection
+## Text voice selection
 
 The voice catalog is a browser adaptation keyed by saved voice URI and current
 platform order. The previous/next arrows use source MBTN9383 rows17/18, eight

@@ -394,3 +394,14 @@ Package0.12/config/docs edits are intentional. Finish full dev/built/WebKit,
 source-only and static-capture review before publishing. A Text-tray difference
 is expected only within the narrower voice select and two source arrow footprints;
 inspect it before accepting any baseline. Native0/17 and hardware limits remain.
+
+Final0.12 gates passed195 Node,370 development,323 built and134 WebKit checks
+with one explicit Chromium-only skip. Source-only passed189 with six
+asset-dependent skips, build and deployment dry run. All17 captures were reviewed:
+only Text changed,1369 pixels entirely within the voice select/arrow footprints;
+the other16 captures are pixel-identical. Old web baselines were backed up before
+accepting this intentional change. The rebuilt report has zero web regression or
+comparison errors; native references remain0/17. Receipt directory:
+`artifacts/t3/release-0120/`. Ready for final release commit/push and exact-revision
+public verification; do not confuse the original expected-baseline exit1 with
+a failed behavior check.

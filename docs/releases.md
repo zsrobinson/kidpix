@@ -2,12 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.12.0 (candidate)
+## 0.12.0
 
 - Animated Text's previous/next voice arrows with eight source programs and ten poses, including both tracking groups, source cues and disabled boundaries. Enabled secondary scope is now 48 rows, 152 programs and 203 poses; the voice popup remains a native select.
 - Preserved saved voice URIs across asynchronous catalog updates, reordered lists, missing voices and duplicate identities. Selection, save/restore and Undo/Redo synchronize the selected text object's voice without silently choosing another voice.
 - Kept catalog changes scoped to voice gestures, preserving unrelated held formatting and Grab actions. Native-select sessions retain their target through blur, and selection/history update control values and artwork together.
-- Focused source/browser checks and independent review passed. Full release gates remain pending. No new media is needed; all 26 referenced keys are publicly checksum-verified. Read's selected-range speech ownership, native popup behavior, original runtime feel and physical iPad acceptance remain separate work; native references stay 0/17.
+- Verified 195 Node checks, 370 development cases, 323 built cases and 134 WebKit cases with one explicit Chromium-only skip. Source-only checks passed 189 cases with six asset-dependent skips, plus build and deployment dry run. Reviewed all 17 static captures: Text's intentional change is confined to the voice select/arrows; the other 16 captures are pixel-identical. The accepted web report has zero comparison/regression errors.
+- No new media is needed; all 26 referenced keys are publicly checksum-verified. Read's selected-range speech ownership, native popup behavior, original runtime feel and physical iPad acceptance remain separate work; native references stay 0/17.
 
 ## 0.11.0
 

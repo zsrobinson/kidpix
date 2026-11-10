@@ -1,6 +1,6 @@
 # Text voice controls
 
-Bounded implementation above 6c22219 / application Firehose fixes 1bde44b; package version remains 0.11.0. No media, exporter, speech owner, release, upload or deployment change.
+This implementation adds browser voice selection and source arrow motion. Media, exporters and speech submission remain unchanged. The popup stays a native select, and Read remains static.
 
 ## Recovered source facts
 

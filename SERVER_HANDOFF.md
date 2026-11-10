@@ -368,3 +368,29 @@ discovery and initialization flags than the app, so its success is not equivalen
 to successful app startup. Do not add guessed optional features or claim a cause
 without a faithful diagnostic. Native accepted references remain0/17; Windows
 2.2.1.271 and Mac2.2/build615 remain distinct. Actual iPad hardware is untested.
+
+## Published 0.11 and local voice candidate
+
+0.11.0 is live at1124c20e6871ec028a5ffe0a4920b63ab9a27553, built
+2026-11-10T00:58:07.454Z. Cloudflare/GitHub checks passed. Public verification
+covered all298 cases across293 initial passes and five unchanged rechecks after
+delivery recovery. The initial run had one502, three stalled bundle transfers and
+a page-load timeout; do not rewrite it as a clean full run. Six independent
+request/body/hash checks and the five original cases passed without runtime,
+assertion or timeout changes. Exact root cause of the transient delivery failures
+was not established. Receipt: `artifacts/t3/release-0110/validation.json`.
+
+The local0.12 candidate integrates reviewed voice commits1069aefa/90f0734 as
+bfbb089/efe5cd8. Two voice arrow rows add eight programs and ten poses, bringing
+secondary scope to48 rows/152 programs/203 poses. Popup remains a native select;
+Read and whole-picture/slide speech behavior are unchanged. Saved URI, catalog
+generation and scene-target ownership are distinct; only voice gestures depend
+on the catalog. All26 required media keys already match public checksums.
+
+Parent-on-checkout checks passed195 Node/build/dryrun,67 Text/action/voice
+Chromium cases,47 shared-motion regressions and25 WebKit voice cases. Final
+independent review found no actionable findings after58 additional focused cases.
+Package0.12/config/docs edits are intentional. Finish full dev/built/WebKit,
+source-only and static-capture review before publishing. A Text-tray difference
+is expected only within the narrower voice select and two source arrow footprints;
+inspect it before accepting any baseline. Native0/17 and hardware limits remain.

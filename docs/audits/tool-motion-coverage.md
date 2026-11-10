@@ -1,7 +1,7 @@
 # Tool-control motion coverage
 
-Update: the runtime now enables 46 secondary source rows (144 programs,
-193 poses) alongside the 16 primary actors. The source-only inventory and prior
+Update: the runtime now enables 48 secondary source rows (152 programs,
+203 poses) alongside the 16 primary actors. The source-only inventory and prior
 execution records below remain historical evidence; see
 [secondary control motion](secondary-control-motion.md) for enabled scope and
 [Text steppers](text-steppers.md) for the latest four controls.

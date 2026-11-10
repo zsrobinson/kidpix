@@ -4,7 +4,7 @@ import base from './playwright.config.js';
 export default defineConfig({
   ...base,
   // Exercise shipped entry points, including URLs resolved from built CSS.
-  testMatch: ['firehose-integration.spec.js', 'studio-color-picker.spec.js', 'parity.spec.js', 'fidelity.spec.js', 'stamp-editor.spec.js', 'button-rollovers.spec.js', 'spray.spec.js', 'moving-spray.spec.js', 'brush.spec.js', 'brush-engine.spec.js', 'control-regions.spec.js', 'image-control-regions.spec.js', 'paper-canister.spec.js', 'interaction-ux.spec.js', 'undo-animation.spec.js', 'tool-motion-integration.spec.js', 'tool-motion-coverage.spec.js', 'secondary-motion.spec.js', 'action-motion.spec.js', 'stamp-motion.spec.js', 'ipad-input.spec.js', 'pencil-pressure.spec.js', 'text-steppers.spec.js', 'library-readiness.spec.js', 'path-input.spec.js'],
+  testMatch: ['text-voice.spec.js', 'firehose-integration.spec.js', 'studio-color-picker.spec.js', 'parity.spec.js', 'fidelity.spec.js', 'stamp-editor.spec.js', 'button-rollovers.spec.js', 'spray.spec.js', 'moving-spray.spec.js', 'brush.spec.js', 'brush-engine.spec.js', 'control-regions.spec.js', 'image-control-regions.spec.js', 'paper-canister.spec.js', 'interaction-ux.spec.js', 'undo-animation.spec.js', 'tool-motion-integration.spec.js', 'tool-motion-coverage.spec.js', 'secondary-motion.spec.js', 'action-motion.spec.js', 'stamp-motion.spec.js', 'ipad-input.spec.js', 'pencil-pressure.spec.js', 'text-steppers.spec.js', 'library-readiness.spec.js', 'path-input.spec.js'],
   // Helper-module fixtures require development source URLs; app cases run here.
   grepInvert: /@module/,
   outputDir: 'artifacts/browser-build',

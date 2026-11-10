@@ -104,3 +104,14 @@ and cue, with a frozen browser composite and one unified clear transaction.
 See [the integration audit](audits/firehose-integration.md) for source facts,
 browser cancellation/paper policies, focused verification and disabled actor.
 This does not change the native reference count (0/17).
+# Text voice selection
+
+The voice catalog is a browser adaptation keyed by saved voice URI and current
+platform order. The previous/next arrows use source MBTN9383 rows17/18, eight
+programs and ten poses; their popup remains an operable native browser select.
+Empty, Default, missing and ambiguous identities have explicit boundary behavior.
+Catalog refresh cannot cancel unrelated formatting or Grab gestures. Source
+art/pixels and independent browser ownership checks passed; native voice identity,
+pronunciation, popup internals, audible latency and physical iPad feel are unproved.
+Read remains static pending selected-range/current-box speech ownership; it must
+not be counted as an animated source control. Native references remain0/17.

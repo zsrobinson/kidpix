@@ -20,14 +20,20 @@ export function editorText(editor) {
   }
   walk(editor);
   return { text, point: offset => {
-    let last = [editor, editor.childNodes.length];
+    let exact, closest = [editor, 0], distance = Infinity;
     for (const [node, offsets] of points) {
       for (let i = 0; i < offsets.length; i++) {
-        if (offsets[i] === offset && node.nodeType === 3) return [node, i];
-        if (offsets[i] <= offset) last = [node, i];
+        if (offsets[i] === offset) {
+          if (node.nodeType === 3) return [node, i];
+          exact ??= [node, i];
+        }
+        const delta = Math.abs(offsets[i] - offset);
+        if (delta < distance) { closest = [node, i]; distance = delta; }
       }
     }
-    return last;
+    // A BR's trailing newline may only have an element boundary. Keep that
+    // exact endpoint rather than replacing it with an earlier text position.
+    return exact ?? closest;
   }, offset: (node, index) => points.get(node)?.[index] };
 }
 export function rangeText(text, anchor, focus) {

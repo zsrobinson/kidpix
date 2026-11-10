@@ -44,3 +44,38 @@ Native accepted references remain0/17. Actual iPad, audible output, pronunciatio
 - `git diff --check`:passed. No WebKit/Docker/native/iPad/audible run was performed for this tranche. The deterministic coordinator tests cover SlideSpeech ownership; a full real slideshow/audio device run remains a parent release check.
 
 Logs, build and cache are private ignored artifacts under `artifacts/t3/text-read-runtime`. Temporary dependency/media symlinks were removed after checks; the strict4228 test server was stopped. No use of parent ports or parent reports/dist.
+
+## Range restoration review fix
+
+Independent review reproduced a backward selection through the trailing BR in
+`a<br>b<br>` changing from `b\n` to `b` after Tab/Shift+Tab, canceling Read.
+The inverse mapping ignored exact element boundaries and replaced its fallback
+with the last traversed point. It now preserves exact element endpoints when no
+exact text endpoint exists, and uses the closest mapped offset for fallback.
+
+Three new regressions failed before the fix and pass afterward: canonical
+endpoint/caret roundtrips across trailing BR and block elements, and actual-app
+backward-selection Read through keyboard focus with source art and static controls.
+The roundtrip checks retain directional offsets and cover out-of-range/nearest
+fallback. No speech cancellation policy changed.
+
+Parent validation after the fix:
+
+- 199 Node tests passed; production build and Worker dry run passed.
+- 111 related Chromium cases passed. After the test-only source oracle adaptation,
+  all29 Read cases passed again in Chromium.
+- All29 Read cases passed in the pinned Playwright WebKit Docker image. The first
+  WebKit source-pixel run retained five channel differences above the existing
+  tolerance. Its final oracle uses the same independently pinned layers with
+  WebKit Canvas compositing, as the existing voice/stepper fixtures do; no runtime
+  renderer import or tolerance change. Chromium retains its integer oracle.
+- Source-URL helper cases are marked `@module` for exclusion from built/public
+  runs; actual-app range, ownership and pixel cases remain included.
+- `git diff --check` passes, including correction of the original test whitespace.
+
+Evidence: `artifacts/t3/text-read-runtime/{br-before,br-after,node-after-br,
+chromium-after-br,read-final-chromium,webkit-after-br,webkit-final,
+build-after-br,dryrun-after-br}.log`. Earlier failed probes remain intact.
+Native references stay0/17; these are browser/model checks, not physical iPad,
+audible speech, or native runtime acceptance. Root integration and final review
+remain pending.

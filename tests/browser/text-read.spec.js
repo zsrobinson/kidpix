@@ -6,7 +6,7 @@ async function setup(page,art=true) {
  await page.addInitScript(()=>{
   window.platform={engine:window.speechSynthesis,Utterance:window.SpeechSynthesisUtterance};
   window.calls=[]; window.utterances=[];
-  window.SpeechSynthesisUtterance=class { constructor(text){this.text=text;} }; 
+  window.SpeechSynthesisUtterance=class { constructor(text){this.text=text;} };
   platform.engine.getVoices=()=>[{voiceURI:'a',name:'A'}];
   platform.engine.speak=u=>{calls.push(['speak',u.text]);utterances.push(u);};
   platform.engine.cancel=()=>calls.push(['cancel']);
@@ -57,7 +57,7 @@ async function readPixels(page,script,frameIndex=0){
  const state=await actor(page).evaluate(c=>JSON.parse(c.dataset.motionSnapshot).find(s=>s.name==='speak'));
  expect([state.script,state.frameIndex]).toEqual([script,frameIndex]);
  const base=PNG.sync.read(readFileSync(`public/original/ui/${manifest.backdrops.text.pages[0].image}`));
- const expected=Buffer.alloc(61*86*4);
+ let expected=Buffer.alloc(61*86*4);
  for(let y=0;y<86;y++)base.data.copy(expected,y*61*4,((y+647-608)*base.width+493-113)*4,((y+647-608)*base.width+554-113)*4);
  for(const part of pins.programs[script].frames[frameIndex].parts){
   const sprite=PNG.sync.read(readFileSync(`public/original/ui/${manifest.sprites[`18000:${part.sprite}`].image}`));
@@ -65,6 +65,21 @@ async function readPixels(page,script,frameIndex=0){
    const i=(y*61+x)*4,a=sprite.data[i+3]/255;
    for(let c=0;c<3;c++)expected[i+c]=Math.round(sprite.data[i+c]*a+expected[i+c]*(1-a));expected[i+3]=255;
   }
+ }
+ // Keep Chromium's integer source oracle. WebKit uses the same independently
+ // pinned layers with its own Canvas premultiplication/source-over rounding.
+ if(test.info().project.use.browserName === 'webkit') {
+  const layers = [{png:readFileSync(`public/original/ui/${manifest.backdrops.text.pages[0].image}`).toString('base64'),x:113-493,y:608-647},
+   ...pins.programs[script].frames[frameIndex].parts.map(part => ({
+    png:readFileSync(`public/original/ui/${manifest.sprites[`18000:${part.sprite}`].image}`).toString('base64'),x:part.x-493,y:part.y-647,
+   }))];
+  const data = await page.evaluate(async layers => {
+   const canvas = document.createElement('canvas');canvas.width=61;canvas.height=86;
+   const context = canvas.getContext('2d');
+   for(const layer of layers){const image=new Image();image.src=`data:image/png;base64,${layer.png}`;await image.decode();context.drawImage(image,layer.x,layer.y);}
+   return canvas.toDataURL();
+  }, layers);
+  expected=PNG.sync.read(Buffer.from(data.split(',')[1],'base64')).data;
  }
  const images=[PNG.sync.read(Buffer.from((await actor(page).evaluate(c=>c.toDataURL())).split(',')[1],'base64')),PNG.sync.read(await page.locator('#studio').screenshot())];
  for(const image of images){let bad=0;for(let y=0;y<86;y++)for(let x=0;x<61;x++)for(let c=0;c<4;c++)if(Math.abs(image.data[((y+647)*1024+x+493)*4+c]-expected[(y*61+x)*4+c])>1)bad++;expect(bad).toBe(0);}
@@ -130,7 +145,7 @@ for(const owner of ['Read','Picture'])for(const outcome of ['cancel','commit','f
  if(outcome!=='commit')await expect(page.locator('.object-text')).toHaveCount(1);
 });
 
-test('whole-picture payload order/defaults are unchanged and independent of selection',async({page})=>{
+test('@module whole-picture payload order/defaults are unchanged and independent of selection',async({page})=>{
  await setup(page);
  expect(await page.evaluate(async()=>{
   const {createScene}=await import('/src/scene.js');const root=document.createElement('div'),surface=document.createElement('div');document.body.append(root,surface);
@@ -161,4 +176,60 @@ test('Read adds no history entries between a format change and its undo',async({
  await setup(page);await read(page).focus();await click(page,'bold');await read(page).click();await click(page,'undo');
  await expect(page.locator('.object-text')).toHaveCSS('font-weight','400');
  await expect(read(page)).toHaveAttribute('aria-pressed','false');
+});
+
+
+test('@module canonical editor endpoints roundtrip through trailing breaks and blocks', async ({ page }) => {
+ await page.goto('/');
+ const results = await page.evaluate(async () => {
+  const { editorText } = await import('/src/editor-text.js');
+  const { createTextRangeKeeper } = await import('/src/text-range.js');
+  const results = [];
+  for (const html of ['a<br>', 'a<br>b<br>', '<div>a</div><div>b<br></div>', '<p>a<br></p><p>b</p>']) {
+   const root = document.createElement('div');
+   root.innerHTML = `<div data-object="test"><div class="object-text" contenteditable="true">${html}</div></div>`;
+   document.body.append(root);
+   const editor = root.firstChild.firstChild, model = editorText(editor), keeper = createTextRangeKeeper(root);
+   editor.focus();
+   const mapped = Array.from({ length: model.text.length + 1 }, (_, offset) => model.offset(...model.point(offset)));
+   const ranges = [];
+   for (const offsets of [[model.text.length, model.text.length], [model.text.length, 0]]) {
+    getSelection().setBaseAndExtent(...model.point(offsets[0]), ...model.point(offsets[1]));
+    keeper.capture(editor);
+    getSelection().removeAllRanges();
+    keeper.restore(editor);
+    ranges.push(keeper.payload({ id: 'test' }).range);
+   }
+   results.push({ html, mapped, ranges, length: model.text.length,
+    fallback: [-1, model.text.length + 1, 0.4].map(offset => model.offset(...model.point(offset))) });
+   root.remove();
+  }
+  return results;
+ });
+ for (const result of results) {
+  expect(result.mapped, result.html).toEqual(Array.from({ length: result.length + 1 }, (_, i) => i));
+  expect(result.ranges, result.html).toEqual([[result.length, result.length], [result.length, 0]]);
+  expect(result.fallback, result.html).toEqual([0, result.length, 0]);
+ }
+});
+
+for (const art of [true, false]) test(`Read preserves backward trailing-break selection through keyboard focus, art ${art}`, async ({ page }) => {
+ await setup(page, art);
+ await page.locator('.object-text').evaluate(editor => {
+  editor.innerHTML = 'a<br>b<br>';
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+  editor.focus();
+  getSelection().setBaseAndExtent(editor, 4, editor.childNodes[2], 0);
+ });
+ await read(page).click();
+ expect(await page.evaluate(() => calls)).toEqual([['speak', 'b\n']]);
+ await page.keyboard.press('Tab');
+ await page.keyboard.press('Shift+Tab');
+ await expect(read(page)).toHaveAttribute('aria-pressed', 'true');
+ expect(await page.evaluate(() => calls)).toEqual([['speak', 'b\n']]);
+ expect(await page.locator('.object-text').evaluate(editor => {
+  const selection = getSelection();
+  return [selection.anchorNode === editor, selection.anchorOffset,
+   selection.focusNode === editor.childNodes[2], selection.focusOffset];
+ })).toEqual([true, 4, true, 0]);
 });

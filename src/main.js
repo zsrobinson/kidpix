@@ -442,12 +442,12 @@ const library = $('#library-tray');
 const nativeToolMotion = createNativeToolMotion({
   stage: studio, layer: $('#native-tool-motion'), controls: $('#tray-buttons'),
   resolve: path => original(`ui/${path}`),
-  onReady: () => showTray(), onActivate: action => activate(action),
+  onReady: () => refreshTrayMotion(), onActivate: action => activate(action),
 });
 
 const nativeSecondaryMotion = createNativeSecondaryMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
-  onReady: () => showTray(), onActivate: action => activate(action),
+  onReady: () => refreshTrayMotion(), onActivate: action => activate(action),
 });
 
 // Formatting chrome keeps the editor's caret/range during pointer activation.
@@ -456,9 +456,14 @@ $('#tray-buttons').addEventListener('pointerdown', event => {
   if (state.tray === 'text' && (['bold', 'italic', 'underline', 'speak'].includes(action) || action?.startsWith('text-clipboard:') || action?.startsWith('align:') || action?.startsWith('font-step:') || action?.startsWith('font-size-step:') || action?.startsWith('voice-step:'))
     && document.activeElement?.matches('.object-text')) event.preventDefault();
 }, { capture: true });
+const textFallbackActions = new Set([...TEXT_STEPPERS, ...VOICE_STEPPERS].map(stepper => stepper.action)
+  .concat('bold', 'italic', 'underline', 'align:left', 'align:center', 'align:right', 'speak', 'text-clipboard:cut', 'text-clipboard:copy', 'text-clipboard:paste'));
+const traySelectorActions = new Set(['tool', 'style', 'size', 'mode', 'effect', 'page', 'cookie', 'eraser-shape']);
 guardStepperInput($('#tray-buttons'), {
-  actions: [...TEXT_STEPPERS, ...VOICE_STEPPERS].map(stepper => stepper.action).concat('speak', 'text-clipboard:cut', 'text-clipboard:copy', 'text-clipboard:paste'),
-  getTarget: action => actionTarget(actionMotionState(), action),
+  actions: action => textFallbackActions.has(action) || traySelectorActions.has(action.split(':')[0])
+    || state.tray === 'grab' && action.startsWith('edit:'),
+  getTarget: action => traySelectorActions.has(action.split(':')[0])
+    ? JSON.stringify([state.tray, trayState(state).art, state.page]) : actionTarget(actionMotionState(), action),
   activate: action => activate(action),
 });
 const textRange = createTextRangeKeeper($('#objects'));
@@ -542,7 +547,7 @@ function actionMotionState() {
 }
 const nativeActionMotion = createNativeActionMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
-  onReady: () => state.tray === 'text' ? updateActionMotion() : showTray(),
+  onReady: () => refreshTrayMotion(),
   onActivate: action => activate(action), refreshCurrent: actionMotionState,
 });
 function updateActionMotion() {
@@ -742,6 +747,13 @@ function showTray() {
   for (const control of app.querySelectorAll('.side')) {
     control.setAttribute('aria-pressed', String(control.dataset.action === `tray:${state.tray}`));
   }
+  refreshTrayMotion();
+}
+
+// Artwork readiness changes presentation, not semantic controls or their held
+// input. Structural renders remain reserved for actual tray/option changes.
+function refreshTrayMotion() {
+  const nativeDraw = state.tray === 'draw' && nativeUi;
   const motionView = trayState(state);
   const motionReady = nativeToolMotion.update({ tray: state.tray, art: motionView.art, page: state.page,
     selected: state.tray === 'eraser' && state.tools.eraser === 'square' ? 'round' : state.tools[state.tray], color: state.color, nativeUi });

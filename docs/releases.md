@@ -2,6 +2,12 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.19.1
+
+- Preserve held tray controls and keyboard focus when optional tool artwork finishes loading. Artwork readiness updates presentation in place; tray and option changes retain their structural rendering.
+- Keep fallback pointer and Space gestures under shared ownership through artwork handoff. Validate the original control and target at release, reject incidental contacts and stale targets, and consume compatibility clicks once.
+- Release validation is pending. Native references remain 0/17; physical iPad latency and foreground-idle causation remain unverified.
+
 ## 0.19.0
 
 - Animate the eight tool tabs with their24 original rest, press, selected and hover programs, retaining80 source-verified frames, exact hit rectangles, sound gates and shared-script progress.

@@ -3,6 +3,7 @@
 set -eu
 root=artifacts/t3/ink-freshness
 prefix=${INK_PREFIX:-final}
+mkdir -p "$root"
 run() {
  local label="$prefix-$1" mode="$2" delay="$3" observe="$4" expected="$5"
  local status=0

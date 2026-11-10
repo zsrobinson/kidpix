@@ -1,6 +1,7 @@
 // Passive-capture capability probe only; no app/input performance claim.
 import {chromium,webkit} from '@playwright/test';
-import {writeFile} from 'node:fs/promises';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {dirname} from 'node:path';
 const engine=process.env.ENGINE||'chromium';
 const out=process.env.CAP_OUT||`artifacts/t3/ink-freshness/capabilities-${engine}.json`;
 const browser=await {chromium,webkit}[engine].launch();
@@ -19,5 +20,5 @@ try{
   await cdp.send('Page.stopScreencast');
   result.screencast='protocol command accepted; about:blank diagnostic only, not an ink oracle or physical presentation';
  }catch(e){result.cdpError=String(e);}
-}finally{await browser.close();await writeFile(out,JSON.stringify(result,null,2));}
+}finally{await browser.close();await mkdir(dirname(out),{recursive:true});await writeFile(out,JSON.stringify(result,null,2));}
 console.log(JSON.stringify(result));

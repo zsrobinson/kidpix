@@ -7,11 +7,13 @@ import path from 'node:path';
 const output = path.resolve(process.env.PERF_OUT || 'artifacts/pen-perf');
 await mkdir(output, { recursive: true });
 const seedPlugin = { name:'pen-perf-seed', enforce:'pre',
- async load(id) { if(process.env.REFERENCE_SOURCE && id.endsWith('/src/paint-original.js')) return readFile(process.env.REFERENCE_SOURCE,'utf8'); },
+ async load(id) { if(process.env.REFERENCE_MARKER_SOURCE && id.endsWith('/src/native-marker.js')) return readFile(process.env.REFERENCE_MARKER_SOURCE,'utf8'); if(process.env.REFERENCE_SOURCE && id.endsWith('/src/paint-original.js')) return readFile(process.env.REFERENCE_SOURCE,'utf8'); },
  transform(code,id) { if(id.endsWith('/src/paint.js')) {
   const expression='makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))';
   if(!code.includes(expression))throw Error('Stroke seed seam changed; update benchmark');
-  return code.replace(expression,'makeRandom(53)');
+  code=code.replace(expression,'makeRandom(53)');
+  if(process.env.REFERENCE_MARKER_SOURCE)code=code.replace('deferUploads: true, ','').replace('      current.nativeMarker.flush()\n','');
+  return code;
  } },
 };
 const server = await createServer({configLoader:"runner", plugins:[seedPlugin], cacheDir: `${output}/cache`, server: { host:'127.0.0.1', port:4241, strictPort:true, watch:{ignored:['**/*']}, hmr:false } });
@@ -25,7 +27,7 @@ try {
  const page=await browser.newPage({viewport:{width:1366,height:1024},hasTouch:true,deviceScaleFactor:2});
  const errors=[]; page.on('pageerror', e=>errors.push(String(e)));
  await page.addInitScript(()=>{
-  const metrics={events:[],frames:[],nextRAF:[],longTasks:[],canvas:{},enabled:false}; window.penMetrics=metrics;
+  const metrics={events:[],frames:[],nextRAF:[],longTasks:[],canvas:{},enabled:false,longTaskSupported:PerformanceObserver.supportedEntryTypes.includes('longtask')}; window.penMetrics=metrics;
   for(const name of ['getImageData','putImageData','drawImage','clearRect','fillRect']){
    const original=CanvasRenderingContext2D.prototype[name];
    CanvasRenderingContext2D.prototype[name]=function(...args){
@@ -88,6 +90,7 @@ try {
  }
  await writeFile(`${output}/results.json`,JSON.stringify({revision,referenceSource:process.env.REFERENCE_SOURCE||null,speed:Number(process.env.SPEED||5),seed:53,engine,cpu:Number(process.env.CPU||1),browser:browser.version(),errors,calibration,phases,rows},null,2));
  if(errors.length)throw Error(errors.join('\n'));
+ if(process.env.MAX_UPLOADS&&rows.some(r=>(r.canvas.putImageData?.count||0)>Number(process.env.MAX_UPLOADS)))process.exitCode=1;
  if(process.env.MAX_READBACKS&&rows.some(r=>(r.canvas.getImageData?.count||0)>Number(process.env.MAX_READBACKS)))process.exitCode=1;
  if(process.env.MAX_HANDLER_MS&&rows.some(r=>r.handler.p95>Number(process.env.MAX_HANDLER_MS)))process.exitCode=1;
 }finally{await browser?.close();await server.close();}

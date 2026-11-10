@@ -51,3 +51,29 @@ test('Marker clips original-size masks and samples paper by page position rather
   assert.deepEqual([...overlay.data], [191, 191, 191, 255, 64, 64, 64, 255]);
   assert.throws(() => stroke.draw({ width: 1, height: 1, data: [127] }, { x: 0, y: 0, width: 2, height: 1 }), /original bitmap/);
 });
+
+test('deferred Marker uploads preserve every dab and flush a single dirty union before composition', () => {
+  const base = { width: 8, height: 8, data: new Uint8ClampedArray(8 * 8 * 4).fill(255) };
+  const immediate = surface(8, 8), deferred = surface(8, 8);
+  let uploads = 0;
+  const rectangles = [];
+  const put = deferred.putImageData;
+  deferred.putImageData = (image, ...rectangle) => { uploads++; rectangles.push(rectangle); put(image); };
+  const a = createNativeMarkerStroke(base, immediate, { color: [20, 40, 60] });
+  const b = createNativeMarkerStroke(base, deferred, { color: [20, 40, 60], deferUploads: true });
+  const mask = { width: 2, height: 2, data: new Uint8ClampedArray(4).fill(127) };
+  for (const x of [0, 1, 3, 7]) {
+    const placement = { x, y: 2, width: 2, height: 2 };
+    a.draw(mask, placement); b.draw(mask, placement);
+  }
+  assert.equal(uploads, 0);
+  b.flush();
+  assert.equal(uploads, 1);
+  assert.deepEqual(rectangles, [[0, 0, 0, 2, 8, 2]]);
+  assert.deepEqual(deferred.data, immediate.data);
+  b.flush(); assert.equal(uploads, 1);
+  b.draw(mask, { x: 2, y: 2, width: 2, height: 2 });
+  b.reset(); b.flush();
+  assert.equal(uploads, 1);
+  assert.ok(deferred.data.every(channel => channel === 0));
+});

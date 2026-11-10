@@ -417,13 +417,14 @@ export function createPaint(canvas, hooks = {}) {
     compose(sample, { includeForeground: false })
     const color = brush.color.slice(1).match(/../g).map(value => parseInt(value, 16))
     return createNativeMarkerStroke(sample.getImageData(0, 0, width, height), preview,
-      { color, density: dab.density, texture: brush.nativeTexture,
+      { color, deferUploads: true, density: dab.density, texture: brush.nativeTexture,
         textureBias: dab.textureBias, invertTexture: brush.invertTexture })
   }
 
   function overlayStrokeTo(context, current) {
     const { options: brush } = current
     if (current.nativeMarker?.used) {
+      current.nativeMarker.flush()
       context.drawImage(preview.canvas, 0, 0)
       return
     }

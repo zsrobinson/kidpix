@@ -26,9 +26,10 @@ export function nativeMarkerRGB(destination, color, mask, {
  * Draws against a working copy of the visible opaque paint layer. The preview
  * stores only changed pixels, allowing normal art/background layering elsewhere.
  * History, composition and bitmap placement remain the owning tool's concern.
+ * With deferUploads, the owner must flush before reading/compositing the overlay.
  */
 export function createNativeMarkerStroke(base, overlay, {
-  color, density = 1, texture = null, textureBias = 1, invertTexture = false,
+  color, density = 1, texture = null, textureBias = 1, invertTexture = false, deferUploads = false,
 }) {
   const { width, height } = base
   const original = new Uint8ClampedArray(base.data)
@@ -40,7 +41,15 @@ export function createNativeMarkerStroke(base, overlay, {
   const textureDivisor = f(densityDivisor + 254)
   const [red, green, blue] = color
 
+  let dirtyLeft = width, dirtyTop = height, dirtyRight = 0, dirtyBottom = 0
+  function flush() {
+    if (dirtyRight <= dirtyLeft) return
+    overlay.putImageData(pixels, 0, 0, dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop)
+    dirtyLeft = width; dirtyTop = height; dirtyRight = dirtyBottom = 0
+  }
+
   return {
+    flush,
     draw(mask, placement) {
       if (placement.width !== mask.width || placement.height !== mask.height) {
         throw new RangeError('Native Marker requires original bitmap dimensions')
@@ -86,9 +95,16 @@ export function createNativeMarkerStroke(base, overlay, {
           bottom = Math.max(bottom, y + 1)
         }
       }
-      if (right > left) overlay.putImageData(pixels, 0, 0, left, top, right - left, bottom - top)
+      if (right > left) {
+        dirtyLeft = Math.min(dirtyLeft, left)
+        dirtyTop = Math.min(dirtyTop, top)
+        dirtyRight = Math.max(dirtyRight, right)
+        dirtyBottom = Math.max(dirtyBottom, bottom)
+        if (!deferUploads) flush()
+      }
     },
     reset() {
+      dirtyLeft = width; dirtyTop = height; dirtyRight = dirtyBottom = 0
       destination.set(original)
       pixels.data.fill(0)
       used = false

@@ -107,9 +107,11 @@ root reports. New studio cases use an800×600 viewport at DPR2; existing regress
 cases retain1024×768/DPR1. Leaf source tests pin all ten paths, strict timing,
 late-frame behavior, orientation/clipping, stale callbacks and cleanup.
 
-The focused regression run passed71/71. The final smaller run passed13/13 and additionally checks
-dispose/failed begin and late manifest delivery. Asset-free `npm test` passed193/193;
-`npm run build:cloudflare` passed. Studio cases cover activation,
+The final development suite passed345 cases and the built suite passed298.
+The fix-focused run passed56 cases;39 affected fixture cases and109 WebKit cases
+also passed, with one explicit Chromium-only delivery skip. `npm test` passed193
+cases with imported media available; the source-only export passed187 with six
+asset-dependent skips. Build and deployment dry run passed. Studio cases cover activation,
 foreground-over-object stacking, frozen path animation/full composite, paper and
 tracks, unified Undo/Redo, keyboard/secondary contact rejection, post-cancel
 contact clicks, Escape/blur/pagehide/reentry, delayed project import invalidation,
@@ -124,9 +126,11 @@ artifact directory. Test failures from earlier fixture/configuration iterations
 were corrected (versioned saved URLs; original-size regression viewport); the
 final reports are the acceptance evidence.
 
-Release remains parent-owned. Required existing media are only
+Required media are only
 `original/ui/big-eraser/manifest.json` and `water-cleaner-7433.wav`, two files,
-75,554 bytes. No exports, uploads, full sync, version change, push or deployment
-were performed. Parent must verify/publish those keys before release. Enlarged
+75,554 bytes. They were uploaded payload-first, then manifest, and independently
+checksum-verified on the public read path before code publication. No new export
+or full media sync was needed. All17 static captures remain pixel-identical to0.10;
+web baseline acceptance was unnecessary. Enlarged
 actor placement, native runtime/reference capture and native paper semantics
 remain objections to a full-parity claim, not reasons to enable guessed effects.

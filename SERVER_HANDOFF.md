@@ -348,7 +348,10 @@ partial begin lock leaks, and orphaned playback after failed commit. Original
 scene nodes, path clock and picture-track handles now survive rollback. The final
 independent review found no actionable findings after26 browser probes/cases and
 eight helper tests. Parent focused56 and Node193/build/dry-run checks passed.
-Full dev/built/WebKit release lanes are running; do not publish until they pass.
+Final release lanes passed345 development,298 built and109 WebKit cases with
+one explicit Chromium-only skip. Source-only passed187 with six asset-dependent
+skips, build and deployment dry run;39 affected Chromium cases also passed.
+The candidate is ready for its final release commit/push and public verification.
 The first interrupted runs and WebKit fixture failures remain separate evidence;
 clock initialization and retained fault-injection wrappers were corrected without
 changing the application to satisfy those fixtures. All17 static captures are

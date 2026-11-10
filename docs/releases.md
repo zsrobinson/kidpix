@@ -2,12 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.11.0 (candidate)
+## 0.11.0
 
 - Restored Firehose's original cumulative page-wipe paths and WaterCleaner sound, with the recovered delay and update gates. The picture freezes while the wipe runs; no extra confirmation or guessed large hose placement was added.
 - Kept the clear as one Undo/Redo operation across ink, objects, background and picture tracks. Escape and browser interruption cancel without clearing the picture; contacts begun during the wipe cannot activate controls after cancellation. Existing paper preservation remains a browser policy.
 - Canceled pending Stamp Editors during the wipe and protected partial-start and failed-commit cleanup. Failed commits retain the original scene clock and playback handles; Stop still controls resumed tracks.
-- The two required media files were publicly checksum-verified before code publication. Full release validation remains pending. The large hose actor, other Big Eraser engines, native runtime feel and physical iPad acceptance remain unverified; native references stay 0/17.
+- Verified 193 Node checks, 345 development cases, 298 built cases, 39 affected Chromium cases and 109 WebKit cases with one explicit Chromium-only skip. Source-only checks passed 187 cases with six asset-dependent skips, plus build and deployment dry run. All 17 static captures remain pixel-identical to 0.10; both required media files were publicly checksum-verified before code publication.
+- The large hose actor, other Big Eraser engines, native runtime feel and physical iPad acceptance remain unverified; native references stay 0/17.
 
 ## 0.10.0
 

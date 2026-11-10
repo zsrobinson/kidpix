@@ -121,6 +121,24 @@ cases. No assertion thresholds or static baselines changed.
 Exact commands, final run counts and any interrupted/failed attempts are recorded
 in the private `artifacts/t3/tool-tab-motion/HANDOFF.md` and logs.
 
+
+## Fallback keyboard review correction
+
+Independent review reproduced a slow-decode ownership race in Chromium and
+WebKit development and built apps. Releasing Shift while fallback Paint still
+held Space ended the fallback keyboard contact, allowing another pointer to
+select Grab before Space-up. The document keyup listener now finishes only when
+its key matches the held activation key. Explicit cancellation and the normal
+release/default-click transaction retain their existing paths.
+
+The actual-app regression blocks a Paint frame, holds Space, optionally presses
+and releases Shift, then completes decoding and attempts a competing Grab click.
+The control without Shift passes before the fix; the Shift case fails at the
+ownership assertion. After correction, artwork remains deferred, Grab stays
+unselected, and no tray activation occurs until Space-up. That release selects
+Paint exactly once, silently adopts the terminal art, and permits a fresh Grab
+press. No source program, cue, deadline, geometry or shared-audio helper changed.
+
 ## Limits
 
 Native references remain0/17. First-display native sound suppression/order,

@@ -268,7 +268,7 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
   if (terminalAdoption) {
     doc.addEventListener('pointerup', finishFallback, options);
     doc.addEventListener('pointercancel', finishFallback, options);
-    doc.addEventListener('keyup', () => { if (fallbackContact === keyboard) finishFallback(); }, options);
+    doc.addEventListener('keyup', event => { if (fallbackContact === keyboard && event.key === keyboardKey) finishFallback(); }, options);
     root.addEventListener('click', () => { if (fallbackContact) finishFallback(); }, options);
   }
   // A captured pointer can outlive focus in the hit layer.

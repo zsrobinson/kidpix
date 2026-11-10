@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { assertOwnerWindow } from './shared-pen-idle-control.mjs';
+import { assertBlankOverlays, assertEmptyObjects } from './shared-pen-studio-control.mjs';
 import { samePixels } from './shared-pen-pixels.mjs';
 
 export function compareStudioRuns(runs) {
@@ -25,6 +26,16 @@ export function compareStudioRuns(runs) {
    assert(samePixels(row,first),'Decoded RGBA mismatch');assert(row.stableAfterRelease,'Unsettled pixels');
    assert.equal(row.syntheticDeliveredSamples,240);assert.equal(row.syntheticDeliveredEvents,240/row.batch);
    assert.equal(row.raw.delivery.reduce((n,e)=>n+e.samples,0),240);
+   if(row.overlaysBefore){
+    for(const overlays of [row.overlaysBefore,row.overlaysAfter]){
+     if(run.scene!=='layered'||run.presentation?.endsWith('-hidden'))assertBlankOverlays(overlays,run.presentation);
+     if(first.overlaysBefore)assert.deepEqual(overlays.map(({visibility,...rest})=>rest),first.overlaysBefore.map(({visibility,...rest})=>rest),'Overlay geometry/backing drift');
+    }
+   }
+   if(row.objectsBefore)for(const objects of [row.objectsBefore,row.objectsAfter]){
+    if(run.scene!=='layered'||run.presentation==='objects-hidden')assertEmptyObjects(objects,run.presentation);
+    if(first.objectsBefore){const {visibility,...actual}=objects,{visibility:ignored,...expected}=first.objectsBefore;assert.deepEqual(actual,expected,'Object container drift');}
+   }
    const state=row.uiBefore;
    assert(state.undo.every(a=>a.hidden),'Visible Undo');
    assert(state.motion.every(c=>JSON.parse(c.motionSnapshot).every(a=>a.finished)),'Unfinished motion');

@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { snapshotPNG, samePixels } from './shared-pen-pixels.mjs';
 import { idleOwnerTransform, assertOwnerWindow } from './shared-pen-idle-control.mjs';
-import { studioControlPlugin, stageState } from './shared-pen-studio-control.mjs';
+import { studioControlPlugin, stageState, overlayState, assertBlankOverlays, emptyObjectsState, assertEmptyObjects } from './shared-pen-studio-control.mjs';
 const controlMode = process.env.CONTROL_MODE || 'full';
 if(process.env.MOTION_REVISION && process.env.IDLE_OWNERS && process.env.IDLE_OWNERS!=='off')throw Error('Do not combine source revision and idle suppression');
 const idleOwners = process.env.IDLE_OWNERS || 'off';
@@ -166,6 +166,11 @@ try {
     await page.waitForSelector('#paper-canvas[data-paint-ready="ready"]');
    }
   }
+  const overlaysBefore=controlMode==='full'?await page.evaluate(overlayState):null;
+  if(overlaysBefore&&(process.env.SCENE!=='layered'||presentation.endsWith('-hidden')))assertBlankOverlays(overlaysBefore,presentation);
+  const objectsBefore=controlMode==='full'?await page.evaluate(emptyObjectsState):null;
+  if(objectsBefore&&process.env.SCENE!=='layered')assertEmptyObjects(objectsBefore,presentation);
+  if(objectsBefore&&presentation==='objects-hidden')assertEmptyObjects(objectsBefore,presentation);
   const stage=await page.evaluate(stageState);
   const chromeState=controlMode==='full'?await page.locator('#paint-chrome').evaluate(n=>{const s=getComputedStyle(n),r=n.getBoundingClientRect();return {backgroundImage:s.backgroundImage,backgroundSize:s.backgroundSize,backgroundPosition:s.backgroundPosition,display:s.display,visibility:s.visibility,rect:{x:r.x,y:r.y,width:r.width,height:r.height}};}):null;
   if(controlMode==='full' && ((chromeState.backgroundImage==='none')!==(presentation==='chrome-no-image')))throw Error('Chrome image treatment did not compute');
@@ -214,12 +219,16 @@ try {
    await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}.trace.json`,trace);
   }
   const pixels=await page.locator('#paper-canvas').evaluate(async canvas=>{const afterRelease=canvas.toDataURL();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const ctx=canvas.getContext('2d');const rgba=ctx.getImageData(0,0,canvas.width,canvas.height).data;let nonOpaque=0;for(let i=3;i<rgba.length;i+=4)if(rgba[i]!==255)nonOpaque++;return{afterRelease,stable:afterRelease===canvas.toDataURL(),contextAttributes:ctx.getContextAttributes?.()||null,nonOpaque};});
+  const overlaysAfter=controlMode==='full'?await page.evaluate(overlayState):null;
+  if(overlaysAfter&&(process.env.SCENE!=='layered'||presentation.endsWith('-hidden')))assertBlankOverlays(overlaysAfter,presentation);
+  const objectsAfter=controlMode==='full'?await page.evaluate(emptyObjectsState):null;
+  if(objectsAfter&&(process.env.SCENE!=='layered'||presentation==='objects-hidden'))assertEmptyObjects(objectsAfter,presentation);
   const studioPNG=await page.screenshot();
   const studioPixels=snapshotPNG('data:image/png;base64,'+studioPNG.toString('base64'));
   await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}-studio.png`,studioPNG);
   const callbackGaps=m.callbackTimes.slice(1).map((t,i)=>t-m.callbackTimes[i]);
   const leadingGap=(m.callbackTimes[0]??m.ended)-m.started,trailingGap=m.ended-(m.callbackTimes.at(-1)??m.started);
-  const row={trial,tool,driver,chromeState,studioPixels,ownerBefore,ownerEnd:m.ownerEnd,ownerResumed,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
+  const row={trial,tool,driver,objectsBefore,objectsAfter,overlaysBefore,overlaysAfter,chromeState,studioPixels,ownerBefore,ownerEnd:m.ownerEnd,ownerResumed,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
    actualEvents:instrument?m.events.length:null,actualSamples:instrument?m.events.reduce((n,e)=>n+e.samples,0):null,trusted:instrument?m.events.filter(e=>e.trusted).length:null,
    callbackFrame:stats(callbackGaps),callbackCount:m.callbackTimes.length,callbackHz:m.callbackTimes.length*1000/(m.ended-m.started),leadingGap,trailingGap,maxObservedOrCensoredGap:Math.max(leadingGap,trailingGap,...callbackGaps),
    syntheticDeliveredEvents:m.delivery.length,syntheticDeliveredSamples:m.delivery.reduce((n,e)=>n+e.samples,0),

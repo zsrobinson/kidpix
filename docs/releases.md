@@ -2,11 +2,11 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.16.0 candidate
+## 0.16.0
 
 - Release UI animation completion gates when browser audio is paused, aborted, emptied, fails or its play request is rejected. Undo, Color Picker, primary/secondary tool motion and Firehose recover from interrupted audio and permit fresh actions.
 - Preserve pending playback, actively playing channel1/2 gates, authored poses/cues, retained-hover behavior and existing Audio return values. Remove obsolete listeners so replacement sounds retain their own completion state.
-- Real-browser interruption cases fail against the prior source and pass on the candidate. Local release checks and independent review are pending. No new source media or baseline change is required.
+- Real-browser interruption cases fail against the prior source and pass in Chromium/WebKit dev and built apps. Verified232 Node checks,419 development cases,368 built cases and177 WebKit cases; browser skips are explicit. Source-only220 checks pass with12 imported-asset skips, build and deployment dry run. All17 static captures are pixel-identical to0.15 and all672 source compositions match. Independent review found no release objections. No media upload or baseline change is required.
 - The physical iPad foreground-idle cause, drawing latency and audible behavior remain unverified. This release does not include the rejected drawing-performance experiments; native references remain0/17.
 
 ## 0.15.0

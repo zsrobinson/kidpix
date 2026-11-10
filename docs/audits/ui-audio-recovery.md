@@ -117,3 +117,27 @@ Audio state/events and source snapshot/pixels on the affected foreground iPad
 before reload; determine whether RAF still advances and whether a real terminal
 media event coincides with a source end gate remaining held. This patch is a
 browser interruption adaptation, not a proven reported Safari idle fix.
+
+## Release integration and broader fixtures
+
+Final local release checks pass232 Node,419 development,368 built-app and177
+WebKit cases, with explicit1/1/3 browser skips. Source-only validation passes220
+checks with12 imported-asset skips, build and dry run. All17 static captures are
+pixel-identical to accepted0.15. Independent review reports no actionable findings,
+including natural audio completion, initial loading, cancellation and source pixels.
+
+The first full runs exposed legacy assertions expecting an already-completed
+Picker cue to be paused again. Updated tests require zero redundant pauses for
+completed cues and one pause for interrupted still-owned opening/closing cues;
+stale events cannot release a replacement gate. A secondary fixture now creates
+a genuinely pending cue instead of changing an ended sound back to unfinished.
+Its clock installs before app RAF registration. Integer decoded frame counts
+preserve the original one-output-sample tolerance without floating-point duration
+subtraction overshoot. Staged cases pass in both engines/dev/built; intentional
+gate-bypass and missing-cancellation mutations fail. Clean full reruns then pass.
+Initial failures, traces, staged results and negative cases remain in release
+evidence; no source program or comparison threshold was weakened.
+
+Original app references remain0/17. This is a verified browser audio interruption
+adaptation; it does not establish the physical iPad foreground-idle cause, audible
+behavior or drawing latency. No rejected performance experiment is in the runtime.

@@ -103,6 +103,7 @@ export function nativeDabPlacement(point, options, dab, image, random = Math.ran
 
 const colorMasks = new WeakMap()
 const dynamicMasks = new WeakMap()
+const sourceMasks = new WeakMap()
 let cssColor
 
 // Native generic pixel blend: 0x123ecc normalizes mask 255 to 254 and
@@ -154,10 +155,18 @@ function tintMask(image, color, dab, pass, random, textureAt) {
     mask = makeSurface(width, height, true)
     if (dynamic) dynamicMasks.set(image, mask)
   }
-  // Reuse the surface while sampling fresh pixels on every dynamic dab.
-  mask.clearRect(0, 0, width, height)
-  mask.drawImage(image, 0, 0)
-  const pixels = mask.getImageData(0, 0, width, height)
+  // Loaded brush images are immutable. Keep their original raster separate
+  // from the reusable upload buffer; random/paper coefficients still run for
+  // every dab, but never require another canvas readback of the same image.
+  let source = sourceMasks.get(image)
+  if (!source) {
+    mask.clearRect(0, 0, width, height)
+    mask.drawImage(image, 0, 0)
+    const pixels = mask.getImageData(0, 0, width, height)
+    source = { pixels, data: pixels.data.slice() }
+    sourceMasks.set(image, source)
+  }
+  const { pixels } = source
   cssColor ??= makeSurface(1, 1, true)
   cssColor.clearRect(0, 0, 1, 1)
   cssColor.fillStyle = color
@@ -169,11 +178,11 @@ function tintMask(image, color, dab, pass, random, textureAt) {
     // 0x121500. The transparent stroke preview has no underlying art pixels;
     // retain its existing approximation rather than apply the generic blend.
     for (let offset = 0; offset < pixels.data.length; offset += 4) {
-      const alpha = pixels.data[offset]
+      const alpha = source.data[offset]
       pixels.data.set([rgba[0], rgba[1], rgba[2], alpha * rgba[3] / 255], offset)
     }
   } else {
-    pixels.data.set(nativeBrushMaskPixels(pixels.data, rgba, dab, pass, random, textureAt))
+    pixels.data.set(nativeBrushMaskPixels(source.data, rgba, dab, pass, random, textureAt))
   }
   mask.putImageData(pixels, 0, 0)
   if (!dynamic) {

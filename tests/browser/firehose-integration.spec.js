@@ -184,7 +184,7 @@ test('blank picture intentionally runs the wipe and has a single undoable clear'
   expect(await page.locator('[data-action="undo"]').first().getAttribute('aria-disabled')).toBe('true');
 });
 
-test('dispose and failed begin release guards; a late manifest cannot restart the operation', async ({ page }) => {
+test('@module dispose and failed begin release guards; a late manifest cannot restart the operation', async ({ page }) => {
   await page.goto('/');
   expect(await page.evaluate(async () => {
     const { createFirehoseOperation } = await import('/src/firehose-operation.js');

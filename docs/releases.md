@@ -2,6 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.14.0 (candidate)
+
+- Restored the full Crayon and Marker hover artwork by removing an excess clip from the tinted source copy. Ordinary base clipping and hit regions remain unchanged; every hover pose and restoration passes at four desktop/tablet viewport sizes in Chromium and WebKit.
+- Clear stops Firehose's retained bubbling rollover while preserving the separate wipe sound. Completion, cancellation, failure and fresh hover retain their own audio ownership.
+- Reused immutable brush rasters and batched Marker uploads before preview composition and commit. Repeated measurements reduce expensive canvas work while preserving delivered samples, pressure, source pixels and history. Desktop WebKit frame cadence and physical iPad latency remain open; see [performance measurements](audits/ipad-pen-performance.md).
+- Added loaded-page lifecycle and clear-audio acceptance probes. The reported idle Safari failure is not yet reproduced or claimed fixed. Original hose placement remains unproved and its large actor stays disabled. Native references remain 0/17.
+
 ## 0.13.0
 
 - Read speaks the selected range in the current text box, falling back to that box when the caret is collapsed. Whole-picture Play retains its existing ordered text queue and each object's voice.

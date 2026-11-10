@@ -15,12 +15,15 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
   const listeners = new view.AbortController(), options = { signal: listeners.signal };
   const guard = interactionOwner(doc);
   const actors = [];
-  let contact = null, keyboard = null, cancelledKeyboard = false, epoch = 0, released = null, raf;
+  let contact = null, keyboard = null, keyboardKey = null, cancelledKey = null, epoch = 0, released = null, raf;
   const url = path => new URL(original(`ui/${path}`), doc.baseURI).href;
   function stop(stream) { stream?.handles.forEach(h => h.stop()); }
-  function stream(id) {
+  function stream(id, { skipInitialCues = false } = {}) {
     const clip = data.scripts[id];
-    return { id, clip, tick: 0, next: view.performance.now() + clip.tickMs, sound: 0, handles: new Map(), finished: false };
+    let sound = 0;
+    // Readiness can take over a selection whose fallback already played this cue.
+    if (skipInitialCues) while (clip.sounds?.[sound]?.tick <= 0) sound++;
+    return { id, clip, tick: 0, next: view.performance.now() + clip.tickMs, sound, handles: new Map(), finished: false };
   }
   function cues(s) {
     while (s.sound < (s.clip.sounds?.length ?? 0) && s.clip.sounds[s.sound].tick <= s.tick) {
@@ -68,18 +71,20 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
       a.hover.dataset.script = String(s.id); a.hover.dataset.frame = String(i); a.image.hidden = true; }
   }
   function auxiliaryOff(a) { if (a.aux && a.base) a.base.next = Math.max(a.base.next, view.performance.now()); stop(a.aux); a.aux = null; a.hover.hidden = true; }
-  function state(a, value) {
+  function state(a, value, { skipInitialCues = false } = {}) {
     auxiliaryOff(a); a.state = value;
     const id = a.record.stateScripts[value];
-    if (a.base?.id !== id) { stop(a.base); a.base = stream(id); cues(a.base); }
+    if (a.base?.id !== id) { stop(a.base); a.base = stream(id, { skipInitialCues }); cues(a.base); }
     paint(a); schedule();
   }
   function unavailable(a) { return a.control.hidden || a.control.matches(':disabled') || a.control.getAttribute('aria-disabled') === 'true'; }
   function selected(a) { return a.control.getAttribute('aria-pressed') === 'true'; }
-  function settle(a) { state(a, selected(a) ? 2 : 0); }
+  function settle(a, options) { state(a, selected(a) ? 2 : 0, options); }
   function cancel() {
     epoch++;
-    const held = contact; contact = null; cancelledKeyboard ||= keyboard !== null; keyboard = null;
+    const held = contact; contact = null;
+    if (keyboard) cancelledKey = keyboardKey;
+    keyboard = null; keyboardKey = null;
     if (held) { released = held; guard.release(root, held.id); }
     actors.forEach(a => { if (a.ready) { settle(a); stop(a.base); } });
   }
@@ -90,7 +95,7 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
     try {
       await Promise.all([...new Set([...a.record.stateScripts, a.record.rolloverScript])].flatMap(id => data.scripts[id].frames.map(f => preloadButtonImage(view, url(f.image)))));
       if (listeners.signal.aborted || pendingEpoch !== epoch || unavailable(a)) return;
-      a.ready = true; onReady(a.record.name); settle(a);
+      a.ready = true; onReady(a.record.name); settle(a, { skipInitialCues: selected(a) });
       if (a.inside && a.hoverAllowed && !selected(a) && !unavailable(a) && !contact && !keyboard) startHover(a);
     } catch { /* A later entry retries; static binding stays usable. */ }
     finally { a.loading = false; }
@@ -117,6 +122,8 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
       if (!a.ready || unavailable(a) || contact || event.buttons || selected(a)) return;
       startHover(a);
     }, options);
+    // Pending decoding must not turn a still-held fallback press into hover.
+    control.addEventListener('pointerdown', () => { a.hoverAllowed = false; }, options);
     control.addEventListener('pointerleave', () => { a.inside = false; auxiliaryOff(a); paint(a); schedule(); }, options);
     const observer = new view.MutationObserver(() => {
       if (!a.ready) return;
@@ -137,7 +144,7 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
     if (!contact) released = null;
     const a = hit(event);
     if (!a || event.button !== 0 || contact || !guard.claim(event, root)) return;
-    released = null; cancelledKeyboard = false;
+    released = null;
     contact = { a, id: event.pointerId, inside: true };
     onGroup(a.record.group, a.record.name); state(a, 1);
     try { root.setPointerCapture(event.pointerId); } catch { cancel(); }
@@ -163,19 +170,25 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
       event.preventDefault(); event.stopImmediatePropagation(); return;
     }
     const a = hit(event);
-    if (!a || event.detail > 0) return;
-    if (cancelledKeyboard) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+    if (!a) return;
+    // A fallback press can become ready before its physical release/click.
+    // Start its source state before main decides who owns the activation cue.
     if (contact) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+    onGroup(a.record.group, a.record.name);
     if (keyboard !== a) state(a, 1);
-    keyboard = null; state(a, 2);
+    keyboard = null; keyboardKey = null; state(a, 2);
   }, { ...options, capture: true });
   root.addEventListener('keydown', event => {
     const a = hit(event);
     if (a && ['Enter', ' '].includes(event.key) && event.repeat) { event.preventDefault(); return; }
-    if (a && ['Enter', ' '].includes(event.key) && !event.repeat) { cancelledKeyboard = false; keyboard = a; state(a, 1); }
+    if (a && ['Enter', ' '].includes(event.key) && !event.repeat) { cancelledKey = null; keyboard = a; keyboardKey = event.key; state(a, 1); }
   }, options);
   // A captured pointer can outlive focus in the hit layer.
   doc.addEventListener('keydown', event => { if (event.key === 'Escape') cancel(); }, { ...options, capture: true });
+  // Prevent only the cancelled key's default activation, even after focus moves.
+  doc.addEventListener('keyup', event => {
+    if (event.key === cancelledKey) { event.preventDefault(); cancelledKey = null; }
+  }, { ...options, capture: true });
   root.addEventListener('focusout', () => { if (keyboard) cancel(); }, options);
   for (const type of ['pointercancel', 'lostpointercapture']) root.addEventListener(type, event => { if (contact?.id === event.pointerId) cancel(); }, options);
   for (const type of ['blur', 'pagehide']) view.addEventListener(type, cancel, options);

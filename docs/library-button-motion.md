@@ -166,6 +166,58 @@ evidence is retained in `artifacts/t3/release-0180/`, including the Escape failu
 and correction. Independent review and full release suites remain pending;
 public0.17 is unchanged.
 
+### Readiness and cancelled-key review fixes
+
+The first independent review reproduced two P2 issues in Chromium and WebKit,
+including production bundles: artwork readiness could replay cue1000 after a
+fallback selection, and cancelled Space tracking left all later semantic clicks
+blocked. The original report and its failing probes are retained under
+`artifacts/t3/release-0180/initial-review.md` and the matching review JSON files.
+
+Readiness now marks the already-consumed tick0 cue when adopting a selected
+fallback control. It does not skip future cues or suppress a fresh tracking
+stream. A second regression covers decoding between pointerdown and pointerup:
+an untracked physical click that becomes source-ready enters the source state
+before main chooses the activation cue owner. A pending decode cannot start an
+auxiliary hover during the held fallback press. Semantic and physical activations
+also perform the same group-peer cleanup. Source frames, registrations, intervals,
+end checks and fresh audio completion gates are unchanged.
+
+Keyboard cancellation records the cancelled key and prevents that keyup's default
+activation, including after focus moves. It no longer blocks later semantic
+clicks. Actual-app tests cover Escape, focus loss and blur followed by a semantic
+activation, plus both delayed-readiness timings and a fresh subsequent pointer
+selection. All five regressions fail before their corresponding correction and
+pass afterward. The older failures remain retained; no assertion was weakened.
+
+Chromium and pinned WebKit development each pass35 focused cases after these
+corrections. Built-app checks and final independent recheck remain release gates.
+No new media, version change, public deployment, performance or hardware claim
+is implied by this integration checkpoint.
+
+Both engines' development suites passed35 focused cases after the complete
+readiness/key fixes. Chromium built passed33. WebKit built passed32, with the
+remaining rollover case's body passing but its error collector rejecting an
+outgoing Drawing audio request cancelled by the test's intentional reload.
+No library frame, cue, input or cleanup assertion failed in that run.
+
+A controlled server delay reproduced that collector failure with the exact
+outgoing Request identity recorded. The rollover fixture now snapshots pending
+Requests before its explicit reloads and excludes WebKit's cancellation message
+only for those outgoing requests. HTTP errors, page errors and current-document
+request failures remain checked. A negative control creates and cancels a new
+media request after reload: it remains classified as current and correctly fails
+the asset-error assertion. The first negative setup attempt did not create a
+pending request and is retained as an excluded fixture failure. Debug logging and
+delay injection live only in the diagnostic artifact copy, not tracked tests.
+
+The corrected nine-case rollover suite passes in Chromium/WebKit development and
+built apps. Together with the earlier results, all33 distinct built cases have
+passing focused evidence; that is not a clean full release-suite claim. Exact
+commands, logs, controlled reload and negative fixtures are retained under
+`artifacts/t3/release-0180/`. Final independent recheck and full release gates
+remain pending, and public0.17 remains unchanged.
+
 ### Reproduction
 
 With existing dependencies/media linked, private configs in the artifact folder

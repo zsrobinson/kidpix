@@ -5,14 +5,28 @@ const backgrounds = page => page.getByRole('button', { name: 'Backgrounds', exac
 const rollover = page => page.locator('#native-buttons [data-native-rollover="backgrounds"]');
 const underlying = page => page.locator('#native-buttons [data-native-library-motion="backgrounds"]');
 
+async function reloadRolloverPage(page, options) {
+  for (const request of page.rolloverPendingRequests) page.rolloverOutgoingRequests.add(request);
+  return page.reload(options);
+}
+
 test.beforeEach(async ({ page }) => {
   page.rolloverErrors = [];
+  page.rolloverPendingRequests = new Set();
+  page.rolloverOutgoingRequests = new WeakSet();
+  page.on('request', request => page.rolloverPendingRequests.add(request));
+  page.on('requestfinished', request => page.rolloverPendingRequests.delete(request));
   page.on('pageerror', error => page.rolloverErrors.push(error.message));
   page.on('response', response => {
     if (response.status() >= 400) page.rolloverErrors.push(`${response.status()} ${response.url()}`);
   });
   page.on('requestfailed', request => {
-    if (request.failure()?.errorText !== 'net::ERR_ABORTED') page.rolloverErrors.push(`${request.failure()?.errorText} ${request.url()}`);
+    page.rolloverPendingRequests.delete(request);
+    const error = request.failure()?.errorText;
+    // WebKit reports an intentional reload abort differently from Chromium.
+    // Only requests already pending in the outgoing document qualify here.
+    const outgoingCancelled = error === 'Load request cancelled' && page.rolloverOutgoingRequests.has(request);
+    if (error !== 'net::ERR_ABORTED' && !outgoingCancelled) page.rolloverErrors.push(`${error} ${request.url()}`);
   });
   // Hold only Firehose's source cue open so native channel-completion gating is
   // deterministic. Other application audio continues to use real browser media.
@@ -254,7 +268,7 @@ test('native nonzero-group transition forces cleanup of a retained peer after le
     body.buttonAnimations.buttons.find(button => button.name === 'firehose').group = 1;
     await route.fulfill({ response, json: body });
   });
-  await page.reload();
+  await reloadRolloverPage(page);
   await expect(firehoseRollover(page)).toHaveCount(1);
   await enterFirehose(page);
   await page.mouse.move(920, 340);
@@ -274,7 +288,7 @@ for (const forceCleanup of [false, true]) {
       await route.continue();
     });
     try {
-      await page.reload({ waitUntil: 'domcontentloaded' });
+      await reloadRolloverPage(page, { waitUntil: 'domcontentloaded' });
       await expect(firehoseRollover(page)).toHaveCount(1);
       // Reload replays the paused clock with a performance origin determined by
       // setup's real elapsed time. Align before entry to Playwright's 16 ms RAF

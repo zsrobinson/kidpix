@@ -54,3 +54,16 @@ test('Escape outside the hit layer cancels a held library pointer before release
   await button.hover();await page.mouse.down();await page.mouse.up();
   await expect(button).toHaveAttribute('aria-pressed','true');
 });
+
+for(const reason of ['Escape','focusout','blur']) test(`cancelled Space permits later semantic activation after ${reason}`,async({page})=>{
+  const button=page.getByRole('button',{name:'Backgrounds',exact:true});
+  await button.focus();await page.keyboard.down(' ');
+  if(reason==='Escape')await page.keyboard.press('Escape');
+  else if(reason==='focusout')await page.getByRole('textbox',{name:'Picture title',exact:true}).focus();
+  else await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+  await page.keyboard.up(' ');
+  await expect(button).toHaveAttribute('aria-pressed','false');
+  await button.evaluate(button=>button.click());
+  await expect(button).toHaveAttribute('aria-pressed','true');
+  expect(await page.evaluate(()=>motionAudio.filter(a=>/easel-1000\.wav/.test(a.src)).length)).toBe(2);
+});

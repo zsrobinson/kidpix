@@ -11,7 +11,7 @@
     "verify:assets": "node scripts/verify-assets.mjs",
     "prebuild": "npm run verify:assets",
     "build:cloudflare": "vite build --mode cloudflare",
-    "test": "node --test worker/*.test.js scripts/sync-media.test.mjs scripts/parity/*.test.mjs scripts/serve-browser-build.test.mjs",
+    "test": "node --test scripts/pencil-prediction.test.mjs scripts/pencil-prediction-fixture.test.mjs scripts/cold-drawing-control.test.mjs scripts/ink-freshness-control.test.mjs scripts/shared-pen-display-control.test.mjs worker/*.test.js scripts/sync-media.test.mjs scripts/parity/*.test.mjs scripts/serve-browser-build.test.mjs",
     "check": "npm test && npm run build:cloudflare && wrangler deploy --dry-run",
     "deploy": "npm run build:cloudflare && wrangler deploy",
     "deploy:dry-run": "npm run build:cloudflare && wrangler deploy --dry-run",

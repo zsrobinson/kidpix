@@ -64,6 +64,11 @@ async function capture(page, testInfo, id) {
       return snapshot.length > 0 && snapshot.every(item => item.finished && !item.auxiliary);
     }), { message: 'All finite tool programs reached their delivered end check', timeout: 10_000 }).toBe(true);
   }
+  if (await page.locator('#paint-chrome').isVisible()) {
+    await expect.poll(() => page.locator('[data-native-library-motion]').evaluateAll(actors =>
+      actors.length === 4 && actors.every(actor => !actor.hidden && actor.dataset.finished === 'true')),
+    { message: 'Library state programs reached their delivered end check before a static capture', timeout: 10_000 }).toBe(true);
+  }
   await readyImages(page);
   const path = testInfo.outputPath(`${id}.png`);
   await page.locator('#studio').screenshot({ path, animations: 'disabled', caret: 'hide' });

@@ -34,8 +34,9 @@ test.afterEach(async ({ page }) => {
 
 test('single source rectangle controls Backgrounds hover and action without moving its artwork', async ({ page }) => {
   const control = button(page, 'Backgrounds');
-  const art = page.locator('#native-buttons [data-native-part="backgrounds"]');
+  const art = page.locator('#native-buttons [data-native-library-motion="backgrounds"]');
   const source = page.nativeUi.buttons.backgrounds;
+  await expect(art).toBeVisible();
   const artBounds = await art.boundingBox();
   expect([artBounds.x, artBounds.y, artBounds.width, artBounds.height]).toEqual([source.x, source.y, source.w, source.h]);
   const bounds = await control.boundingBox();

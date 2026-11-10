@@ -245,6 +245,30 @@ checks, assets, build and Worker dry run. Full release gates and independent
 touch-fix recheck remain pending. This is browser input evidence; physical iPad
 and Apple Pencil delivery, latency and audible feel remain unverified.
 
+### Release capture and hit-region fixtures
+
+The full Chromium gate exposed an old geometry assertion reading the hidden
+static Backgrounds sprite. It now reads the visible source base actor, waits
+for readiness, and retains the same artwork rectangle and exact MRGN corner,
+outside-hit, hover and activation assertions. The focused geometry/capture run
+passes20 cases. No runtime or hit geometry changed.
+
+Static recipes now wait for all four finite library state streams and their
+owned completion gates to settle while Paint Zone is visible. The17 complete
+captures pass their behavior checks. Sixteen are pixel-identical to0.17;
+Backgrounds' selected appearance changes3,771 pixels within x32–120/y15–68.
+The importer previously used zero-based bitmap4 (native bitmap5) for its static
+selected fallback. Raw MBTN75 instead selects script1001 for state2; it ends on
+native bitmap2. The fallback bitmap is a pose from auxiliary1002, not the
+selected-state program. The new pose is therefore an intentional source-backed
+web baseline change. Raw source pins and all40 frame comparisons are unchanged.
+
+Only that reviewed Backgrounds web baseline is accepted; prior baselines and
+the initial interrupted Chromium outputs are preserved under `release-0180/`.
+Original-runtime references remain untouched at0/17. The full303-case WebKit
+gate passes with three explicit skips; the corrected Chromium suites must finish
+before publication. This capture/helper correction changes no application code.
+
 ### Reproduction
 
 With existing dependencies/media linked, private configs in the artifact folder

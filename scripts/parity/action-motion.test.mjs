@@ -195,7 +195,7 @@ test('all 36 source rows have explicit compatible policies; unavailable actions 
     if (!b.policy.binding) { assert.equal(c.press(index), false); assert.equal(c.snapshot()[index].disabled, true); }
   });
   assert.throws(() => policyFor(9383, 99), /Unreviewed/);
-  assert.equal(row(9383, 15).policy.binding, null);
+  assert.equal(row(9383, 15).policy.binding, 'speak');
   assert.equal(row(926, 11).policy.binding, null);
 });
 
@@ -389,8 +389,8 @@ test('action manifest qualifies repeated sprite IDs and preserves registered geo
   assert.equal(source.scripts[4].frames[0].parts[0].sprite,7);
   delete source.sprites['101:7']; assert.throws(()=>actionManifest(source,{table:9383,rows:[9,10]}),/Missing action sprite/);
 });
-test('action profiles bind twelve Text controls and existing Hand/Scissors actions with explicit authoritative state', () => {
-  assert.deepEqual(actionProfile({tray:'text'}).rows,[2,3,4,5,6,7,8,9,10,11,17,18]);
+test('action profiles bind thirteen Text controls and existing Hand/Scissors actions with explicit authoritative state', () => {
+  assert.deepEqual(actionProfile({tray:'text'}).rows,[2,3,4,5,6,7,8,9,10,11,15,17,18]);
   assert.deepEqual(actionProfile({tray:'grab',selected:'scissors'}).rows,[2,3,4]);
   assert.equal(actionProfile({tray:'stamp'}),null);
   const manifest={buttons:['bold','italic','underline','align:right','edit:paste'].map(action=>({action}))};

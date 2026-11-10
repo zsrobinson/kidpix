@@ -1,0 +1,7 @@
+{
+  "name": "kidpix-text-read-local-check",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-09",
+  "assets": { "directory": "./artifacts/t3/text-read-runtime/build", "binding": "ASSETS", "run_worker_first": ["/original/*"], "not_found_handling": "none" },
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "kidpix-media" }]
+}

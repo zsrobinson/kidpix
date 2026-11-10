@@ -111,7 +111,7 @@ test('formatting preserves a backward text selection and its active end', async 
 });
 // Independent ordinary source compositor. No application renderer/controller import.
 async function expectSourcePixels(page, owner, view) {
-  const states = await snap(page, owner);
+  const states = (await snap(page, owner)).filter(state => state.name !== 'speak');
   const scripts = states.map(state => sourceManifest.scripts[state.script]);
   const allParts = Object.values(sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11] : [2,3,4,6,7,8,9]).includes(b.index)))
     .flatMap(button => [...button.stateScripts, button.rolloverScript].filter(Boolean))

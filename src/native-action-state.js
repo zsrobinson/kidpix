@@ -30,7 +30,7 @@ export function policyFor(table, row) {
   if (sizes[key]) return { kind: 'exclusive', selectionGroup: 'stamp-size', binding: sizes[key] };
   if (toggles[key]) return { kind: 'toggle', binding: toggles[key] };
   if (boundary) return { kind: 'boundary', binding: actions[key] ?? null };
-  if (key === '9383:15') return { kind: 'running', binding: null };
+  if (key === '9383:15') return { kind: 'running', binding: 'speak' };
   if ((table === 18700 && [0, 3].includes(row))
     || (table === 9383 && [0, 1, 12, 13, 14, 16].includes(row))
     || (table === 926 && row >= 2 && row <= 11)) {

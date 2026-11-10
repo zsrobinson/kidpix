@@ -1,3 +1,4 @@
+import { createSpeechCoordinator } from './speech-coordinator.js';
 import { VOICE_STEPPERS, voiceStep, voiceOptions, createVoiceCatalog } from './text-voices.js';
 import { createFirehoseOperation } from './firehose-operation.js';
 import { guardStepperInput } from './stepper-input.js';
@@ -450,15 +451,48 @@ const nativeSecondaryMotion = createNativeSecondaryMotion({
 // Formatting chrome keeps the editor's caret/range during pointer activation.
 $('#tray-buttons').addEventListener('pointerdown', event => {
   const action = event.target.closest('[data-action]')?.dataset.action;
-  if (state.tray === 'text' && (['bold', 'italic', 'underline'].includes(action) || action?.startsWith('align:') || action?.startsWith('font-step:') || action?.startsWith('font-size-step:') || action?.startsWith('voice-step:'))
+  if (state.tray === 'text' && (['bold', 'italic', 'underline', 'speak'].includes(action) || action?.startsWith('align:') || action?.startsWith('font-step:') || action?.startsWith('font-size-step:') || action?.startsWith('voice-step:'))
     && document.activeElement?.matches('.object-text')) event.preventDefault();
 }, { capture: true });
 guardStepperInput($('#tray-buttons'), {
-  actions: [...TEXT_STEPPERS, ...VOICE_STEPPERS].map(stepper => stepper.action),
+  actions: [...TEXT_STEPPERS, ...VOICE_STEPPERS].map(stepper => stepper.action).concat('speak'),
   getTarget: action => actionTarget(actionMotionState(), action),
   activate: action => activate(action),
 });
 const textRange = createTextRangeKeeper($('#objects'));
+let syncingRead = false;
+const speech = createSpeechCoordinator(window.speechSynthesis, window.SpeechSynthesisUtterance, () => {
+  if (!syncingRead) updateActionMotion();
+});
+function readPayload() { return textRange.payload(scene.textReadTarget); }
+function readState() {
+  const payload = readPayload();
+  const signature = JSON.stringify(payload);
+  const running = speech.current?.owner === 'TextRead';
+  const catalog = voiceCatalog.voices;
+  const validVoice = catalog.length > 0 && (!payload?.voiceURI || catalog.filter(v => v.voiceURI === payload.voiceURI).length === 1);
+  if (running && (state.tray !== 'text' || signature !== speech.current.payloads[0].signature || !validVoice)) {
+    syncingRead = true;
+    try { speech.retire('TextRead'); } finally { syncingRead = false; }
+  }
+  const active = speech.current?.owner === 'TextRead';
+  const disabled = !active && (state.playing || !$('#playback').hidden || !payload?.text.trim() || !validVoice || !window.SpeechSynthesisUtterance
+    || !window.speechSynthesis || window.speechSynthesis.paused || window.speechSynthesis.speaking || window.speechSynthesis.pending || Boolean(speech.current));
+  const control = $('#tray-buttons').querySelector('[data-action="speak"]');
+  if (control) { control.disabled = disabled; control.setAttribute('aria-pressed', String(active)); }
+  return { readActive: active, readDisabled: disabled, readIdentity: JSON.stringify([signature, speech.generation, speech.current?.owner]) };
+}
+function readText() {
+  const current = readState();
+  if (current.readActive) { speech.retire('TextRead'); return; }
+  if (current.readDisabled || state.tray !== 'text') return;
+  const payload = readPayload();
+  speech.submit('TextRead', [{ ...payload, signature: JSON.stringify(payload) }]);
+}
+$('#objects').addEventListener('scenechange', () => { if (state.tray === 'text') updateActionMotion(); });
+document.addEventListener('selectionchange', () => { if (state.tray === 'text') updateActionMotion(); });
+for (const type of ['pagehide', 'blur']) window.addEventListener(type, () => speech.retire('TextRead'));
+document.addEventListener('visibilitychange', () => { if (document.hidden) speech.retire('TextRead'); });
 $('#tray-buttons').addEventListener('pointerdown', event => {
   if (event.target.matches('#font, #font-size, #text-voice')) textRange.capture();
 }, { capture: true });
@@ -496,7 +530,7 @@ function actionMotionState() {
     }
     syncTextValues();
   }
-  return { voice: state.voice, voiceCatalog: voiceCatalog.voices, voiceGeneration: voiceCatalog.generation, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
+  return { ...readState(), voice: state.voice, voiceCatalog: voiceCatalog.voices, voiceGeneration: voiceCatalog.generation, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
 }
 const nativeActionMotion = createNativeActionMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
@@ -612,6 +646,7 @@ function showLibrary() {
 }
 
 function showTray() {
+  if (state.tray !== 'text') speech.retire('TextRead');
   nativeToolMotion.beforeRender();
   nativeSecondaryMotion.beforeRender();
   nativeActionMotion.beforeRender();
@@ -679,7 +714,7 @@ function showTray() {
         ${button('italic', 'Italic', 183, 716, 30, 32).replace('title=', `aria-pressed="${state.italic}" title=`)}
         ${button('underline', 'Underline', 212, 716, 30, 32).replace('title=', `aria-pressed="${state.underline}" title=`)}
         ${['left', 'center', 'right'].map((align, index) => button(`align:${align}`, `Align ${align}`, 252 + index * 38, 715, 33, 35).replace('title=', `aria-pressed="${state.align === align}" title=`)).join('')}
-        ${button('speak', 'Read Aloud', 495, 648, 56, 82)}
+        ${button('speak', 'Read Aloud', 493, 647, 61, 86)}
       `;
       if (!TEXT_FONTS.some(entry => entry.value === state.font)) $('#font').add(new Option(state.font, state.font));
       $('#font').value = state.font;
@@ -1021,16 +1056,17 @@ function playPicture(next = !state.playing) {
     soundPreview?.pause();
     stopTracks(picturePlayers);
     picturePlayers = playTracks(state.sound, state.narration);
-    scene.speak();
+    speech.submit('PicturePlay', scene.speechPayloads());
     showStatus('Playing picture. Press Play or Esc to stop.');
   } else {
     soundPreview?.pause();
     stopTracks(picturePlayers);
-    window.speechSynthesis?.cancel();
+    speech.retire('PicturePlay');
   }
 }
 
 function clearPicture(playCue = true, clearPaint = () => paint.clear(), stopPlayback = true) {
+  speech.retire('TextRead');
   backgroundRequest++;
   if (playCue) playUiSound(1029);
   const before = scene.snapshot();
@@ -1055,6 +1091,7 @@ function clearPicture(playCue = true, clearPaint = () => paint.clear(), stopPlay
 }
 
 function freshPicture() {
+  speech.retire('TextRead');
   backgroundRequest++;
   if (state.playing) playPicture(false);
   soundPreview?.pause();
@@ -1083,6 +1120,7 @@ function createComposite(result = document.createElement('canvas')) {
 // This operation owns the whole picture, independently of rollover and panel choices.
 firehose = createFirehoseOperation({ surface, canvas, original,
   settle() {
+    speech.retire('TextRead');
     cancelRecordedPathInput();
     paint.cancel();
     scene.settle();
@@ -1254,6 +1292,7 @@ function showSlides() {
 }
 
 function openSlides(open) {
+  if (open) speech.retire('TextRead');
   if (open) nativeRollovers?.cancel();
   if (state.playing) playPicture(false);
   stopSlides();
@@ -1269,7 +1308,7 @@ function stopSlides() {
   if ($('#playback').hidden) return;
   slideTrack?.pause();
   stopTracks(slidePicturePlayers);
-  window.speechSynthesis?.cancel();
+  speech.retire('SlideSpeech');
   slideScene.setPlaying(false);
   slideScene.restore([]);
   $('#playback').hidden = true;
@@ -1306,8 +1345,8 @@ function playSlides() {
     slideScene.setPlaying(true);
     stopTracks(slidePicturePlayers);
     slidePicturePlayers = playTracks(picture.sound, picture.narration);
-    window.speechSynthesis?.cancel();
-    slideScene.speak();
+    speech.retire('SlideSpeech');
+    speech.submit('SlideSpeech', slideScene.speechPayloads());
     if (slideTransitions) pictureView.animate([{ opacity: .1 }, { opacity: 1 }], { duration: 380 });
     slideTimer = setTimeout(advance, 3000);
   }
@@ -1392,7 +1431,7 @@ const commands = {
   stereo: exportStereo,
   clear: clearPicture,
   play: () => { if (!state.playing) playUiSound(1003); playPicture(); },
-  speak: () => scene.speak(),
+  speak: readText,
   help: () => {
     state.extendedHelp = !state.extendedHelp;
     showStatus(state.extendedHelp ? 'Move over a tool to see its name. Press Esc to close help.' : '', 0);

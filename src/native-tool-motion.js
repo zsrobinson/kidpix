@@ -343,6 +343,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     if (event.key === 'Escape') cancel();
   }, options);
   controls.addEventListener('keyup', event => {
+    if (owner) refreshState();
     const hit = target(event);
     if (event.key === ' ' && hit && cancelledKeyboardClick) { event.preventDefault(); return; }
     if (event.key !== ' ' || keyboardIndex === null || hit?.index !== keyboardIndex) return;
@@ -352,6 +353,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     activateProposal(normalizeProposal(owner.controller.release(true), index));
   }, options);
   controls.addEventListener('click', event => {
+    if (owner) refreshState();
     const hit = target(event);
     if (!hit && (releaseIndex === undefined || event.detail === 0)) return;
     event.preventDefault(); event.stopPropagation();

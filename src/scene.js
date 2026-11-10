@@ -1,3 +1,4 @@
+import { editorText } from './editor-text.js';
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 import { makeId } from './id.js';
 
@@ -48,6 +49,8 @@ export function createScene(root, surface, onChange) {
   let path = null;
   let pathStarted = 0;
   const previews = new Set();
+  let readRevision = 0, readIdentity;
+  const notify = () => root.dispatchEvent(new Event('scenechange'));
 
   const current = () => objects.find(object => object.id === selected);
   const snapshot = () => structuredClone(objects);
@@ -83,7 +86,7 @@ export function createScene(root, surface, onChange) {
             before = snapshot();
             selected = object.id;
           });
-          text.addEventListener('input', () => { object.text = text.innerText; });
+          text.addEventListener('input', () => { object.text = editorText(text).text; notify(); });
           text.addEventListener('blur', () => {
             if (before) {
               const prior = before.find(item => item.id === object.id);
@@ -129,6 +132,7 @@ export function createScene(root, surface, onChange) {
       }
       root.append(node);
     }
+    notify();
   }
 
   function add(object) {
@@ -415,14 +419,15 @@ export function createScene(root, surface, onChange) {
       }
       animation = requestAnimationFrame(tick);
     },
-    speak() {
-      if (!('speechSynthesis' in window)) return;
-      for (const object of objects.filter(item => item.kind === 'text').sort((a, b) => a.y - b.y || a.x - b.x)) {
-        if (!object.text.trim()) continue;
-        const speech = new SpeechSynthesisUtterance(object.text);
-        if (object.voice) speech.voice = speechSynthesis.getVoices().find(voice => voice.voiceURI === object.voice) || null;
-        speechSynthesis.speak(speech);
-      }
+    speechPayloads() {
+      return objects.filter(item => item.kind === 'text' && item.text.trim())
+        .sort((a, b) => a.y - b.y || a.x - b.x).map(object => ({ text: object.text, voiceURI: object.voice || '' }));
+    },
+    get textReadTarget() {
+      const object = current();
+      const identity = JSON.stringify(object?.kind === 'text' ? [object.id, object.text, object.voice || ''] : null);
+      if (identity !== readIdentity) { readIdentity = identity; readRevision++; }
+      return object?.kind === 'text' ? Object.freeze({ id: object.id, revision: readRevision, voiceURI: object.voice || '' }) : null;
     },
     async rightEyeImages() {
       const sources = objects.flatMap(object => [
@@ -507,6 +512,7 @@ export function createScene(root, surface, onChange) {
     },
     snapshot,
     restore(state, { textTarget = null } = {}) {
+      readRevision++;
       objects = structuredClone(state);
       previews.clear();
       selected = objects.find(object => object.id === textTarget && object.kind === 'text')?.id ?? null;

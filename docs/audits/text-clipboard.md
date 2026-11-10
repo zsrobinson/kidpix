@@ -55,3 +55,33 @@ Required existing public keys under `original/ui/`:
 No media is added. Existing Read/font/voice/action dependencies remain necessary. Temporary dependency/public input symlinks were removed after checks. There are no servers to stop.
 
 Native accepted coverage remains **0/17**. Actual iPad interaction, audible playback, native clipboard interoperability, rich styles, source enable-updater/focus behavior and native timing remain unverified. The clipboard is plaintext, preserves the object's single style, and imposes no reconstructed native per-character callback/length-cap policy. Windows resource identity is not a native runtime-equivalence claim. Parent owns browser acceptance and release decisions.
+
+## Parent review fixes before browser acceptance
+
+Static review reproduced a history integration defect: after wiping a picture,
+copying newly typed text, undoing that creation and undoing the wipe, Paste lost
+the copied payload. The clear-history branch now passes `history:true`, matching
+ordinary scene history. The actual main history function was run against the
+real scene adapter in a private Node probe: it failed before and passes after,
+including Redo and ordinary document-replacement clearing. A matching actual-app
+browser regression is added but remains unrun.
+
+The injected synchronous focus/document-replacement probe also failed before
+and passes after a scene/editor/epoch ownership guard. Selection restoration
+checks after focusing before using the editor; a replaced document is neither
+rolled back nor journaled as the retired operation. This addresses the reported
+callback edge; no normal UI trigger had been established. The application
+`onChange` history sink remains trusted synchronous code, with throwing or
+reentrant mutation callbacks outside the supported contract.
+
+Deferred browser assertions now require independent rest/hover/press program IDs,
+tracking frame indices and preserved Read/font/size/voice pixels. Asset-failure
+routes match versioned URLs, explicitly assert fallback and successful source
+retry, and cue identity uses URL paths rather than failing on version queries.
+No pixel tolerance changed. These assertions still require actual browser runs.
+
+Parent final checks:220 Node tests passed with source assets present, private
+production build and syntax/diff checks passed. No browser/server was started.
+Evidence is under `artifacts/t3/text-clipboard-runtime/`: `wipe-before.log`,
+`wipe-after-final.log`, `focus-before.log`, `node-parent-final.log` and
+`build-parent-final.log`. Root public0.13 verification remains untouched.

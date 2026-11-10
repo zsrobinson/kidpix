@@ -284,7 +284,7 @@ function history(direction, fromFace = false) {
   else if (entry.kind === 'sound') state[entry.track] = entry[direction === 'undo' ? 'before' : 'after'];
   else if (entry.kind === 'clear') {
     if (entry.paint) paint[direction]();
-    scene.restore(direction === 'undo' ? entry.before : []);
+    scene.restore(direction === 'undo' ? entry.before : [], { history: true });
     state.sound = direction === 'undo' ? entry.sound : null;
     state.narration = direction === 'undo' ? entry.narration : null;
     state.backdrop = direction === 'undo' ? entry.backdrop : null;

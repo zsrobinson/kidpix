@@ -8,7 +8,7 @@ const control = (page, action) => page.locator(`[data-action="text-clipboard:${a
 const canvas = page => page.locator('[data-native-action-motion]');
 const click = (page, action) => page.locator(`[data-action="${action}"]`).last().evaluate(b=>b.click());
 async function start(page, fallback=false) {
-  if(fallback) await page.route('**/secondary-motion/manifest.json',r=>r.abort());
+  if(fallback) await page.route('**/secondary-motion/manifest.json*',r=>r.abort());
   await page.addInitScript(()=>{
     window.clipboardCalls=[];
     // Forbidden app API calls fail loudly; ordinary trusted native events remain default.
@@ -101,6 +101,19 @@ test('@module BR/block/multinode directional canonical offsets and Unicode',asyn
   expect(result.changes[0]).toEqual({text:'AC\n',anchor:1,focus:1});
 });
 
+async function expectProgram(page,action,script,frameIndex=0) {
+ const state=await canvas(page).evaluate((c,a)=>JSON.parse(c.dataset.motionSnapshot).find(s=>s.name===`text-clipboard:${a}`),action);
+ expect([state.script,state.frameIndex]).toEqual([script,frameIndex]);
+}
+async function preservedFields(page) {
+ const image=PNG.sync.read(await page.locator('#studio').screenshot());
+ // Read and existing font/size/voice browser controls are outside clipboard ownership.
+ return [[145,651,231,96],[493,647,61,86],[620,659,155,63]].map(([x,y,w,h])=>{
+  const data=Buffer.alloc(w*h*4);
+  for(let row=0;row<h;row++)image.data.copy(data,row*w*4,((y+row)*image.width+x)*4,((y+row)*image.width+x+w)*4);
+  return createHash('sha256').update(data).digest('hex');
+ });
+}
 async function pixels(page) {
   const states = await canvas(page).evaluate(c=>JSON.parse(c.dataset.motionSnapshot).filter(s=>s.name.startsWith('text-clipboard:')));
   const expected = PNG.sync.read(readFileSync(`public/original/ui/${manifest.backdrops.text.pages[0].image}`));
@@ -151,18 +164,23 @@ test('all source rows/programs/registrations/sprites and real visible rest/hover
   const clean=PNG.sync.read(readFileSync(`public/original/ui/${manifest.backdrops.text.pages[0].image}`));
   expect(createHash('sha256').update(clean.data).digest('hex')).toBe('455373eaa3f21b2246f50fa7f398abdc4dcfdefc040d6891183220b3eb92d654');
   await start(page);await box(page);await range(page,1,4);await control(page,'copy').click();
+  await expect(canvas(page)).toBeVisible();
   await page.clock.install();await page.clock.pauseAt(new Date(Date.now()+60000));
+  const ids={cut:[18191,18192,18193],copy:[18185,18186,18187],paste:[18188,18189,18190]};
+  const cueCount=(page,id)=>page.evaluate(id=>window.cues.filter(s=>new URL(s,location.href).pathname.endsWith(`/${id}.wav`)).length,id);
   for(const [action,cue] of [['cut',18071],['copy',18059],['paste',18060]]){
-    await range(page,1,4);await page.mouse.move(400,600);await page.clock.runFor(16);await pixels(page);
-    await control(page,action).hover();await page.clock.runFor(16);await pixels(page);
-    const before=await page.evaluate(id=>window.cues.filter(s=>s.endsWith(`/${id}.wav`)).length,cue);
-    await page.mouse.down();await pixels(page);await page.clock.runFor(99);
-    expect(await page.evaluate(id=>window.cues.filter(s=>s.endsWith(`/${id}.wav`)).length,cue)).toBe(before);
-    await page.clock.runFor(29);await pixels(page);
+    await range(page,1,4);await page.mouse.move(400,600);await page.clock.runFor(16);await expectProgram(page,action,ids[action][0]);await pixels(page);
+    const preserved=await preservedFields(page);
+    await control(page,action).hover();await page.clock.runFor(16);await expectProgram(page,action,ids[action][2]);await pixels(page);
+    const before=await cueCount(page,cue);
+    await page.mouse.down();await expectProgram(page,action,ids[action][1]);await pixels(page);await page.clock.runFor(99);
+    expect(await cueCount(page,cue)).toBe(before);
+    await page.clock.runFor(29);await expectProgram(page,action,ids[action][1],1);await pixels(page);
     const snapshot=await canvas(page).evaluate((c,a)=>JSON.parse(c.dataset.motionSnapshot).find(s=>s.name===`text-clipboard:${a}`),action);
     expect(snapshot.frameIndex).toBe(1);expect(snapshot.state).toBe(1);
-    await page.clock.runFor(300);expect(await page.evaluate(id=>window.cues.filter(s=>s.endsWith(`/${id}.wav`)).length,cue)).toBe(before+1);
-    await page.mouse.move(400,600);await page.mouse.up();await page.clock.runFor(16);await pixels(page);
+    await page.clock.runFor(300);expect(await cueCount(page,cue)).toBe(before+1);
+    await page.mouse.move(400,600);await page.mouse.up();await page.clock.runFor(16);await expectProgram(page,action,ids[action][0]);await pixels(page);
+    expect(await preservedFields(page)).toEqual(preserved);
     await expect(page.locator('.object-text')).toHaveText('abcdef');
   }
 });
@@ -173,10 +191,12 @@ test('x449 browser overlap activates Copy once and leaves characters/Read/other 
   await expect(control(page,'paste')).toBeEnabled();await expect(page.locator('[data-action="speak"]')).toHaveAttribute('aria-pressed','false');
 });
 test('source media failure falls back, preserves range, and a retry keeps the held owner safe',async({page})=>{
-  let fail=true;await page.route('**/secondary-motion/sprites/18000-601.png',r=>fail?r.abort():r.continue());
+  let fail=true,failed=0;await page.route('**/secondary-motion/sprites/18000-601.png*',r=>{if(fail){failed++;return r.abort();}return r.continue();});
   await start(page);await box(page);await range(page,1,4);
   await control(page,'copy').click();expect(await offsets(page)).toEqual([1,4]);
-  fail=false;await control(page,'cut').hover();await page.mouse.down();await page.mouse.move(400,600);await page.mouse.up();
+  expect(failed).toBeGreaterThan(0);await expect(canvas(page)).toBeHidden();
+  fail=false;await control(page,'cut').hover();await expect(canvas(page)).toBeVisible();
+  await expectProgram(page,'cut',18193);await page.mouse.down();await page.mouse.move(400,600);await page.mouse.up();
   await expect(page.locator('.object-text')).toHaveText('abcdef');
   await control(page,'cut').click();await expect(page.locator('.object-text')).toHaveText('aef');
 });
@@ -229,4 +249,22 @@ for(const action of ['text-clipboard:paste','bold']) test(`@module clipboard gen
   },action);
   await page.locator('#generation-action').focus();await page.keyboard.down('Space');await page.evaluate(()=>window.changeTextClipboard());await page.keyboard.up('Space');
   expect(await page.evaluate(()=>window.generationCalls)).toEqual(action==='bold'?['bold']:[]);
+});
+
+
+test('wipe Undo/Redo preserves text copied afterward', async ({ page }) => {
+ await start(page);await box(page,'Old picture');
+ await page.locator('.object-text').blur();
+ await page.locator('#hit-layer [data-action="clear"]').evaluate(button => button.click());
+ await expect(page.locator('.firehose-wipe')).toBeVisible();
+ await expect(page.locator('.firehose-wipe')).toHaveCount(0);
+ await expect(page.locator('.object-text')).toHaveCount(0);
+ await box(page,'Fresh');await range(page,0,5);await control(page,'copy').click();
+ await click(page,'undo');await expect(page.locator('.object-text')).toHaveCount(0);
+ await click(page,'undo');await expect(page.locator('.object-text')).toHaveText('Old picture');
+ await range(page,0,0);await expect(control(page,'paste')).toBeEnabled();
+ await click(page,'redo');await expect(page.locator('.object-text')).toHaveCount(0);
+ await click(page,'redo');await expect(page.locator('.object-text')).toHaveText('Fresh');
+ await range(page,5,5);await control(page,'paste').click();
+ await expect(page.locator('.object-text')).toHaveText('FreshFresh');
 });

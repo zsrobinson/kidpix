@@ -72,3 +72,14 @@ test('object clipboard is independent and retained text payload can paste into a
   assert.equal(h.scene.snapshot().length,3);assert.equal(h.scene.snapshot()[2].text,'abc');assert.equal(h.scene.snapshot()[2].x,12);
   h.scene.destroy();
 });
+
+test('document replacement during focus cannot publish an old-document clipboard transaction',()=>{
+  const h=fixture();h.range(0,3);assert.equal(h.scene.textClipboard.perform('copy'),true);
+  h.editor().blur();
+  const replacement=[{id:'NEW',kind:'text',text:'replacement',x:0,y:0,width:100,height:100}];
+  h.editor().addEventListener('focus',()=>h.scene.restore(replacement),{once:true});
+  assert.equal(h.scene.textClipboard.perform('paste'),false);
+  assert.deepEqual(h.scene.snapshot(),replacement);
+  assert.equal(h.history.length,0);
+  h.scene.destroy();
+});

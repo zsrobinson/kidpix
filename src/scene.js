@@ -61,10 +61,13 @@ export function createScene(root, surface, onChange) {
   const editorFor = id => [...root.children].find(node => node.dataset.object === id)?.querySelector('.object-text');
   function selectionAt(id, range, focus = true) {
     const editor = editorFor(id);
-    if (!editor || !range) return;
+    if (!editor || !range) return false;
+    const epoch = documentEpoch;
     if (focus) editor.focus({ preventScroll: true });
+    if (disposed || documentEpoch !== epoch || editorFor(id) !== editor) return false;
     const model = editorText(editor);
     root.ownerDocument.getSelection().setBaseAndExtent(...model.point(range.anchor), ...model.point(range.focus));
+    return !disposed && documentEpoch === epoch && editorFor(id) === editor;
   }
   function flushText() {
     if (!before) return;
@@ -82,10 +85,15 @@ export function createScene(root, surface, onChange) {
       if (JSON.stringify(textClipboard.target()) !== JSON.stringify(token)) return false;
       const prior = snapshot(), object = current(), editor = editorFor(object.id);
       const nodes = [...editor.childNodes], oldText = object.text;
+      const ownsEdit = () => !disposed && documentEpoch === token.documentEpoch
+        && objects.includes(object) && editorFor(object.id) === editor;
       try {
         object.text = next.text; editor.textContent = next.text; textRevision++;
-        selectionAt(object.id, next);
+        if (!selectionAt(object.id, next) || !ownsEdit()) return false;
       } catch {
+        // Focus/selection callbacks can replace the scene. Leave that document
+        // intact rather than restoring or journaling this retired editor.
+        if (!ownsEdit()) return false;
         object.text = oldText; editor.replaceChildren(...nodes); textRevision++;
         try { selectionAt(object.id, token); } catch { /* Retain the original editor on selection failure. */ }
         before = null; beforeRange = null;

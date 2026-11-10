@@ -218,6 +218,33 @@ commands, logs, controlled reload and negative fixtures are retained under
 `artifacts/t3/release-0180/`. Final independent recheck and full release gates
 remain pending, and public0.17 remains unchanged.
 
+### WebKit touch compatibility correction
+
+The next independent recheck confirmed both original P2 fixes and the reload
+classification controls. It also found that WebKit touch could dispatch two
+application activations per tap. Actual browser input produced touch pointerup
+with ID2, the bridge's semantic click, then a trusted mouse compatibility click
+with ID1. The existing same-ID guard missed that last event; playback stayed
+once-only, but the library rebuilt twice. This was present in the initial bridge,
+not introduced by the readiness fixes. The report and trace are retained as
+`release-0180/second-review.md` and `touch-trace-before.json`.
+
+The released disposition now keeps the original pointer type and recognizes a
+mouse compatibility click from the consumed touch on the same control. A fresh
+pointerdown clears the disposition; zero-detail semantic clicks remain usable.
+No timer, global click suppression, frame or audio change was added.
+
+A real touchscreen regression fails on the old bridge in WebKit and passes after
+the correction. It taps all four libraries, repeats a tap, then uses mouse and
+semantic activation, counting application clicks as well as cues. Another case
+cancels a browser-delivered touch through an injected blur and verifies no ghost
+activation, followed by a successful fresh tap. These two cases plus both
+readiness and all three keyboard regressions pass in Chromium/WebKit development
+and built apps (seven cases per lane). `npm run check` again passes253 Node
+checks, assets, build and Worker dry run. Full release gates and independent
+touch-fix recheck remain pending. This is browser input evidence; physical iPad
+and Apple Pencil delivery, latency and audible feel remain unverified.
+
 ### Reproduction
 
 With existing dependencies/media linked, private configs in the artifact folder

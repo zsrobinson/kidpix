@@ -145,7 +145,7 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
     const a = hit(event);
     if (!a || event.button !== 0 || contact || !guard.claim(event, root)) return;
     released = null;
-    contact = { a, id: event.pointerId, inside: true };
+    contact = { a, id: event.pointerId, pointerType: event.pointerType, inside: true };
     onGroup(a.record.group, a.record.name); state(a, 1);
     try { root.setPointerCapture(event.pointerId); } catch { cancel(); }
   }, options);
@@ -165,8 +165,11 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
     if (inside) held.a.control.click();
   }, options);
   root.addEventListener('click', event => {
+    const sameReleasedControl = released && (event.target === root || released.a.control.contains(event.target));
+    // WebKit can give a consumed touch's mouse compatibility click another ID.
+    const touchCompatibility = released?.pointerType === 'touch' && event.pointerType === 'mouse' && sameReleasedControl;
     if (event.detail > 0 && released && (event.pointerId === released.id
-      || (!('pointerId' in event) && (event.target === root || released.a.control.contains(event.target))))) {
+      || (!('pointerId' in event) && sameReleasedControl) || touchCompatibility)) {
       event.preventDefault(); event.stopImmediatePropagation(); return;
     }
     const a = hit(event);

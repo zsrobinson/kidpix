@@ -111,3 +111,48 @@ for(const [name,label,rest,rect] of cases) test(`${name} all rest and auxiliary 
   await page.mouse.move(500,400);
   await expect(actor(page,name)).toBeVisible();
 });
+
+test.describe('browser touch activation',()=>{
+  test.use({hasTouch:true});
+  test('a cancelled touch cannot activate on its compatibility click; a fresh tap succeeds',async({page})=>{
+    await page.evaluate(()=>{
+      window.touchActivations=0;
+      document.addEventListener('click',event=>{if(event.target.closest('[data-action="tray:backgrounds"]'))touchActivations++;});
+      document.addEventListener('pointerdown',event=>{
+        if(event.pointerType==='touch'&&event.target.closest('[data-action="tray:backgrounds"]'))window.dispatchEvent(new Event('blur'));
+      },{once:true});
+    });
+    const button=page.getByRole('button',{name:'Backgrounds',exact:true}),box=await button.boundingBox();
+    await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);
+    await expect(button).toHaveAttribute('aria-pressed','false');
+    expect(await page.evaluate(()=>touchActivations)).toBe(0);
+    await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);
+    await expect(button).toHaveAttribute('aria-pressed','true');
+    expect(await page.evaluate(()=>touchActivations)).toBe(1);
+  });
+  test('touch taps activate each library once and preserve later mouse and semantic activation',async({page})=>{
+    await page.evaluate(()=>{
+      window.libraryActivations=[];
+      document.addEventListener('click',event=>{
+        const action=event.target.closest('[data-action]')?.dataset.action;
+        if(['tray:backgrounds','tray:stickers','tray:toons','tray:media'].includes(action))libraryActivations.push(action);
+      });
+    });
+    const actions=['tray:backgrounds','tray:stickers','tray:toons','tray:media'];
+    const expected=[];
+    for(const [index,[,label]] of cases.entries()){
+      const control=page.getByRole('button',{name:label,exact:true}),box=await control.boundingBox();
+      await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);
+      expected.push(actions[index]);
+      await expect(control).toHaveAttribute('aria-pressed','true');
+      expect(await page.evaluate(()=>libraryActivations)).toEqual(expected);
+    }
+    const backgrounds=page.getByRole('button',{name:'Backgrounds',exact:true});
+    const box=await backgrounds.boundingBox();
+    await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);expected.push(actions[0]);
+    await page.getByRole('button',{name:'Stickers',exact:true}).click();expected.push(actions[1]);
+    await backgrounds.evaluate(button=>button.click());expected.push(actions[0]);
+    expect(await page.evaluate(()=>libraryActivations)).toEqual(expected);
+    expect(await page.evaluate(()=>cues.filter(a=>/easel-1000\.wav/.test(a.src)).length)).toBe(expected.length);
+  });
+});

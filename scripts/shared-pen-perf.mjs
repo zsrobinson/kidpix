@@ -167,6 +167,8 @@ try {
    }
   }
   const stage=await page.evaluate(stageState);
+  const chromeState=controlMode==='full'?await page.locator('#paint-chrome').evaluate(n=>{const s=getComputedStyle(n),r=n.getBoundingClientRect();return {backgroundImage:s.backgroundImage,backgroundSize:s.backgroundSize,backgroundPosition:s.backgroundPosition,display:s.display,visibility:s.visibility,rect:{x:r.x,y:r.y,width:r.width,height:r.height}};}):null;
+  if(controlMode==='full' && ((chromeState.backgroundImage==='none')!==(presentation==='chrome-no-image')))throw Error('Chrome image treatment did not compute');
   if(stage.chain.find(n=>n.id==='surface').presentation.contain!==(presentation==='surface-paint'?'paint':'none'))throw Error('Presentation treatment did not apply');
   const promotionTarget=presentation==='paper-promote'?'paper-canvas':presentation==='surface-promote'?'surface':null;
   if(promotionTarget && stage.chain.find(n=>n.id===promotionTarget).presentation.willChange!=='transform')throw Error('Promotion hint did not compute');
@@ -217,7 +219,7 @@ try {
   await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}-studio.png`,studioPNG);
   const callbackGaps=m.callbackTimes.slice(1).map((t,i)=>t-m.callbackTimes[i]);
   const leadingGap=(m.callbackTimes[0]??m.ended)-m.started,trailingGap=m.ended-(m.callbackTimes.at(-1)??m.started);
-  const row={trial,tool,driver,studioPixels,ownerBefore,ownerEnd:m.ownerEnd,ownerResumed,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
+  const row={trial,tool,driver,chromeState,studioPixels,ownerBefore,ownerEnd:m.ownerEnd,ownerResumed,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
    actualEvents:instrument?m.events.length:null,actualSamples:instrument?m.events.reduce((n,e)=>n+e.samples,0):null,trusted:instrument?m.events.filter(e=>e.trusted).length:null,
    callbackFrame:stats(callbackGaps),callbackCount:m.callbackTimes.length,callbackHz:m.callbackTimes.length*1000/(m.ended-m.started),leadingGap,trailingGap,maxObservedOrCensoredGap:Math.max(leadingGap,trailingGap,...callbackGaps),
    syntheticDeliveredEvents:m.delivery.length,syntheticDeliveredSamples:m.delivery.reduce((n,e)=>n+e.samples,0),

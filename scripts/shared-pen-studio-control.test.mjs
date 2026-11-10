@@ -55,3 +55,11 @@ test('minimal control retains exact ink comparison while its omitted studio is e
  const runs=pair();for(const [i,r] of runs.entries())r.rows[0].studioPixels={width:2732,height:2048,rgbaHash:String(i)};
  assert.equal(compareStudioRuns(runs).strokes,2);
 });
+
+test('chrome removal affects only its background, with inline-style override',()=>{
+ const original='<html><head></head><body><div id="paint-chrome" style="background-image:url(original.png)"></div></body></html>';
+ const html=studioControlPlugin('full','chrome-no-image').transformIndexHtml(original);
+ assert.match(html,/#app #paint-chrome\{background-image:none!important\}/);
+ assert.match(html,/id="paint-chrome" style="background-image:url\(original.png\)"/);
+ assert.doesNotMatch(html,/display:none|visibility:hidden/);
+});

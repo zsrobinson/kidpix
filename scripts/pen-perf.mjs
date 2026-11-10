@@ -46,7 +46,7 @@ try {
  const calibration=await page.evaluate(()=>{const times=[];let value=53;for(let run=0;run<6;run++){const start=performance.now();for(let i=0;i<3000000;i++)value=(Math.imul(value,1664525)+1013904223)>>>0;times.push(performance.now()-start);}return{times:times.slice(1),value};});
  await page.goto('http://127.0.0.1:4241/');
  await page.waitForSelector('[data-native-tool-motion="draw"]');
- 
+
  if(process.env.PHASES){
   await page.evaluate(async()=>{await Promise.all([...document.images].filter(i=>i.src).map(i=>i.decode().catch(()=>{})));});
   for(const phase of ['idle','tool-hover']){

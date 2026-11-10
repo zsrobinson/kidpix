@@ -2,6 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.18.0 candidate
+
+- Play the original rest, press and selected sequences for Backgrounds, Stickers, Animations and Sounds & Movies, alongside their separate hover programs. Preserve shared-script progress through release and selection, group cleanup and exact registered artwork.
+- Keep one activation and one cue across slow artwork handoff, cancelled keyboard input and WebKit touch compatibility clicks. Static fallback and retries remain usable. No media upload is needed; all59 existing response bodies match their source hashes.
+- Independent Mac checks verify all40 authored frames. Focused Chromium/WebKit development and built checks pass, including real touchscreen once-only activation and later mouse/semantic input. Final touch recheck, full release suites and screenshot review remain pending.
+- Native references remain0/17. Physical iPad/Pencil latency, foreground-idle causation and audible feel remain unverified; the enlarged vacuum actor remains disabled.
+
 ## 0.17.0
 
 - Added Text Cut, Copy and Paste with nine recovered source programs and the original rest, hover and tracking artwork. The document-local plaintext clipboard operates on the current editor range and preserves directional selection through Cut/Paste Undo and Redo. Native keyboard editing, whole-object menus, Grab and Scissors retain their own clipboard behavior.

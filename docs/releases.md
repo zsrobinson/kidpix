@@ -2,6 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.17.0 candidate
+
+- Added Text Cut, Copy and Paste with nine recovered source programs and the original rest, hover and tracking artwork. The document-local plaintext clipboard operates on the current editor range and preserves directional selection through Cut/Paste Undo and Redo. Native keyboard editing, whole-object menus, Grab and Scissors retain their own clipboard behavior.
+- Keep copied text across box/tray changes and history, including page-wipe Undo/Redo; clear it on New/Open/document replacement. Canceled or stale held controls cannot modify replacement text. Clipboard contents are not saved with projects; OS clipboard and rich-style interoperability remain separate work.
+- Retire held source proposals when pointer capture is denied and honor Escape while the text editor retains focus. Preserve the0.16 audio completion contract.
+- Local release gates, screenshot review and independent review are pending. No new media is needed. Native references remain0/17; physical iPad/Pencil latency, audible behavior and foreground-idle causation remain unverified.
+
 ## 0.16.0
 
 - Release UI animation completion gates when browser audio is paused, aborted, emptied, fails or its play request is rejected. Undo, Color Picker, primary/secondary tool motion and Firehose recover from interrupted audio and permit fresh actions.

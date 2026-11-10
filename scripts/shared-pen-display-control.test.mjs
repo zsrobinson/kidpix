@@ -22,3 +22,21 @@ test('counter and attribution transformations assemble with treatment',()=>{
   assert(code.includes('function sharedOriginal_handleMove(event)'));
  }
 });
+test('wrappers forward display targets while excluding prediction work from actual ink records',()=>{
+ for(const attribution of [false,true]){
+  const code=displayControlTransform(source,{counters:true,attribution});
+  const window={sharedPerf:{enabled:true},sharedStroke:{calls:{},samples:[]}},preview={},predicted={};
+  for(const name of ['strokeTo','drawDab','compose']){
+   const start=code.indexOf(`function ${name}(...args) {`),end=code.indexOf(`function sharedOriginal_${name}(`,start);
+   assert(start>=0&&end>start);
+   const forwarded=[],original=(...args)=>{forwarded.push(args);return args[2]};
+   const wrapper=Function('window','preview',`sharedOriginal_${name}`,`return (${code.slice(start,end).trim()})`)(window,preview,original);
+   assert.equal(wrapper({}, {x:1},preview),preview);
+   assert.equal(wrapper({}, {x:2},predicted),predicted);
+   assert.equal(wrapper({}, {x:3}),undefined);
+   assert.equal(forwarded.length,3);assert.equal(forwarded[1][2],predicted);
+   assert.equal(window.sharedStroke.calls[name].count,name==='compose'?3:2);
+  }
+  assert.deepEqual(window.sharedStroke.samples.map(p=>p.x),[1,3]);
+ }
+});

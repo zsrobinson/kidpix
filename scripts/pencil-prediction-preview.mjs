@@ -5,7 +5,7 @@ import { writeFile, mkdir, readFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { createBrowserBuildServer } from './serve-browser-build.mjs'
-const root = 'artifacts/t3/pencil-prediction-preview'
+const root = process.env.PENCIL_PREVIEW_OUTPUT || 'artifacts/t3/pencil-prediction-preview'
 await mkdir(root, { recursive: true })
 const injection = {
   name: 'private-prediction-fixture', enforce: 'pre',
@@ -46,10 +46,12 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
       const browser = await launcher.launch()
       const context = await browser.newContext({ viewport: { width: 1366, height: 1024 } })
       await context.tracing.start({ screenshots: true, snapshots: true })
+      const pageErrors = []
+      context.on('page', page => page.on('pageerror', error => pageErrors.push(error.message)))
       let success = false
       try {
         const page = await context.newPage()
-        await page.addInitScript(() => { window.__predictionEnabled = true })
+        await page.addInitScript(fault => { window.__predictionEnabled = true; window.__predictionErrorFault = fault === 'pageerror' }, process.env.PENCIL_PREVIEW_FAULT)
         await page.goto(`http://127.0.0.1:${built ? 4612 : 4611}/`)
         await page.waitForFunction(() => window.__predictionTest && document.querySelector('#paper-canvas')?.dataset.paintReady === 'ready')
         let trustedPenProbe = null
@@ -75,6 +77,7 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
         const result = await page.evaluate(async () => {
           const { createPaint, paint: studio, state, scene, createComposite } = window.__predictionTest
           const checks = []
+          if (window.__predictionErrorFault) queueMicrotask(() => { throw Error('injected prediction fixture page error') })
           const equal = (a, b, label) => { if (a !== b) throw Error(label); checks.push(label) }
           const different = (a, b, label) => { if (a === b) throw Error(label); checks.push(label) }
           const rgba = canvas => Array.from(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data).join(',')
@@ -101,14 +104,14 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
             canvas.dispatchEvent(event)
             try { return event.getPredictedEvents?.().length ?? 0 } catch { return 0 }
           }
-          const make = async (enabled = true, options = {}, canvas = null) => {
-            const frame = document.createElement('iframe'); frame.width = 256; frame.height = 128; await new Promise(resolve => { frame.onload = resolve; document.body.append(frame) })
+          const make = async (enabled = true, options = {}, canvas = null, native = false) => {
+            const frame = document.createElement('iframe'); frame.width = native ? 720 : 256; frame.height = native ? 542 : 128; await new Promise(resolve => { frame.onload = resolve; document.body.append(frame) })
             canvas ||= frame.contentDocument.createElement('canvas')
-            canvas.width = 256; canvas.height = 128; canvas.style.cssText = 'position:fixed;left:0;top:0;width:256px;height:128px'
+            canvas.width = native ? 720 : 256; canvas.height = native ? 542 : 128; canvas.style.cssText = `position:fixed;left:0;top:0;width:${canvas.width}px;height:${canvas.height}px`
             frame.contentDocument.body.append(canvas); canvas.setPointerCapture = () => {}; canvas.releasePointerCapture = () => {}
-            const trace = []; const paint = createPaint(canvas, { originalTools: null, soundEffects: false, pencilPredictionPreview: enabled, __predictionTrace: row => trace.push(row) })
+            const trace = []; const paint = createPaint(canvas, { originalTools: native ? new URL('/original/tools/', location.href).href : '', soundEffects: false, pencilPredictionPreview: enabled, __predictionTrace: row => trace.push(row) })
             await paint.setOptions({ size: 9, color: '#123456', ...options })
-            const compose = (opts = {}) => { const c = document.createElement('canvas'); c.width = 256; c.height = 128; paint.renderTo(c.getContext('2d'), opts); return rgba(c) }
+            const compose = (opts = {}) => { const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height; paint.renderTo(c.getContext('2d'), opts); return rgba(c) }
             return { paint, canvas, compose, trace, end: () => { paint.destroy(); frame.remove() } }
           }
           const actual = [{ x: 55.4, y: 45, pressure: .2 }, { x: 83.8, y: 45, pressure: .7 }]
@@ -157,6 +160,21 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
               send(item.canvas, 'pointermove', 84, 45, .8, item === f ? future : [], spec)
             }
             equal(rgba(f.canvas), rgba(control.canvas), `excluded ${JSON.stringify(spec)}`)
+            f.end(); control.end()
+          }
+          // Exercise actual native bitmap dimensions separately from procedural fixtures.
+          for (const tool of ['chalk', 'crayon', 'marker']) {
+            const f = await make(true, { tool, sizeIndex: 1 }, null, true)
+            const control = await make(false, { tool, sizeIndex: 1 }, null, true)
+            const before = rgba(control.canvas)
+            for (const item of [f,control]) {
+              send(item.canvas, 'pointerdown', 20, 45, .2)
+              send(item.canvas, 'pointermove', 84, 45, .8, item === f ? future : [])
+            }
+            different(rgba(control.canvas), before, `native ${tool} fixture actually renders ink`)
+            equal(rgba(f.canvas), rgba(control.canvas), `native ${tool} prediction exclusion`)
+            for (const item of [f,control]) send(item.canvas, 'pointerup', 84, 45, 0)
+            equal(rgba(f.canvas), rgba(control.canvas), `native ${tool} committed ink exact`)
             f.end(); control.end()
           }
           for (const api of ['missing', 'throw', 'empty']) {
@@ -233,7 +251,8 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
           }, lifecycle)
           result.checks.push(`lifecycle ${lifecycle} and late callback`)
         }
-        receipts.push({ engine, built, trustedPenProbe, ...result })
+        assert.deepEqual(pageErrors, [], 'Browser page errors invalidate prediction fixture acceptance')
+        receipts.push({ engine, built, trustedPenProbe, pageErrors, ...result })
         success = true
         console.log(engine, built ? 'built' : 'dev', result.checks.length, 'checks passed')
       } finally {

@@ -4,8 +4,8 @@ import { writeFile } from 'node:fs/promises';
 export function freshnessTransform(code, delay = 0) {
  const once=(a,b)=>{if(code.split(a).length!==2)throw Error('Freshness seam changed: '+a);code=code.replace(a,b);};
  // Record consumption separately from delivery, including chronological pressure.
- once('  function strokeTo(current, end) {', `  function strokeTo(current, end) {
- if(window.sharedPerf?.enabled) (window.inkConsumed ||= []).push({...end,time:performance.now()});`);
+ once('  function strokeTo(current, end, targetContext = preview) {', `  function strokeTo(current, end, targetContext = preview) {
+ if(targetContext === preview && window.sharedPerf?.enabled) (window.inkConsumed ||= []).push({...end,time:performance.now()});`);
  if(delay){
  once('  function render() {', `  const inkTimers = new Set()
   function render() {

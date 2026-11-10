@@ -23,3 +23,12 @@ test('same delivered/final samples can reject stale intermediate ink',()=>{
  assert.equal(staleBound(560,delivery,points).lastDelivered,240);
  assert.equal(staleBound(660,[],points),null);
 });
+test('consumption recording excludes disposable predicted continuations',()=>{
+ const source='  function strokeTo(current, end, targetContext = preview) { return targetContext }';
+ const window={sharedPerf:{enabled:true}},preview={},predicted={};
+ const stroke=Function('window','preview',freshnessTransform(source)+';return strokeTo')(window,preview);
+ assert.equal(stroke({}, {x:1}),preview);
+ assert.equal(stroke({}, {x:2},predicted),predicted);
+ assert.equal(stroke({}, {x:3},preview),preview);
+ assert.deepEqual(window.inkConsumed.map(p=>p.x),[1,3]);
+});

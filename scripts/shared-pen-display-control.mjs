@@ -24,10 +24,10 @@ export function displayControlTransform(source, { coalesce = false, counters = f
  }
  if (counters) once('  return {\n    // Opaque synchronous checkpoint:', '  return window.sharedBenchPaint = {\n    // Opaque synchronous checkpoint:');
  if (counters || attribution) {
-  for (const [name, args] of [['pointFor','event'],['strokeTo','current, end'],['drawDab','current, point'],['compose','context, { includeForeground = true, includePreview = false } = {}'],['render',''],['handleMove','event']]) {
+  for (const [name, args] of [['pointFor','event'],['strokeTo','current, end, targetContext = preview'],['drawDab','current, point, target = preview'],['compose','context, { includeForeground = true, includePreview = false } = {}, displaySource = null'],['render',''],['handleMove','event']]) {
    const decl = `function ${name}(${args}) {`;
    once(decl, `function ${name}(...args) {
-    if (!window.sharedPerf?.enabled) return sharedOriginal_${name}(...args)
+    if (!window.sharedPerf?.enabled${['strokeTo','drawDab'].includes(name) ? ' || (args[2] !== undefined && args[2] !== preview)' : ''}) return sharedOriginal_${name}(...args)
     const m = window.sharedStroke
     const row = m.calls.${name} ||= {count:0,ms:0,max:0}
     row.count++

@@ -120,3 +120,11 @@ release gate or broad performance experiment. Parent dirty SERVER_HANDOFF,
 Clipboard80a0661, original media/history/source animation/audio and other
 worktrees remain untouched. Native0/17, physical Pencil benefit,
 foreground-visible idle and audible feel remain unverified; vacuum stays disabled.
+
+## Independent review corrections
+
+The initial fixture’s 208 assertions were not clean acceptance: both Marker controls could throw `Native Marker requires original bitmap dimensions` and still compare equal. Preserve those original logs as superseded implementation evidence. The fixture now fails on any browser page error, uses explicit empty originalTools for procedural exclusions, and separately exercises native Chalk/Crayon/Marker with supported 720×542 geometry and loaded original assets. Native controls must actually change pixels before prediction-enabled/disabled comparisons and committed-ink checks.
+
+An injected uncaught page-error negative control fails at the new acceptance gate. The corrected four Chromium/WebKit development/built lanes each pass61 assertions with zero page errors (244 total). The existing benchmark instrumentation is updated at its strict strokeTo/drawDab/compose signatures, forwards optional target arguments, and excludes disposable predicted continuation from actual-consumption/sample counters. All35 focused Node checks pass; new executable wrapper checks validate argument forwarding and actual/predicted recording separation. Older transform guards fail against the original prototype as recorded by independent review.
+
+Private output directories are selectable without replacing original evidence. The first regression rerun used an old fixed output directory on the read-only mount and failed before a browser launched; that setup failure remains retained. The regression config now uses its selected private output path. Final regression/review receipts remain pending; no runtime code, main.js, source artwork, version or default enablement changed in these corrections. Physical Pencil accuracy and latency remain unverified.

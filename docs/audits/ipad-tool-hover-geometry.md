@@ -82,3 +82,16 @@ Scaled screenshot comparisons use constant3×3 source neighborhoods to avoid
 misclassifying CSS interpolation as clipping; screenshots attach every pose for
 edge review. Then repeat on actual iPad Safari/Pencil hover. No browser/server,
 performance run, native execution, media export, installation or download occurred.
+
+
+## 0.14 combined browser acceptance
+
+All11 hover poses and leave restoration pass native-canvas and visible-studio
+comparisons at1024x768,1366x1024,768x1024 and820x1180 in Chromium158 and pinned
+WebKit27.2. Scaled screenshots retain flat3x3 source neighborhoods; their minimum
+sample assertion is1500, while full-resolution comparisons retain5000. Independent
+negative checks substitute the published renderer and bypass the native-canvas
+assertion: visible-stack comparisons fail for both Crayon and Marker at every
+viewport. The scaled filter therefore does not hide the reported clipping.
+All17 static release captures are pixel-identical to0.13; no baseline was changed.
+These desktop-engine checks do not establish physical iPad hover behavior.

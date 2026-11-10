@@ -109,3 +109,24 @@ node --test scripts/parity/firehose-ownership.test.mjs scripts/parity/idle-motio
 dependency symlink created here was removed. Logs are in this checkout's ignored
 `artifacts/t3/ipad-lifecycle/{baseline-red,node,build}.log`. No browser or audible
 hardware verification is represented by these results.
+
+
+## 0.14 loaded-page follow-up
+
+Chromium158 and pinned WebKit27.2 each remained loaded and foreground-visible for
+more than300 real seconds, with original draw assets warm. Fresh hover afterward
+advanced motion snapshots, canvas fingerprints and application callbacks. Keyboard
+reentry and delivered synthetic lifecycle cycles passed. No idle errors or lost
+canvas events were captured. The reported Safari failure was not reproduced.
+
+A separate cacheable-header Chromium navigation confirmed pageshow.persisted=true
+with retained page identity and moving artwork afterward. WebKit BFCache was
+unavailable. Protocol frozen/active commands did not establish actual suspension:
+heartbeat callbacks continued across the interval. The ordinary deferred protocol
+test is a command round trip, not proof of an OS-frozen page. Cancellation-related
+Audio AbortError rejections did not prevent later animation.
+
+Only the warm Drawing owner was soaked, for five minutes; longer idle, other lazy
+owners, real tab backgrounding, lock/unlock, WebContent eviction and physical iPad
+Pencil/audio behavior remain untested. No idle runtime patch is justified by this
+negative result. Capture evidence on the affected device before reload if it recurs.

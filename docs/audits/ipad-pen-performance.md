@@ -107,3 +107,21 @@ Earlier `preflight`, `baseline`, `fast-baseline`, `repeated-*`, `seeded-*` and s
 ## Remaining acceptance
 
 Confirm on the friend's actual iPad: model, iPadOS/Safari/Pencil, affected tools/sizes, light/heavy and fast/slow strokes, coalescing/delivery counts if instrumentation can be captured, idle/app-switch/lock recovery, mixed tool strokes, layers/foreground/export and one undo/redo per stroke. The parent should benchmark the combined branch after resolving ordinary conflicts and decide publication. The immutable-raster cache retains two small pixel arrays per live brush-image key; it assumes loaded brush images remain immutable, as existing tint caches already do. The Marker change adds an explicit flush boundary before every composition/commit; future callers opting into deferred uploads must honor it. No shared UI scheduling change was attempted.
+
+
+## Combined 0.14 checkpoint
+
+The combined clipping/audio/canvas-work branch retained all100 trusted CDP moves
+or400 replay samples per stroke in a further three-trial Chromium4x run. Large
+Chalk handler p95 medians were3.3ms for replay and2.3ms for CDP; Marker was2.1ms
+and2.0ms respectively. Marker retained101 uploads per steady stroke; Chromium
+frame tails were not uniformly improved. This confirmation is separate from the
+fixed-seed before/after tables above and does not replace their baseline.
+
+Combined focused acceptance passed69 Chromium cases with one opt-in BFCache skip,
+four additional Chromium viewport/pose cases, and72 pinned WebKit cases with two
+explicit skips. Independent review passed26 focused Node and12 actual-app checks,
+and verified all Marker preview/commit paths use the shared flush boundary. No
+sample thinning, pressure change or source-pixel tolerance relaxation was added.
+The five-minute loaded-page soak did not reproduce the Safari idle report; physical
+iPad latency, OS suspension and hardware audio remain separate acceptance work.

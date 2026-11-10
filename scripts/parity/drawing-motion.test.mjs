@@ -233,19 +233,19 @@ test('asset failures reject cleanly and a new load retries without stale cached 
   assert.deepEqual(paths, ['/ui/drawing-motion/1.argb', '/ui/drawing-motion/1.argb']);
 });
 
-test('auxiliary clipping applies to both ordinary drawing and putImageData bounds', () => {
+test('auxiliary clip ends with ordinary subcall before mode9 temporary copy', () => {
   const manifest = { sprites: { 1: { width: 4, height: 4 }, 2: { width: 4, height: 4 } } };
   const assets = new Map([['1', { image: {} }], ['2', { argb: new Uint8Array(64) }]]);
   const calls = [];
   const context = { canvas: { width: 10, height: 10 },
     save() { calls.push('save'); }, beginPath() {}, rect(...args) { calls.push(['rect', ...args]); },
     clip() { calls.push('clip'); }, restore() { calls.push('restore'); }, drawImage() { calls.push('draw'); },
-    getImageData(...args) { calls.push(['get', ...args]); return { data: new Uint8ClampedArray(8) }; },
+    getImageData(...args) { calls.push(['get', ...args]); return { data: new Uint8ClampedArray(64) }; },
     putImageData(...args) { calls.push(['put', ...args.slice(1)]); },
   };
   paintDrawingMotionFrame(context, manifest,
     { parts: [{ sprite: 1, x: 1, y: 1 }, { sprite: 2, x: 1, y: 1 }] }, assets, [0, 0, 0],
     { clipRect: [2, 2, 1, 2] });
   assert.deepEqual(calls, ['save', ['rect', 2, 2, 1, 2], 'clip', 'draw', 'restore',
-    ['get', 2, 2, 1, 2], ['put', 2, 2]]);
+    ['get', 1, 1, 4, 4], ['put', 1, 1]]);
 });

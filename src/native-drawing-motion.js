@@ -129,14 +129,15 @@ export function paintDrawingMotionFrame(context, manifest, frame, assets, color,
   } else context.drawImage(baseAsset.image, base.x, base.y);
   // 0x000f742a–0x000f74c3 allocates min(part dimensions), copying the
   // destination at part0's registered origin. Mode9's source is part1.
-  const left = Math.max(0, base.x, tint.x, clipRect?.[0] ?? 0);
-  const top = Math.max(0, base.y, tint.y, clipRect?.[1] ?? 0);
+  // Ordinary rendering restores the target clip at 0x158f79–0x158f92.
+  // The custom callback then copies its temporary rectangle at 0xf758f–0xf75af;
+  // auxiliary +0xb8 bounds do not clip that mode9 copy.
+  const left = Math.max(0, base.x, tint.x);
+  const top = Math.max(0, base.y, tint.y);
   const right = Math.min(context.canvas.width, tint.x + tintInfo.width,
-    base.x + Math.min(baseInfo.width, tintInfo.width),
-    clipRect ? clipRect[0] + clipRect[2] : Infinity);
+    base.x + Math.min(baseInfo.width, tintInfo.width));
   const bottom = Math.min(context.canvas.height, tint.y + tintInfo.height,
-    base.y + Math.min(baseInfo.height, tintInfo.height),
-    clipRect ? clipRect[1] + clipRect[3] : Infinity);
+    base.y + Math.min(baseInfo.height, tintInfo.height));
   if (right <= left || bottom <= top) return;
   const pixels = context.getImageData(left, top, right - left, bottom - top);
   for (let y = top; y < bottom; y++) {

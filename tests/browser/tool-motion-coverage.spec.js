@@ -345,9 +345,9 @@ async function expectPixels(page, tray, { composite = false, color = '#000000' }
         const [base, part] = frame.parts;
         const source = sprites.get(String(part.sprite)).raw;
         const info = manifest.sprites[part.sprite], baseInfo = manifest.sprites[base.sprite];
-        const x0 = Math.max(base.x, part.x, clip?.[0] ?? 0, 0), y0 = Math.max(base.y, part.y, clip?.[1] ?? 0, 0);
-        const x1 = Math.min(part.x + info.width, base.x + Math.min(info.width, baseInfo.width), clip ? clip[0] + clip[2] : 1024, 1024);
-        const y1 = Math.min(part.y + info.height, base.y + Math.min(info.height, baseInfo.height), clip ? clip[1] + clip[3] : 768, 768);
+        const x0 = Math.max(base.x, part.x, 0), y0 = Math.max(base.y, part.y, 0);
+        const x1 = Math.min(part.x + info.width, base.x + Math.min(info.width, baseInfo.width), 1024);
+        const y1 = Math.min(part.y + info.height, base.y + Math.min(info.height, baseInfo.height), 768);
         if (x1 > x0 && y1 > y0) {
           const image = ctx.getImageData(x0, y0, x1 - x0, y1 - y0);
           for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
@@ -371,18 +371,27 @@ async function expectPixels(page, tray, { composite = false, color = '#000000' }
   const expectedPng = PNG.sync.read(Buffer.from(expected.split(',')[1], 'base64'));
   const actual = composite ? PNG.sync.read(await page.locator('#studio').screenshot({ animations: 'disabled' }))
     : PNG.sync.read(Buffer.from((await actor(page, tray).evaluate(node => node.toDataURL())).split(',')[1], 'base64'));
-  expect([actual.width, actual.height]).toEqual([1024, 768]);
+  if (!composite) expect([actual.width, actual.height]).toEqual([1024, 768]);
   const differences = [];
   const [left, top, right, bottom] = bounds;
   let checked = 0;
   for (let y = top; y < bottom; y++) for (let x = left; x < right; x++) {
     const offset = (y * 1024 + x) * 4;
+    const ax = Math.min(actual.width - 1, Math.floor((x + .5) * actual.width / 1024));
+    const ay = Math.min(actual.height - 1, Math.floor((y + .5) * actual.height / 768));
+    const actualOffset = (ay * actual.width + ax) * 4;
+    // At scaled sizes compare only constant 3x3 source neighborhoods, so
+    // CSS resampling at silhouette edges cannot masquerade as clipping.
+    if (actual.width !== 1024 || actual.height !== 768) {
+      if ([ -1, 0, 1 ].some(dy => [ -1, 0, 1 ].some(dx =>
+        [0, 1, 2, 3].some(c => expectedPng.data[((y + dy) * 1024 + x + dx) * 4 + c] !== expectedPng.data[offset + c])))) continue;
+    }
     // Source chrome/backdrop are opaque within the restored actor area. Check
     // blank former-pose locations too: overlay-only rendering leaves ghosts.
     if (expectedPng.data[offset + 3] !== 255) continue;
     checked++;
-    if ([0, 1, 2, 3].some(c => Math.abs(actual.data[offset + c] - expectedPng.data[offset + c]) > 1) && differences.length < 5) {
-      differences.push({ x, y, actual: [...actual.data.subarray(offset, offset + 4)], expected: [...expectedPng.data.subarray(offset, offset + 4)] });
+    if ([0, 1, 2, 3].some(c => Math.abs(actual.data[actualOffset + c] - expectedPng.data[offset + c]) > 1) && differences.length < 5) {
+      differences.push({ x, y, actual: [...actual.data.subarray(actualOffset, actualOffset + 4)], expected: [...expectedPng.data.subarray(offset, offset + 4)] });
     }
   }
   expect(checked, 'Independent source comparison includes full actor area').toBeGreaterThan(5000);
@@ -888,3 +897,32 @@ test('animated Scissors retain actual raster selection and move behavior', async
   expect(await item(page, 'grab', 0)).toMatchObject({ state: 3, script: 18132 });
   expect(page.motionErrors).toEqual([]);
 });
+
+// Deferred acceptance for physical-iPad feedback. No browser execution in the
+// resource phase. Existing source hash assertions pin every registration/raw byte.
+for (const viewport of [{ width: 1024, height: 768 }, { width: 1366, height: 1024 },
+  { width: 768, height: 1024 }, { width: 820, height: 1180 }]) {
+  test(`iPad hover geometry ${viewport.width}x${viewport.height}: every Crayon/Marker pose and restoration`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await install(page); await openTray(page, 'draw'); await loadOracle(page, 'draw');
+    for (const [index, script] of [[2, 18068], [3, 18071]]) {
+      await moveOutside(page);
+      const box = await page.locator('#studio').boundingBox();
+      const scale = Math.min(viewport.width / 1024, viewport.height / 768);
+      expect(Math.abs(box.width - 1024 * scale)).toBeLessThan(.1);
+      expect(Math.abs(box.height - 768 * scale)).toBeLessThan(.1);
+      expect(box.x).toBeGreaterThanOrEqual(-.1); expect(box.y).toBeGreaterThanOrEqual(-.1);
+      await page.mouse.move(...await point(page, index === 2 ? 300 : 350, 700));
+      for (let pose = 0; pose < sourceScripts[script].groups; pose++) {
+        await advance(page, 'draw', index, script, pose);
+        await expectPixels(page, 'draw');
+        await expectPixels(page, 'draw', { composite: true });
+        await testInfo.attach(`${script}-pose-${pose}`, { body: await page.locator('#studio').screenshot(), contentType: 'image/png' });
+        if (pose + 1 < sourceScripts[script].groups) await page.clock.runFor(96);
+      }
+      await moveOutside(page);
+      expect(await item(page, 'draw', index)).toMatchObject({ auxiliary: false });
+      await expectPixels(page, 'draw'); await expectPixels(page, 'draw', { composite: true });
+    }
+  });
+}

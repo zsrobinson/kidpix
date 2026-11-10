@@ -41,3 +41,16 @@ test('Space preserves source progress and cue identity across its semantic click
   await expect(base(page)).toHaveAttribute('data-frame','1');await expect(b).toHaveAttribute('aria-pressed','true');
   expect(await page.evaluate(()=>motionAudio.filter(a=>/easel-1000\.wav/.test(a.src)).length)).toBe(1);
 });
+
+test('Escape outside the hit layer cancels a held library pointer before release',async({page})=>{
+  const button=page.getByRole('button',{name:'Backgrounds',exact:true});
+  await button.hover();await page.mouse.down();
+  await expect(base(page)).toHaveAttribute('data-script','1001');
+  // Focus can leave the captured button without ending the held contact.
+  await page.getByRole('textbox',{name:'Picture title',exact:true}).focus();
+  await page.keyboard.press('Escape');await page.mouse.up();
+  await expect(button).toHaveAttribute('aria-pressed','false');
+  expect(await page.evaluate(()=>motionAudio.filter(a=>/easel-1000\.wav/.test(a.src)).every(a=>a.stopped))).toBe(true);
+  await button.hover();await page.mouse.down();await page.mouse.up();
+  await expect(button).toHaveAttribute('aria-pressed','true');
+});

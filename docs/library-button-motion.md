@@ -138,6 +138,34 @@ and its pixel threshold were not changed. The applicable final library/audio/
 lifecycle runs pass. Native execution, physical hardware, and full release gates
 remain parent responsibilities.
 
+### Integration correction and focused verification
+
+A real-app regression found that a held pointer survived Escape when focus had
+moved from the captured library button to Picture title. The key event no longer
+crossed the hit layer, so pointer release still selected the library. Escape
+cleanup now listens on document capture; other key handling remains scoped to
+the controls. The regression fails before this change and passes afterward,
+including a fresh successful press. No source timeline or sound gate changed.
+
+After that correction,28 focused Chromium development cases pass, including all
+40 visible source frames and existing rollover checks. All seven lifecycle cases
+pass in pinned WebKit development, pinned WebKit built and Chromium built apps.
+The existing source verifier, run with
+`artifacts/t3/secondary-motion/venv/bin/python`, reproduces the checked fixture
+exactly. The system Python lacks Pillow; no installation was performed.
+`npm run check` passes253 Node cases, assets, build and Worker dry run again.
+
+The two pending-decode/disposal fixtures explicitly import source modules into
+a synthetic document. They are now marked `@module`: development and WebKit
+source checks retain them, while the full built-app gate will exclude them.
+Their assertions are unchanged. Earlier child-built totals include those two
+source fixtures and should not be interpreted as shipped-entry coverage.
+
+All59 required public response bodies match local SHA256 values. Integration
+evidence is retained in `artifacts/t3/release-0180/`, including the Escape failure
+and correction. Independent review and full release suites remain pending;
+public0.17 is unchanged.
+
 ### Reproduction
 
 With existing dependencies/media linked, private configs in the artifact folder

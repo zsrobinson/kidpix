@@ -18,7 +18,8 @@ test.beforeEach(async({page})=>{
     window.owner=attachLibraryMotion(manifest,document.querySelector('#root'),new Map([['backgrounds',idle]]),document.querySelector('#layer'));
   });
 });
-for(const reason of ['pagehide','dispose']) test(`pending decodes cannot resurrect after ${reason}`,async({page})=>{
+// This fixture imports source modules explicitly, independently of the app build.
+for(const reason of ['pagehide','dispose']) test(`pending decodes cannot resurrect after ${reason} @module`,async({page})=>{
   await page.evaluate(async reason=>{
     if(reason==='dispose')owner.dispose();else window.dispatchEvent(new Event('pagehide'));
     await Promise.all(releaseDecodes.map(release=>release()));

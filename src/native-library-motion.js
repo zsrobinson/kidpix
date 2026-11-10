@@ -171,10 +171,11 @@ export function attachLibraryMotion(manifest, root, sprites, layer, { onGroup = 
   }, { ...options, capture: true });
   root.addEventListener('keydown', event => {
     const a = hit(event);
-    if (event.key === 'Escape') cancel();
     if (a && ['Enter', ' '].includes(event.key) && event.repeat) { event.preventDefault(); return; }
     if (a && ['Enter', ' '].includes(event.key) && !event.repeat) { cancelledKeyboard = false; keyboard = a; state(a, 1); }
   }, options);
+  // A captured pointer can outlive focus in the hit layer.
+  doc.addEventListener('keydown', event => { if (event.key === 'Escape') cancel(); }, { ...options, capture: true });
   root.addEventListener('focusout', () => { if (keyboard) cancel(); }, options);
   for (const type of ['pointercancel', 'lostpointercapture']) root.addEventListener(type, event => { if (contact?.id === event.pointerId) cancel(); }, options);
   for (const type of ['blur', 'pagehide']) view.addEventListener(type, cancel, options);

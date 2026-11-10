@@ -2,11 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.21.0 — candidate
+## 0.21.0
 
 - Animate New, Print and Help with their nine recovered programs and 29 source-verified frames. New and Print reset before their existing synchronous dispatch; Help follows its actual on/off state.
 - Preserve confirmation, printing, semantic command availability, shared contact ownership and silent artwork handoff. No new media is required.
-- Independent review, full release gates and public acceptance are pending. Native references remain 0/17; physical iPad/Pencil latency and audible feel remain unverified. The enlarged vacuum actor remains disabled.
+- Preserve a pending fallback press across unrelated semantic Print/Help commands, consume only the same command’s older proposal, and reject competing contacts until release or canonical modal cancellation.
+- Independent review found no remaining source release objections. Verified 271 Node checks, 762 development cases, 677 built cases and 529 WebKit cases; browser skips are explicit. Source-only 243 checks pass with 28 imported-asset skips, build and deployment dry run. All 169 library/tab/command frame pins match; all 17 static captures are pixel-identical to 0.20, without baseline changes. All 42 required public media bodies match their source hashes; no upload is needed.
+- No drawing-performance change is included. Native references remain 0/17; physical iPad/Pencil latency, foreground-idle causation and audible feel remain unverified. The enlarged vacuum actor remains disabled.
 
 ## 0.20.0
 

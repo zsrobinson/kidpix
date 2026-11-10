@@ -249,3 +249,17 @@ test('auxiliary clip ends with ordinary subcall before mode9 temporary copy', ()
   assert.deepEqual(calls, ['save', ['rect', 2, 2, 1, 2], 'clip', 'draw', 'restore',
     ['get', 1, 1, 4, 4], ['put', 1, 1]]);
 });
+
+
+test('mode9 raw copies subtract logical target origin and clamp both target edges', () => {
+  const manifest = { sprites: { 1: { width: 9, height: 8 }, 2: { width: 9, height: 8 } } };
+  const calls = [];
+  const context = { canvas: { width: 3, height: 2 }, drawImage(...args) { calls.push(['draw', ...args]); },
+    getImageData(...args) { calls.push(['get', ...args]); return { data: new Uint8ClampedArray(24) }; },
+    putImageData(image, ...args) { calls.push(['put', ...args]); } };
+  const base = {};
+  paintDrawingMotionFrame(context, manifest,
+    { parts: [{ sprite: 1, x: 99, y: 198 }, { sprite: 2, x: 98, y: 199 }] },
+    new Map([['1', { image: base }], ['2', { argb: new Uint8Array(9 * 8 * 4) }]]), [0, 0, 0], { origin: [100, 200] });
+  assert.deepEqual(calls, [['draw', base, 99, 198], ['get', 0, 0, 3, 2], ['put', 0, 0]]);
+});

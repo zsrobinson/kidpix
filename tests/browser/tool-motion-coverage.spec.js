@@ -1,3 +1,4 @@
+import { canonicalMotionFrame } from './canonical-motion-frame.js';
 import { installPaletteClockAudio, openClockPalette, closeClockPalette } from './palette-clock.js';
 import { test, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
@@ -163,9 +164,9 @@ for (const [tray, spec] of Object.entries(trays)) for (const [index, tool] of sp
     // before comparing the whole shared canvas for an unchanged terminal hold.
     await page.clock.runFor(2048);
     expect((await snap(page, tray)).every(value => value.finished)).toBe(true);
-    const held = digest(await actor(page, tray).evaluate(node => node.toDataURL()));
+    const held = digest(await canonicalMotionFrame(actor(page, tray)));
     await page.clock.runFor(512);
-    expect(digest(await actor(page, tray).evaluate(node => node.toDataURL())), 'Terminal pose stays painted without cumulative blending').toBe(held);
+    expect(digest(await canonicalMotionFrame(actor(page, tray))), 'Terminal pose stays painted without cumulative blending').toBe(held);
 
     const [x0, y0, w, h] = sourceRegions[rest];
     const inside = await point(page, x0 + w / 2, y0 + h / 2);
@@ -370,7 +371,7 @@ async function expectPixels(page, tray, { composite = false, color = '#000000' }
   }, { state, color, tray });
   const expectedPng = PNG.sync.read(Buffer.from(expected.split(',')[1], 'base64'));
   const actual = composite ? PNG.sync.read(await page.locator('#studio').screenshot({ animations: 'disabled' }))
-    : PNG.sync.read(Buffer.from((await actor(page, tray).evaluate(node => node.toDataURL())).split(',')[1], 'base64'));
+    : PNG.sync.read(Buffer.from((await canonicalMotionFrame(actor(page, tray))).split(',')[1], 'base64'));
   if (!composite) expect([actual.width, actual.height]).toEqual([1024, 768]);
   const differences = [];
   const [left, top, right, bottom] = bounds;

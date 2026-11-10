@@ -7,6 +7,21 @@ export function toolRegionContains(region, x, y) {
     && region.rectsLTRB.some(([left, top, right, bottom]) => x >= left && x < right && y >= top && y < bottom);
 }
 
+// All source states, not just the current pose or input region. Two native
+// pixels of transparent fringe keep interpolation away from the backing edge.
+export function motionCanvasBounds(manifest) {
+  const parts = Object.values(manifest.scripts).flatMap(script => script.frames.flatMap(frame => frame.parts));
+  const rectangles = parts.map(part => [part.x, part.y,
+    manifest.sprites[String(part.sprite)].width, manifest.sprites[String(part.sprite)].height]);
+  rectangles.push(...(manifest.restorationRects ?? []));
+  if (!rectangles.length) return [0, 0, 1024, 768];
+  const left = Math.max(0, Math.floor(Math.min(...rectangles.map(r => r[0]))) - 2);
+  const top = Math.max(0, Math.floor(Math.min(...rectangles.map(r => r[1]))) - 2);
+  const right = Math.min(1024, Math.ceil(Math.max(...rectangles.map(r => r[0] + r[2]))) + 2);
+  const bottom = Math.min(768, Math.ceil(Math.max(...rectangles.map(r => r[1] + r[3]))) + 2);
+  return [left, top, Math.max(1, right - left), Math.max(1, bottom - top)];
+}
+
 // One owner survives option/color/size renders. Only an actual tray change
 // destroys its source streams, pending loads and audio handles.
 export function createNativeToolMotion({ stage, layer, controls, resolve, onReady, onActivate,
@@ -97,7 +112,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   function render(snapshot) {
     if (!owner?.backdrop) return;
     const { canvas, context, manifest, assets, backdrop } = owner;
-    context.clearRect(0, 0, 1024, 768);
+    context.clearRect(...owner.viewport);
     // Restore authored pixels before every destination-dependent composite.
     // Restrict the opaque restoration to the actor area; options stay live.
     context.save();
@@ -108,7 +123,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     context.drawImage(backdrop.image, ...backdrop.rect);
     context.restore();
     const color = current.color.match(/[a-f\d]{2}/gi).map(value => parseInt(value, 16));
-    for (const item of snapshot) paintDrawingMotionFrame(context, manifest, item.frame, assets, color, { clipRect: item.clipRect });
+    for (const item of snapshot) paintDrawingMotionFrame(context, manifest, item.frame, assets, color, { clipRect: item.clipRect, origin: owner.viewport.slice(0, 2) });
     canvas.dataset.motionSnapshot = JSON.stringify(snapshot.map(({ name, script, frameIndex, state, auxiliary, finished, disabled }) =>
       ({ name, script, frameIndex, state, auxiliary, finished, disabled })));
   }
@@ -186,7 +201,9 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       }
       if (!owner) {
         const canvas = stage.ownerDocument.createElement('canvas');
-        canvas.width = 1024; canvas.height = 768;
+        const viewport = motionCanvasBounds(manifest);
+        canvas.width = viewport[2]; canvas.height = viewport[3];
+        canvas.style.cssText = place(...viewport);
         canvas.dataset[canvasAttribute] = tray;
         canvas.setAttribute('aria-hidden', 'true');
         const parts = Object.values(manifest.scripts).flatMap(script => script.frames.flatMap(frame => frame.parts));
@@ -194,8 +211,9 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
         const top = Math.min(...parts.map(part => part.y));
         const right = Math.max(...parts.map(part => part.x + manifest.sprites[String(part.sprite)].width));
         const bottom = Math.max(...parts.map(part => part.y + manifest.sprites[String(part.sprite)].height));
-        owner = { tray, manifest, assets, canvas, chrome, context: canvas.getContext('2d', { willReadFrequently: true }),
+        owner = { tray, manifest, assets, canvas, chrome, viewport, context: canvas.getContext('2d', { willReadFrequently: true }),
           bounds: [left, top, right - left, bottom - top] };
+        owner.context.translate(-viewport[0], -viewport[1]);
         layer.replaceChildren(canvas);
         owner.controller = createController(manifest, {
           selected: selectedIndex(manifest), authoritative: authoritativeFor?.(manifest, current), render, playSound, now: () => view.performance.now(),

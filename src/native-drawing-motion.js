@@ -93,8 +93,10 @@ export async function loadDrawingMotionAssets(manifest, {
 /** Paint one source callback into a native1024x768 canvas, after the owner has
  * restored the tray/backdrop. Caller owns clearing, clipping and layer order.
  * Coordinates and bitmap registrations are already resolved by the extractor.
+ * A bounded target translates its context by -origin; raw pixel copies ignore
+ * that transform and explicitly subtract origin. Default remains origin0.
  */
-export function paintDrawingMotionFrame(context, manifest, frame, assets, color, { clipRect = null } = {}) {
+export function paintDrawingMotionFrame(context, manifest, frame, assets, color, { clipRect = null, origin = [0, 0] } = {}) {
   if (color.length !== 3 || color.some(value => !Number.isInteger(value) || value < 0 || value > 255)) {
     throw new RangeError('Drawing motion color must be three byte values');
   }
@@ -132,14 +134,15 @@ export function paintDrawingMotionFrame(context, manifest, frame, assets, color,
   // Ordinary rendering restores the target clip at 0x158f79–0x158f92.
   // The custom callback then copies its temporary rectangle at 0xf758f–0xf75af;
   // auxiliary +0xb8 bounds do not clip that mode9 copy.
-  const left = Math.max(0, base.x, tint.x);
-  const top = Math.max(0, base.y, tint.y);
-  const right = Math.min(context.canvas.width, tint.x + tintInfo.width,
+  const [originX, originY] = origin;
+  const left = Math.max(originX, base.x, tint.x);
+  const top = Math.max(originY, base.y, tint.y);
+  const right = Math.min(originX + context.canvas.width, tint.x + tintInfo.width,
     base.x + Math.min(baseInfo.width, tintInfo.width));
-  const bottom = Math.min(context.canvas.height, tint.y + tintInfo.height,
+  const bottom = Math.min(originY + context.canvas.height, tint.y + tintInfo.height,
     base.y + Math.min(baseInfo.height, tintInfo.height));
   if (right <= left || bottom <= top) return;
-  const pixels = context.getImageData(left, top, right - left, bottom - top);
+  const pixels = context.getImageData(left - originX, top - originY, right - left, bottom - top);
   for (let y = top; y < bottom; y++) {
     for (let x = left; x < right; x++) {
       const offset = ((y - top) * (right - left) + x - left) * 4;
@@ -147,7 +150,7 @@ export function paintDrawingMotionFrame(context, manifest, frame, assets, color,
       blendDrawingMode9(pixels.data, offset, tintAsset.argb, source, color);
     }
   }
-  context.putImageData(pixels, left, top);
+  context.putImageData(pixels, left - originX, top - originY);
 }
 
 /** State/timing engine with explicit source dispatch and browser pointer helpers.

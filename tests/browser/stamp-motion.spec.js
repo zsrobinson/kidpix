@@ -1,3 +1,4 @@
+import { canonicalMotionFrame } from './canonical-motion-frame.js';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -41,7 +42,7 @@ async function pixels(page,name) {
   const states=await snap(page,name),[table,rows,bounds]=profiles[name];
   const buttons=manifest.tables[table].buttons.filter(b=>rows.includes(b.index));
   const expected=compose(bounds,states.map((s,i)=>({...s,clip:s.auxiliary?buttons[i].auxiliaryClipRect:null})));
-  const actual=PNG.sync.read(Buffer.from((await actor(page,name).evaluate(c=>c.toDataURL())).split(',')[1],'base64'));
+  const actual=PNG.sync.read(Buffer.from((await canonicalMotionFrame(actor(page,name))).split(',')[1],'base64'));
   const studio=PNG.sync.read(await page.locator('#studio').screenshot());
   expect([studio.width,studio.height]).toEqual([1024,768]);
   let bad=0,visible=0,outside=0;

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { existsSync, readFileSync } from 'node:fs';
 import { createDrawingMotionController, loadDrawingMotionAssets, paintDrawingMotionFrame } from '../../src/native-drawing-motion.js';
-import { toolRegionContains } from '../../src/native-tool-motion.js';
+import { motionCanvasBounds, toolRegionContains } from '../../src/native-tool-motion.js';
 
 function group(count) {
   const scripts = {};
@@ -168,3 +168,16 @@ test('exported Grab source streams retain all six timelines, cue gates, kind1 cl
       }
     }
   });
+
+
+test('bounded motion canvas includes every script/state and opaque restoration, clamped with fringe', () => {
+  const manifest = { sprites: { a: { width: 9, height: 8 } }, scripts: {
+    rest: { frames: [{ parts: [{ x: 200, y: 650, sprite: 'a' }] }] },
+    hover: { frames: [{ parts: [{ x: -1, y: 760, sprite: 'a' }] }] },
+    disabled: { frames: [{ parts: [{ x: 1018, y: 640, sprite: 'a' }] }] },
+  }, restorationRects: [[100, 620, 30, 20]] };
+  assert.deepEqual(motionCanvasBounds(manifest), [0, 618, 1024, 150]);
+  delete manifest.restorationRects;
+  assert.deepEqual(motionCanvasBounds(manifest), [0, 638, 1024, 130]);
+  assert.deepEqual(motionCanvasBounds({ scripts: {}, sprites: {} }), [0, 0, 1024, 768]);
+});

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { PNG } from 'pngjs';
+import { motionCanvasBounds } from '../../src/native-tool-motion.js';
 import { paintDrawingMotionFrame } from '../../src/native-drawing-motion.js';
 
 // Read-only source pins: tSCR + REGS + tBMH from supplied Windows Tp.MHK.
@@ -15,9 +16,10 @@ const inside = (r, x, y) => !r || x >= r[0] && y >= r[1] && x < r[0] + r[2] && y
 // Native-coordinate software Canvas seam: actual application renderer, no DOM,
 // browser, GPU or server. Opaque destination makes source-over rounding exact.
 class Pixels {
-  constructor() {
-    this.canvas = { width: 1024, height: 768 };
-    this.data = new Uint8ClampedArray(1024 * 768 * 4).fill(255);
+  constructor(width = 1024, height = 768, origin = [0, 0]) {
+    this.canvas = { width, height };
+    this.origin = origin;
+    this.data = new Uint8ClampedArray(width * height * 4).fill(255);
   }
   save() { this.saved = this.region; }
   beginPath() {}
@@ -27,18 +29,20 @@ class Pixels {
   drawImage(image, left, top) {
     for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) {
       if (!inside(this.region, left + x, top + y)) continue;
-      const s = (y * image.width + x) * 4, d = ((top + y) * 1024 + left + x) * 4;
+      const dx = left + x - this.origin[0], dy = top + y - this.origin[1];
+      if (dx < 0 || dy < 0 || dx >= this.canvas.width || dy >= this.canvas.height) continue;
+      const s = (y * image.width + x) * 4, d = (dy * this.canvas.width + dx) * 4;
       const a = image.data[s + 3] / 255;
       for (let c = 0; c < 3; c++) this.data[d + c] = Math.round(image.data[s + c] * a + this.data[d + c] * (1 - a));
     }
   }
   getImageData(x, y, w, h) {
     const data = new Uint8ClampedArray(w * h * 4);
-    for (let row = 0; row < h; row++) data.set(this.data.subarray(((y + row) * 1024 + x) * 4, ((y + row) * 1024 + x + w) * 4), row * w * 4);
+    for (let row = 0; row < h; row++) data.set(this.data.subarray(((y + row) * this.canvas.width + x) * 4, ((y + row) * this.canvas.width + x + w) * 4), row * w * 4);
     return { data, width: w, height: h };
   }
   putImageData(image, x, y) {
-    for (let row = 0; row < image.height; row++) this.data.set(image.data.subarray(row * image.width * 4, (row + 1) * image.width * 4), ((y + row) * 1024 + x) * 4);
+    for (let row = 0; row < image.height; row++) this.data.set(image.data.subarray(row * image.width * 4, (row + 1) * image.width * 4), ((y + row) * this.canvas.width + x) * 4);
   }
 }
 
@@ -85,6 +89,14 @@ for (const [id, source] of Object.entries(pins.scripts)) test(`source full-pose 
       }
       paintDrawingMotionFrame(actual, manifest, manifest.scripts[id].frames[i], assets, color, { clipRect: hover ? clip : null });
       assert.equal(digest(actual.data), digest(expected.data), `${id} pose ${i} color ${color}: complete destination including off-left/vacated pixels`);
+      // Explicit cropped targets, including bounds through the mode9 temporary.
+      for (const [left, top, width, height] of [motionCanvasBounds(manifest), [280, 655, 40, 60]]) {
+        const cropped = new Pixels(width, height, [left, top]);
+        paintDrawingMotionFrame(cropped, manifest, manifest.scripts[id].frames[i], assets, color,
+          { clipRect: hover ? clip : null, origin: [left, top] });
+        assert.equal(digest(cropped.data), digest(expected.getImageData(left, top, width, height).data),
+          `${id} pose ${i}: cropped destination preserves independent source pixels`);
+      }
     }
   }
   if (hover) assert.ok(outsideChanges > 0, 'Source mask really paints left of hit/ordinary clip');

@@ -1,3 +1,4 @@
+import { canonicalMotionFrame } from './canonical-motion-frame.js';
 import { test, expect } from '@playwright/test';
 const actor = page => page.locator('[data-native-action-motion]');
 const snap = page => actor(page).evaluate(c => JSON.parse(c.dataset.motionSnapshot));
@@ -47,7 +48,7 @@ test('native Grab keeps path actions in the menu without floating over the studi
 
 test('Grab animation restoration leaves unbound object-navigation artwork visible', async ({ page }) => {
   await textObject(page); await start(page, 'grab'); await clock(page);
-  const canvas = PNG.sync.read(Buffer.from((await actor(page).evaluate(c => c.toDataURL())).split(',')[1], 'base64'));
+  const canvas = PNG.sync.read(Buffer.from((await canonicalMotionFrame(actor(page))).split(',')[1], 'base64'));
   let covered = 0;
   for (let y = 648; y < 731; y++) for (let x = 491; x < 531; x++) covered += canvas.data[(y * 1024 + x) * 4 + 3] !== 0;
   expect(covered, 'unbound navigation column must remain transparent').toBe(0);
@@ -142,10 +143,10 @@ async function expectSourcePixels(page, owner, view) {
     for (const part of script.frames[state.frameIndex].parts) overlay(png(sourceManifest.sprites[`${script.collection}:${part.sprite}`].image), part.x, part.y,
       state.auxiliary ? button.auxiliaryClipRect : [0, 0, 1024, 768]);
   }
-  const actual = PNG.sync.read(Buffer.from((await actor(page, owner).evaluate(canvas => canvas.toDataURL())).split(',')[1], 'base64'));
+  const actual = PNG.sync.read(Buffer.from((await canonicalMotionFrame(actor(page, owner))).split(',')[1], 'base64'));
   const studio = PNG.sync.read(await page.locator('#studio').screenshot());
   expect([studio.width, studio.height]).toEqual([1024, 768]);
-  let canvasBad = 0, visibleBad = 0;
+  let canvasBad = 0, visibleBad = 0; const firstBad = [];
   for (let y = top; y < Math.min(bottom, 768); y++) for (let x = left; x < right; x++) {
     const offset = (y * 1024 + x) * 4;
     // Independent source footprints, excluding the unbound navigation column.
@@ -153,11 +154,11 @@ async function expectSourcePixels(page, owner, view) {
       .some(([left, top, width, height]) => x >= left && x < left + width && y >= top && y < top + height);
     if (!owned) expected.data.fill(0, offset, offset + 4);
     for (let c = 0; c < 4; c++) {
-      if (Math.abs(actual.data[offset + c] - expected.data[offset + c]) > 1) canvasBad++;
+      if (Math.abs(actual.data[offset + c] - expected.data[offset + c]) > 1) { canvasBad++; if(firstBad.length<8)firstBad.push([x,y,c,actual.data[offset+c],expected.data[offset+c]]); }
       if (expected.data[offset + 3] === 255 && Math.abs(studio.data[offset + c] - expected.data[offset + c]) > 1) visibleBad++;
     }
   }
-  expect(canvasBad, `${owner} source canvas channels`).toBe(0);
+  expect(canvasBad, `${owner} source canvas channels ${JSON.stringify(firstBad)}`).toBe(0);
   if (visibleBad) {
     await page.screenshot({ path: `artifacts/t3/action-runtime/${owner.replace(':', '-')}-actual.png` });
     await import('node:fs').then(fs => fs.writeFileSync(`artifacts/t3/action-runtime/${owner.replace(':', '-')}-expected.png`, PNG.sync.write(expected)));

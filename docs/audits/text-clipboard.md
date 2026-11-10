@@ -1,6 +1,6 @@
 # Text range clipboard slice
 
-Current port: prepared `621298d` (live0.16 `fd216d7` plus cold-probe/audit only). Version remains **0.16.0**. Deferred checkpoint `80a06616c2305d59785253620994afd206f4fc93` was applied in this isolated checkout; the original checkpoint and root handoff remain untouched. Current validation is recorded below; the older checkpoint results are historical, not current acceptance.
+Released with **0.17.0**, based on0.16 `fd216d7` plus the cold-load probe/audit. The port was prepared from `621298d` and the deferred checkpoint `80a06616c2305d59785253620994afd206f4fc93`; that original checkpoint remains untouched. Validation is recorded below, ending with the0.17 release gates. Older checkpoint results are historical, not current acceptance.
 
 ## Original checkpoint history
 
@@ -159,3 +159,26 @@ New/Open cases in pinned WebKit dev, pinned WebKit built and Chromium built.
 Worker dry run after this correction. Evidence is under `release-0170/` and
 `/tmp/kidpix-0170-clear-*.log`. Independent review and full release suites remain
 pending;0.16 is still public. No new media, native or physical-device claim.
+
+## 0.17 release validation
+
+Frozen application source `21584d2` passed253 Node checks, asset verification,
+production build and Worker dry run. The asset-free archive passed240 Node
+checks with13 imported-asset skips, build and dry run. Full suites passed508
+development cases (one opt-in skip),449 built cases (one opt-in skip), and266
+pinned WebKit cases (three browser-specific skips), without retries or failures.
+All684 bounded source compositions have zero differences.
+
+Independent review found no release objections after six additional actual-app
+probes, a real-DOM rollback/disposal probe and21 focused tests. Its independent
+old-Clear-call control fails and the candidate passes. The17 static captures
+match the isolated port's recorded result:16 identical, Text522 changed pixels
+at a maximum channel difference2 within the clipboard artwork. The web report
+has zero regression/comparison errors; no baseline was changed. Parent inspected
+the current Text capture. All24 required public media response bodies match
+the local SHA256 values; no additions or uploads are needed.
+
+Release receipts and the independent report are retained under
+`artifacts/t3/release-0170/`. Final documentation changes do not alter the frozen
+application/test source. Native references remain0/17. Physical iPad/Pencil
+latency, foreground-idle causation and audible delivery remain unverified.

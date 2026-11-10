@@ -114,5 +114,18 @@ Empty, Default, missing and ambiguous identities have explicit boundary behavior
 Catalog refresh cannot cancel unrelated formatting or Grab gestures. Source
 art/pixels and independent browser ownership checks passed; native voice identity,
 pronunciation, popup internals, audible latency and physical iPad feel are unproved.
-Read remains static pending selected-range/current-box speech ownership; it must
-not be counted as an animated source control. Native references remain0/17.
+Read uses source row15 with selected-range/current-box speech ownership and
+completion/cancellation gates; see [the Read audit](audits/text-read.md).
+Browser voice availability, audible delivery and native timing remain separate
+acceptance work. Native references remain0/17.
+
+## Text character clipboard
+
+Text Cut, Copy and Paste use recovered rows12–14 with nine source programs and
+twelve draw groups. The browser adaptation operates on the current editor's
+character range and keeps a document-local plaintext payload. Clear and history
+retain it; New/Open replace it. Directional selections and range mutations have
+transactional Undo/Redo checks. Native keyboard clipboard defaults, Grab and
+Scissors remain independent. See [the clipboard audit](audits/text-clipboard.md)
+for source pins, browser policies and release evidence. OS clipboard integration,
+rich style runs, physical iPad feel and native runtime parity are unverified.

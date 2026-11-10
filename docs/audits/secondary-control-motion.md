@@ -10,7 +10,7 @@ button instances. The four Text steppers add 16 programs and 20 poses; see
 [their source and value contract](text-steppers.md). Native popup interiors and
 remaining Grab navigation are not enabled. The three Text character clipboard
 controls add nine programs/twelve draw groups under a dedicated plaintext
-[range/history contract](text-clipboard.md); their browser acceptance is deferred. The two
+[range/history contract and acceptance record](text-clipboard.md). The two
 voice arrows add eight programs/ten poses, and Read adds three programs/four
 poses. Voice popups remain native browser selects; see [voice ownership](text-voice-controls.md)
 and [selected-text Read](text-read.md) for recovered rules and browser adaptations.
@@ -57,7 +57,8 @@ Independent source tests compare all 179 programs and 59 table rows with the
 pre-existing audit, and check decoded sprite channels, sound PCM, regions and
 clean-page restoration. Drawing and Stamp special clean-page recipes are outside
 the general restoration test; enabled Drawing selectors have separate actual
-studio pixel checks. Broader Stamp integration needs dedicated recipe coverage.
+studio pixel checks. Stamp composition and restoration have dedicated source
+checks in `stamp-motion.spec.js` and independent retained integration evidence.
 
 Browser tests in `secondary-motion.spec.js` compare source pixels in both the
 actor canvas and visible studio, retain every tracking pose, and exercise input

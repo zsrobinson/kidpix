@@ -2,12 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.17.0 candidate
+## 0.17.0
 
 - Added Text Cut, Copy and Paste with nine recovered source programs and the original rest, hover and tracking artwork. The document-local plaintext clipboard operates on the current editor range and preserves directional selection through Cut/Paste Undo and Redo. Native keyboard editing, whole-object menus, Grab and Scissors retain their own clipboard behavior.
-- Keep copied text across box/tray changes and history, including page-wipe Undo/Redo; clear it on New/Open/document replacement. Canceled or stale held controls cannot modify replacement text. Clipboard contents are not saved with projects; OS clipboard and rich-style interoperability remain separate work.
+- Keep copied text across box/tray changes, Clear and history, including page-wipe Undo/Redo; clear it on New/Open/document replacement. Canceled or stale held controls cannot modify replacement text. Clipboard contents are not saved with projects; OS clipboard and rich-style interoperability remain separate work.
 - Retire held source proposals when pointer capture is denied and honor Escape while the text editor retains focus. Preserve the0.16 audio completion contract.
-- Local release gates, screenshot review and independent review are pending. No new media is needed. Native references remain0/17; physical iPad/Pencil latency, audible behavior and foreground-idle causation remain unverified.
+- Verified253 Node checks,508 development cases,449 built cases and266 WebKit cases; browser skips are explicit. Source-only240 checks pass with13 imported-asset skips, build and deployment dry run. All684 bounded source compositions match. Independent review found no release objections. Static captures have no web regression:16/17 are pixel-identical to0.16, with Text's changes confined to its clipboard artwork (maximum channel difference2). No baseline change is required.
+- All24 required existing public media bodies match local hashes; no media upload is needed. Native references remain0/17; physical iPad/Pencil latency, audible behavior and foreground-idle causation remain unverified. No drawing-performance patch is included.
 
 ## 0.16.0
 

@@ -1,0 +1,1368 @@
+{
+  "provenance": "text-voice-read-next independent source audit, 2026-11-10",
+  "rows": [
+    {
+      "table": 9383,
+      "index": 16,
+      "rawWords": [
+        18241,
+        18284,
+        0,
+        0,
+        1,
+        0,
+        231,
+        4,
+        0,
+        0,
+        18285,
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "stateScripts": [
+        18241,
+        18284,
+        0,
+        0
+      ],
+      "rolloverScript": 18285,
+      "command": 231,
+      "derivedMode": 0,
+      "region": {
+        "type": "rectangle-union",
+        "status": "exact",
+        "sourceKind": 1,
+        "resourceType": "tSCR",
+        "resource": 18285,
+        "boundsXYWH": [
+          616,
+          659,
+          115,
+          62
+        ],
+        "rectsLTRB": [
+          [
+            616,
+            659,
+            731,
+            721
+          ]
+        ],
+        "rectangleCount": 1,
+        "construction": "initial-script-bounds",
+        "boundsSelection": "rollover-initial-group",
+        "initialScriptBounds": [
+          {
+            "role": "rest",
+            "script": 18241,
+            "collection": 18000,
+            "originXY": [
+              614,
+              652
+            ],
+            "boundsLTRB": [
+              616,
+              659,
+              731,
+              721
+            ],
+            "parts": [
+              {
+                "rawImage": 33216,
+                "image": 448,
+                "sourceXY": [
+                  375,
+                  15
+                ],
+                "registrationXY": [
+                  373,
+                  8
+                ],
+                "rectLTRB": [
+                  616,
+                  659,
+                  731,
+                  721
+                ]
+              }
+            ]
+          },
+          {
+            "role": "state1",
+            "script": 18284,
+            "collection": 18000,
+            "originXY": [
+              614,
+              652
+            ],
+            "boundsLTRB": [
+              616,
+              659,
+              731,
+              721
+            ],
+            "parts": [
+              {
+                "rawImage": 33379,
+                "image": 611,
+                "sourceXY": [
+                  375,
+                  15
+                ],
+                "registrationXY": [
+                  373,
+                  8
+                ],
+                "rectLTRB": [
+                  616,
+                  659,
+                  731,
+                  721
+                ]
+              }
+            ]
+          },
+          {
+            "role": "rollover",
+            "script": 18285,
+            "collection": 18000,
+            "originXY": [
+              614,
+              652
+            ],
+            "boundsLTRB": [
+              616,
+              659,
+              731,
+              721
+            ],
+            "parts": [
+              {
+                "rawImage": 33380,
+                "image": 612,
+                "sourceXY": [
+                  375,
+                  15
+                ],
+                "registrationXY": [
+                  373,
+                  8
+                ],
+                "rectLTRB": [
+                  616,
+                  659,
+                  731,
+                  721
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "table": 9383,
+      "index": 17,
+      "rawWords": [
+        18242,
+        18243,
+        0,
+        18313,
+        1,
+        0,
+        236,
+        3,
+        1,
+        0,
+        18244,
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "stateScripts": [
+        18242,
+        18243,
+        0,
+        18313
+      ],
+      "rolloverScript": 18244,
+      "command": 236,
+      "derivedMode": 2,
+      "region": {
+        "type": "rectangle-union",
+        "status": "exact",
+        "sourceKind": 1,
+        "resourceType": "tSCR",
+        "resource": 18244,
+        "boundsXYWH": [
+          731,
+          659,
+          43,
+          31
+        ],
+        "rectsLTRB": [
+          [
+            731,
+            659,
+            774,
+            690
+          ]
+        ],
+        "rectangleCount": 1,
+        "construction": "initial-script-bounds",
+        "boundsSelection": "rollover-initial-group",
+        "initialScriptBounds": [
+          {
+            "role": "rest",
+            "script": 18242,
+            "collection": 18000,
+            "originXY": [
+              729,
+              646
+            ],
+            "boundsLTRB": [
+              731,
+              659,
+              774,
+              690
+            ],
+            "parts": [
+              {
+                "rawImage": 33219,
+                "image": 451,
+                "sourceXY": [
+                  229,
+                  -261
+                ],
+                "registrationXY": [
+                  227,
+                  -274
+                ],
+                "rectLTRB": [
+                  731,
+                  659,
+                  774,
+                  690
+                ]
+              }
+            ]
+          },
+          {
+            "role": "state1",
+            "script": 18243,
+            "collection": 18000,
+            "originXY": [
+              729,
+              646
+            ],
+            "boundsLTRB": [
+              731,
+              659,
+              774,
+              690
+            ],
+            "parts": [
+              {
+                "rawImage": 33220,
+                "image": 452,
+                "sourceXY": [
+                  229,
+                  -261
+                ],
+                "registrationXY": [
+                  227,
+                  -274
+                ],
+                "rectLTRB": [
+                  731,
+                  659,
+                  774,
+                  690
+                ]
+              }
+            ]
+          },
+          {
+            "role": "rollover",
+            "script": 18244,
+            "collection": 18000,
+            "originXY": [
+              729,
+              646
+            ],
+            "boundsLTRB": [
+              731,
+              659,
+              774,
+              690
+            ],
+            "parts": [
+              {
+                "rawImage": 33221,
+                "image": 453,
+                "sourceXY": [
+                  229,
+                  -261
+                ],
+                "registrationXY": [
+                  227,
+                  -274
+                ],
+                "rectLTRB": [
+                  731,
+                  659,
+                  774,
+                  690
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "table": 9383,
+      "index": 18,
+      "rawWords": [
+        18245,
+        18246,
+        0,
+        18314,
+        1,
+        0,
+        237,
+        3,
+        1,
+        0,
+        18247,
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      "stateScripts": [
+        18245,
+        18246,
+        0,
+        18314
+      ],
+      "rolloverScript": 18247,
+      "command": 237,
+      "derivedMode": 2,
+      "region": {
+        "type": "rectangle-union",
+        "status": "exact",
+        "sourceKind": 1,
+        "resourceType": "tSCR",
+        "resource": 18247,
+        "boundsXYWH": [
+          731,
+          690,
+          43,
+          31
+        ],
+        "rectsLTRB": [
+          [
+            731,
+            690,
+            774,
+            721
+          ]
+        ],
+        "rectangleCount": 1,
+        "construction": "initial-script-bounds",
+        "boundsSelection": "rollover-initial-group",
+        "initialScriptBounds": [
+          {
+            "role": "rest",
+            "script": 18245,
+            "collection": 18000,
+            "originXY": [
+              729,
+              674
+            ],
+            "boundsLTRB": [
+              731,
+              690,
+              774,
+              721
+            ],
+            "parts": [
+              {
+                "rawImage": 33222,
+                "image": 454,
+                "sourceXY": [
+                  240,
+                  -280
+                ],
+                "registrationXY": [
+                  238,
+                  -296
+                ],
+                "rectLTRB": [
+                  731,
+                  690,
+                  774,
+                  721
+                ]
+              }
+            ]
+          },
+          {
+            "role": "state1",
+            "script": 18246,
+            "collection": 18000,
+            "originXY": [
+              729,
+              674
+            ],
+            "boundsLTRB": [
+              731,
+              690,
+              774,
+              721
+            ],
+            "parts": [
+              {
+                "rawImage": 33223,
+                "image": 455,
+                "sourceXY": [
+                  240,
+                  -280
+                ],
+                "registrationXY": [
+                  238,
+                  -296
+                ],
+                "rectLTRB": [
+                  731,
+                  690,
+                  774,
+                  721
+                ]
+              }
+            ]
+          },
+          {
+            "role": "rollover",
+            "script": 18247,
+            "collection": 18000,
+            "originXY": [
+              729,
+              674
+            ],
+            "boundsLTRB": [
+              731,
+              690,
+              774,
+              721
+            ],
+            "parts": [
+              {
+                "rawImage": 33224,
+                "image": 456,
+                "sourceXY": [
+                  240,
+                  -280
+                ],
+                "registrationXY": [
+                  238,
+                  -296
+                ],
+                "rectLTRB": [
+                  731,
+                  690,
+                  774,
+                  721
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "programs": {
+    "18241": {
+      "script": 18241,
+      "collection": 18000,
+      "originXY": [
+        614,
+        652
+      ],
+      "headerBoundsLTRB": [
+        614,
+        652,
+        733,
+        715
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 448,
+              "rawImage": 33216,
+              "sourceXY": [
+                375,
+                15
+              ],
+              "registrationXY": [
+                373,
+                8
+              ],
+              "x": 616,
+              "y": 659
+            }
+          ]
+        }
+      ],
+      "sounds": [],
+      "endCheckTick": 1,
+      "boundsXYWH": [
+        616,
+        659,
+        115,
+        62
+      ],
+      "sourceSha256": "4b6eab1e941d29da85abdfec32a4929eea367d4624c08457b27f32f9b3642621",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33216,
+              375,
+              15
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18284": {
+      "script": 18284,
+      "collection": 18000,
+      "originXY": [
+        614,
+        652
+      ],
+      "headerBoundsLTRB": [
+        614,
+        652,
+        733,
+        715
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 611,
+              "rawImage": 33379,
+              "sourceXY": [
+                375,
+                15
+              ],
+              "registrationXY": [
+                373,
+                8
+              ],
+              "x": 616,
+              "y": 659
+            }
+          ]
+        }
+      ],
+      "sounds": [],
+      "endCheckTick": 1,
+      "boundsXYWH": [
+        616,
+        659,
+        115,
+        62
+      ],
+      "sourceSha256": "0ae248b848c4347b7b4834e9e3ab33c2444663337f4d73ee9f299200d6add02e",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33379,
+              375,
+              15
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18285": {
+      "script": 18285,
+      "collection": 18000,
+      "originXY": [
+        614,
+        652
+      ],
+      "headerBoundsLTRB": [
+        614,
+        652,
+        733,
+        715
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 612,
+              "rawImage": 33380,
+              "sourceXY": [
+                375,
+                15
+              ],
+              "registrationXY": [
+                373,
+                8
+              ],
+              "x": 616,
+              "y": 659
+            }
+          ]
+        }
+      ],
+      "sounds": [],
+      "endCheckTick": 1,
+      "boundsXYWH": [
+        616,
+        659,
+        115,
+        62
+      ],
+      "sourceSha256": "9f998ff0807c94e6dfea650aafffe64723a6305986fbc5d4c6692b691c797941",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33380,
+              375,
+              15
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18313": {
+      "script": 18313,
+      "collection": 18000,
+      "originXY": [
+        729,
+        646
+      ],
+      "headerBoundsLTRB": [
+        729,
+        646,
+        771,
+        691
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 730,
+              "rawImage": 33498,
+              "sourceXY": [
+                229,
+                -261
+              ],
+              "registrationXY": [
+                227,
+                -274
+              ],
+              "x": 731,
+              "y": 659
+            }
+          ]
+        }
+      ],
+      "sounds": [],
+      "endCheckTick": 1,
+      "boundsXYWH": [
+        731,
+        659,
+        43,
+        31
+      ],
+      "sourceSha256": "594a84928362c5badf652b72618ad83815e9634227b6ec7965f19658906bf51e",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33498,
+              229,
+              -261
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18242": {
+      "script": 18242,
+      "collection": 18000,
+      "originXY": [
+        729,
+        646
+      ],
+      "headerBoundsLTRB": [
+        729,
+        646,
+        771,
+        691
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 451,
+              "rawImage": 33219,
+              "sourceXY": [
+                229,
+                -261
+              ],
+              "registrationXY": [
+                227,
+                -274
+              ],
+              "x": 731,
+              "y": 659
+            }
+          ]
+        }
+      ],
+      "sounds": [],
+      "endCheckTick": 1,
+      "boundsXYWH": [
+        731,
+        659,
+        43,
+        31
+      ],
+      "sourceSha256": "2fe20ef69da4e1fd4c9bb76ee642c3478d6b8b7099f4e639e02dff798d051fd9",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33219,
+              229,
+              -261
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18243": {
+      "script": 18243,
+      "collection": 18000,
+      "originXY": [
+        729,
+        646
+      ],
+      "headerBoundsLTRB": [
+        729,
+        646,
+        771,
+        691
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 452,
+              "rawImage": 33220,
+              "sourceXY": [
+                229,
+                -261
+              ],
+              "registrationXY": [
+                227,
+                -274
+              ],
+              "x": 731,
+              "y": 659
+            }
+          ]
+        },
+        {
+          "tick": 1,
+          "parts": [
+            {
+              "sprite": 452,
+              "rawImage": 33220,
+              "sourceXY": [
+                229,
+                -261
+              ],
+              "registrationXY": [
+                227,
+                -274
+              ],
+              "x": 731,
+              "y": 659
+            }
+          ]
+        }
+      ],
+      "sounds": [
+        {
+          "tick": 1,
+          "sound": 18067,
+          "cue": 67,
+          "channel": 1
+        }
+      ],
+      "endCheckTick": 2,
+      "boundsXYWH": [
+        731,
+        659,
+        43,
+        31
+      ],
+      "sourceSha256": "1c9bea866295fec8af8ce2f0f3ffd87621cf38fc56fd07f4d491dcbc554d7f2c",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33220,
+              229,
+              -261
+            ]
+          ]
+        },
+        {
+          "op": "wait"
+        },
+        {
+          "op": "sound",
+          "cue": 67,
+          "channel": 1
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33220,
+              229,
+              -261
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18244": {
+      "script": 18244,
+      "collection": 18000,
+      "originXY": [
+        729,
+        646
+      ],
+      "headerBoundsLTRB": [
+        729,
+        646,
+        771,
+        691
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 453,
+              "rawImage": 33221,
+              "sourceXY": [
+                229,
+                -261
+              ],
+              "registrationXY": [
+                227,
+                -274
+              ],
+              "x": 731,
+              "y": 659
+            }
+          ]
+        }
+      ],
+      "sounds": [],
+      "endCheckTick": 1,
+      "boundsXYWH": [
+        731,
+        659,
+        43,
+        31
+      ],
+      "sourceSha256": "a371e532e9d38da8d11dfabf29d69bac32bfa4790e58231eccb7ceacfb7b883e",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33221,
+              229,
+              -261
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18314": {
+      "script": 18314,
+      "collection": 18000,
+      "originXY": [
+        729,
+        674
+      ],
+      "headerBoundsLTRB": [
+        729,
+        674,
+        770,
+        721
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 731,
+              "rawImage": 33499,
+              "sourceXY": [
+                240,
+                -280
+              ],
+              "registrationXY": [
+                238,
+                -296
+              ],
+              "x": 731,
+              "y": 690
+            }
+          ]
+        }
+      ],
+      "sounds": [],
+      "endCheckTick": 1,
+      "boundsXYWH": [
+        731,
+        690,
+        43,
+        31
+      ],
+      "sourceSha256": "50c0252ed8af91b47df45c2e07478a214f2951a7d2efcc32b9697cf528a08b04",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33499,
+              240,
+              -280
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18245": {
+      "script": 18245,
+      "collection": 18000,
+      "originXY": [
+        729,
+        674
+      ],
+      "headerBoundsLTRB": [
+        729,
+        674,
+        770,
+        721
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 454,
+              "rawImage": 33222,
+              "sourceXY": [
+                240,
+                -280
+              ],
+              "registrationXY": [
+                238,
+                -296
+              ],
+              "x": 731,
+              "y": 690
+            }
+          ]
+        }
+      ],
+      "sounds": [],
+      "endCheckTick": 1,
+      "boundsXYWH": [
+        731,
+        690,
+        43,
+        31
+      ],
+      "sourceSha256": "a537bb2917483d54dbf20fe2664f2eadf68f48f671ddb434843af35bf5692a41",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33222,
+              240,
+              -280
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18246": {
+      "script": 18246,
+      "collection": 18000,
+      "originXY": [
+        729,
+        674
+      ],
+      "headerBoundsLTRB": [
+        729,
+        674,
+        770,
+        721
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 455,
+              "rawImage": 33223,
+              "sourceXY": [
+                240,
+                -280
+              ],
+              "registrationXY": [
+                238,
+                -296
+              ],
+              "x": 731,
+              "y": 690
+            }
+          ]
+        },
+        {
+          "tick": 1,
+          "parts": [
+            {
+              "sprite": 455,
+              "rawImage": 33223,
+              "sourceXY": [
+                240,
+                -280
+              ],
+              "registrationXY": [
+                238,
+                -296
+              ],
+              "x": 731,
+              "y": 690
+            }
+          ]
+        }
+      ],
+      "sounds": [
+        {
+          "tick": 1,
+          "sound": 18067,
+          "cue": 67,
+          "channel": 1
+        }
+      ],
+      "endCheckTick": 2,
+      "boundsXYWH": [
+        731,
+        690,
+        43,
+        31
+      ],
+      "sourceSha256": "b4440a7215ef62d0c6e33a31af510939c3a50cdf2747c8207021727c833b7f31",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33223,
+              240,
+              -280
+            ]
+          ]
+        },
+        {
+          "op": "wait"
+        },
+        {
+          "op": "sound",
+          "cue": 67,
+          "channel": 1
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33223,
+              240,
+              -280
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    },
+    "18247": {
+      "script": 18247,
+      "collection": 18000,
+      "originXY": [
+        729,
+        674
+      ],
+      "headerBoundsLTRB": [
+        729,
+        674,
+        770,
+        721
+      ],
+      "tickMs": 100,
+      "frames": [
+        {
+          "tick": 0,
+          "parts": [
+            {
+              "sprite": 456,
+              "rawImage": 33224,
+              "sourceXY": [
+                240,
+                -280
+              ],
+              "registrationXY": [
+                238,
+                -296
+              ],
+              "x": 731,
+              "y": 690
+            }
+          ]
+        }
+      ],
+      "sounds": [],
+      "endCheckTick": 1,
+      "boundsXYWH": [
+        731,
+        690,
+        43,
+        31
+      ],
+      "sourceSha256": "296f94eb8783d2fa1bfabd852d00a8d0b11e51299f1f88a6329aaff6906aeb91",
+      "events": [
+        {
+          "op": "interval",
+          "ms": 100
+        },
+        {
+          "op": "draw",
+          "images": [
+            [
+              33224,
+              240,
+              -280
+            ]
+          ]
+        },
+        {
+          "op": "wait",
+          "terminal": true
+        }
+      ]
+    }
+  },
+  "sprites": {
+    "18000:448": {
+      "width": 115,
+      "height": 62,
+      "rawPayloadSha256": "d65ec21b64b6c4db1ade8b97063815b9985df28a67d6f0f376ee631b5840727a",
+      "argbSha256": "e7fc4be63ece2c241dfcf81f32169c37bca575d736cf2ae351677ed1e38d53ff"
+    },
+    "18000:451": {
+      "width": 43,
+      "height": 31,
+      "rawPayloadSha256": "05ccf02709c24571c227388f65145e0c6430c0a934a1f9efbac3ddbed6512caa",
+      "argbSha256": "409469f067c25ecb35c0fc306f1879a4c5399e8b01f3bd216c114f1abeeaad41"
+    },
+    "18000:452": {
+      "width": 43,
+      "height": 31,
+      "rawPayloadSha256": "0ede237ee5719e9bd4d12f1fd7f484d741ec69d1e7457656a333183b6c349d55",
+      "argbSha256": "48700613874c0fb2dd4d54aac242974b3cdf253282b8b6d8644b5e073d3b1799"
+    },
+    "18000:453": {
+      "width": 43,
+      "height": 31,
+      "rawPayloadSha256": "d4f4adea4333ad504b83abcd1590d3cc9dc235c859173b00110bc274be6cba26",
+      "argbSha256": "1e1d61162677e794658dcbbd24c27ec25b03bd39bbb2dc60125faa76606e4dcb"
+    },
+    "18000:454": {
+      "width": 43,
+      "height": 31,
+      "rawPayloadSha256": "b4d664f76d19f917ab50b4424ceccfad2db22ae7fc47bebe058bece5eba404ba",
+      "argbSha256": "04fd6d0a621a7acc405d0195decf750df1a987d4df521ffeaddaf4adf4738099"
+    },
+    "18000:455": {
+      "width": 43,
+      "height": 31,
+      "rawPayloadSha256": "5122f617874031e53c4b020571f6af01f37b9f0610914e325768d1e1451f0f49",
+      "argbSha256": "9abaf5aad0adec4b2ab5ac0331e399281587fa1f196b5d6a94481767a9cb910a"
+    },
+    "18000:456": {
+      "width": 43,
+      "height": 31,
+      "rawPayloadSha256": "a765a1f943680f91c3412b32006870a18e54c619440aec3a9fbbe147db9a4437",
+      "argbSha256": "dd62b3684fea19910757b540f81dea7dab4fbdefd94c985a385e2ea34bd1a2f3"
+    },
+    "18000:611": {
+      "width": 115,
+      "height": 62,
+      "rawPayloadSha256": "f0d3b51207b188dbf89b302e216277ba23f906430091dd6bca967a7f0fb96aca",
+      "argbSha256": "abb7df863749350694e9bc37341229b2c9832e97f63308b5a3b058d8d2e52dbb"
+    },
+    "18000:612": {
+      "width": 115,
+      "height": 62,
+      "rawPayloadSha256": "2e3beac657f3d5b74ea902745fb6292279de1a6dda2329ef34936d3ebfb3b287",
+      "argbSha256": "1c52d2d1d558bc0187994987434266afd8fc7d4859d1bb5522fac5849e016376"
+    },
+    "18000:730": {
+      "width": 43,
+      "height": 31,
+      "rawPayloadSha256": "559fc77924227d629bfc459956565bc1f4bac69e253927aeb77bdb0e6d478c97",
+      "argbSha256": "f916ad43744b12028b254c9144fc641d93e5709a0eae3f70787c15a56b8a40ce"
+    },
+    "18000:731": {
+      "width": 43,
+      "height": 31,
+      "rawPayloadSha256": "b2433a16c2526699baca6ed0cc7683e2a469dee2fa39a38dec8e090bd367eb63",
+      "argbSha256": "629016b9534c1b9767cdb92750d8fb3c4af3c85894c46d4c977d4e5e8cc1ffba"
+    }
+  },
+  "sounds": {
+    "18066": "b21e8cf4fc0dfce6bad7de1647c8c6a3e573ba835d02718b9e5b37b6841a84cf",
+    "18067": "f5faba93126e2becf0184b5677732f114d075a41ce0fb6f9ccb526dee60a67cd"
+  }
+}

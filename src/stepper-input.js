@@ -45,6 +45,10 @@ export function guardStepperInput(controls, { actions, getTarget, activate }) {
   }, options);
   view.addEventListener('click', event => {
     const control = controlFor(event);
+    if (pointer && event.detail > 0 && event.pointerId !== undefined && event.pointerId !== pointer.pointerId) {
+      if (control) { event.preventDefault(); event.stopImmediatePropagation(); }
+      return;
+    }
     if (pointer && event.detail > 0) {
       const press = pointer;
       pointer = null;
@@ -62,6 +66,7 @@ export function guardStepperInput(controls, { actions, getTarget, activate }) {
     }
   }, options);
   view.addEventListener('pointerdown', event => {
+    if (pointer && !pointer.released && !pointer.cancelled) return;
     cancel();
     const control = controlFor(event);
     if (control) cancelled.delete(control.dataset.action);

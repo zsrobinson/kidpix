@@ -389,8 +389,8 @@ test('action manifest qualifies repeated sprite IDs and preserves registered geo
   assert.equal(source.scripts[4].frames[0].parts[0].sprite,7);
   delete source.sprites['101:7']; assert.throws(()=>actionManifest(source,{table:9383,rows:[9,10]}),/Missing action sprite/);
 });
-test('action profiles bind ten Text controls and existing Hand/Scissors actions with explicit authoritative state', () => {
-  assert.deepEqual(actionProfile({tray:'text'}).rows,[2,3,4,5,6,7,8,9,10,11]);
+test('action profiles bind twelve Text controls and existing Hand/Scissors actions with explicit authoritative state', () => {
+  assert.deepEqual(actionProfile({tray:'text'}).rows,[2,3,4,5,6,7,8,9,10,11,17,18]);
   assert.deepEqual(actionProfile({tray:'grab',selected:'scissors'}).rows,[2,3,4]);
   assert.equal(actionProfile({tray:'stamp'}),null);
   const manifest={buttons:['bold','italic','underline','align:right','edit:paste'].map(action=>({action}))};

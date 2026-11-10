@@ -498,7 +498,7 @@ export function createScene(root, surface, onChange) {
         paste: Boolean(clipboard), front: Boolean(object), back: Boolean(object),
         forward: Boolean(object), backward: Boolean(object),
         textStyle: object?.kind === 'text' ? Object.fromEntries(
-          ['font', 'size', 'bold', 'italic', 'underline', 'align'].map(key => [key, object[key]])) : null };
+          ['font', 'size', 'bold', 'italic', 'underline', 'align', 'voice'].map(key => [key, key === 'voice' ? object[key] || '' : object[key]])) : null };
     },
     destroy() {
       finishInactive();
@@ -506,10 +506,10 @@ export function createScene(root, surface, onChange) {
       cancelAnimationFrame(animation);
     },
     snapshot,
-    restore(state) {
+    restore(state, { textTarget = null } = {}) {
       objects = structuredClone(state);
       previews.clear();
-      selected = null;
+      selected = objects.find(object => object.id === textTarget && object.kind === 'text')?.id ?? null;
       render();
     },
   };

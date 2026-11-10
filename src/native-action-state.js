@@ -20,6 +20,7 @@ export function policyFor(table, row) {
     '18700:2': 'category-step:1', '18700:3': 'stamp-edit',
     '9383:2': 'font-step:-1', '9383:3': 'font-step:1',
     '9383:4': 'font-size-step:1', '9383:5': 'font-size-step:-1',
+    '9383:17': 'voice-step:-1', '9383:18': 'voice-step:1',
     '9383:0': '#font', '9383:1': '#font-size', '9383:16': '#text-voice',
     '926:2': 'edit:cut', '926:3': 'edit:copy', '926:4': 'edit:paste',
     '926:6': 'edit:front', '926:7': 'edit:back',

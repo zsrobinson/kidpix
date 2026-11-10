@@ -1,3 +1,4 @@
+import { VOICE_STEPPERS, voiceStep, voiceOptions, createVoiceCatalog } from './text-voices.js';
 import { createFirehoseOperation } from './firehose-operation.js';
 import { guardStepperInput } from './stepper-input.js';
 import { createStudioColorPicker } from './studio-color-picker.js';
@@ -276,7 +277,7 @@ function history(direction, fromFace = false) {
   const target = direction === 'undo' ? redoStack : undoStack;
   const entry = source.pop();
   if (!entry) return;
-  if (entry.kind === 'scene') scene.restore(entry[direction === 'undo' ? 'before' : 'after']);
+  if (entry.kind === 'scene') scene.restore(entry[direction === 'undo' ? 'before' : 'after'], { textTarget: scene.actionState.target });
   else if (entry.kind === 'sound') state[entry.track] = entry[direction === 'undo' ? 'before' : 'after'];
   else if (entry.kind === 'clear') {
     if (entry.paint) paint[direction]();
@@ -291,6 +292,7 @@ function history(direction, fromFace = false) {
   target.push(entry);
   if (fromFace) undoFaceRedo = direction === 'undo';
   syncHistory();
+  if (state.tray === 'text') actionMotionState();
 }
 
 const paperTextures = ['Smooth', 'Leaf', 'Stones', 'Fern', 'Swirl', 'Mosaic', 'Woodgrain', 'Woven'];
@@ -448,32 +450,36 @@ const nativeSecondaryMotion = createNativeSecondaryMotion({
 // Formatting chrome keeps the editor's caret/range during pointer activation.
 $('#tray-buttons').addEventListener('pointerdown', event => {
   const action = event.target.closest('[data-action]')?.dataset.action;
-  if (state.tray === 'text' && (['bold', 'italic', 'underline'].includes(action) || action?.startsWith('align:') || action?.startsWith('font-step:') || action?.startsWith('font-size-step:'))
+  if (state.tray === 'text' && (['bold', 'italic', 'underline'].includes(action) || action?.startsWith('align:') || action?.startsWith('font-step:') || action?.startsWith('font-size-step:') || action?.startsWith('voice-step:'))
     && document.activeElement?.matches('.object-text')) event.preventDefault();
 }, { capture: true });
 guardStepperInput($('#tray-buttons'), {
-  actions: TEXT_STEPPERS.map(stepper => stepper.action),
+  actions: [...TEXT_STEPPERS, ...VOICE_STEPPERS].map(stepper => stepper.action),
   getTarget: () => actionMotionState().target,
   activate: action => activate(action),
 });
 const textRange = createTextRangeKeeper($('#objects'));
 $('#tray-buttons').addEventListener('pointerdown', event => {
-  if (event.target.matches('#font, #font-size')) textRange.capture();
+  if (event.target.matches('#font, #font-size, #text-voice')) textRange.capture();
 }, { capture: true });
 $('#objects').addEventListener('focusin', event => {
-  if (event.target.matches('.object-text') && !event.target.matches(':active')) textRange.restore(event.target);
+  if (event.target.matches('.object-text')) {
+    if (!event.target.matches(':active')) textRange.restore(event.target);
+    if (state.tray === 'text') actionMotionState();
+  }
 });
 function applyTextStyle() { textRange.apply(() => scene.setTextStyle(textStyle())); }
 function syncTextValues() {
   if (state.tray !== 'text') return;
-  for (const { action } of TEXT_STEPPERS) {
+  for (const { action } of [...TEXT_STEPPERS, ...VOICE_STEPPERS]) {
     const control = $('#tray-buttons').querySelector(`[data-action="${action}"]`);
-    if (control) control.disabled = textStep(state, action) === null;
+    if (control) control.disabled = (action.startsWith('voice-step:') ? voiceStep(state.voice, Number(action.split(':')[1]), voiceCatalog.voices) : textStep(state, action)) === null;
   }
   for (const action of ['bold', 'italic', 'underline', 'align:left', 'align:right', 'align:center']) {
     const control = $('#tray-buttons').querySelector(`[data-action="${action}"]`);
     control?.setAttribute('aria-pressed', String(action.startsWith('align:') ? state.align === action.slice(6) : Boolean(state[action])));
   }
+  syncVoiceSelect();
   const font = $('#font'), size = $('#font-size');
   if (font && document.activeElement !== font) {
     if (![...font.options].some(option => option.value === state.font)) font.add(new Option(state.font, state.font));
@@ -490,7 +496,7 @@ function actionMotionState() {
     }
     syncTextValues();
   }
-  return { font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
+  return { voice: state.voice, voiceCatalog: voiceCatalog.voices, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: JSON.stringify([capabilities.target, state.voice, voiceCatalog.generation]) };
 }
 const nativeActionMotion = createNativeActionMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
@@ -502,6 +508,28 @@ function updateActionMotion() {
   return nativeActionMotion.update({ ...actionMotionState(), tray: state.tray, art: view.art, page: state.page,
     selected: state.tools[state.tray], color: state.color, nativeUi });
 }
+
+function syncVoiceSelect() {
+  const select = $('#text-voice');
+  if (!select || document.activeElement === select) return;
+  const options = voiceOptions(state.voice, voiceCatalog.voices);
+  const signature = JSON.stringify(options);
+  if (select.dataset.voiceOptions !== signature) {
+    select.replaceChildren(...options.map(option => new Option(option.label, option.value)));
+    select.dataset.voiceOptions = signature;
+  }
+  select.value = state.voice;
+}
+const voiceCatalog = createVoiceCatalog(window.speechSynthesis, () => {
+  queueMicrotask(() => { if (state.tray === 'text') updateActionMotion(); });
+});
+let voiceSelectTarget;
+$('#tray-buttons').addEventListener('focusin', event => {
+  if (event.target.id === 'text-voice') voiceSelectTarget = scene.actionState.target;
+});
+$('#tray-buttons').addEventListener('focusout', event => {
+  if (event.target.id === 'text-voice') queueMicrotask(syncVoiceSelect);
+});
 
 function stampMotionState() {
   return { active: state.tray === 'stamp', nativeUi: Boolean(nativeUi && libraryManifest?.trays.stamps),
@@ -629,10 +657,11 @@ function showTray() {
       layer.innerHTML += `
         <select class="text-value" id="font" aria-label="Font" style="${place(152, 658, 103, 27)}">${TEXT_FONTS.map(font => `<option value="${escape(font.value)}">${escape(font.label)}</option>`).join('')}</select>
         <input class="text-value" id="font-size" aria-label="Font size" style="${place(300, 660, 34, 28)}" type="number" min="7" max="336" value="${state.textSize}">
-        <select class="text-value" id="text-voice" aria-label="Voice" style="${place(626, 671, 143, 28)}"><option value="">Default Voice</option></select>
+        <select class="text-value" id="text-voice" aria-label="Voice" style="${place(626, 671, 97, 28)}"><option value="">Default Voice</option></select>
         ${TEXT_STEPPERS.map(({ action, label, x, y, symbol }) => button(action, label, x, y, 43, 31)
           .replace('class="', 'class="text-step ').replace('</button>', `${symbol}</button>`)
           .replace('title=', `${textStep(state, action) === null ? 'disabled' : ''} title=`)).join('')}
+        ${VOICE_STEPPERS.map(({ action, label, x, y, symbol }) => button(action, label, x, y, 43, 31).replace('class="', 'class="text-step ').replace('</button>', `${symbol}</button>`)).join('')}
         ${button('bold', 'Bold', 153, 716, 30, 32).replace('title=', `aria-pressed="${state.bold}" title=`)}
         ${button('italic', 'Italic', 183, 716, 30, 32).replace('title=', `aria-pressed="${state.italic}" title=`)}
         ${button('underline', 'Underline', 212, 716, 30, 32).replace('title=', `aria-pressed="${state.underline}" title=`)}
@@ -641,9 +670,7 @@ function showTray() {
       `;
       if (!TEXT_FONTS.some(entry => entry.value === state.font)) $('#font').add(new Option(state.font, state.font));
       $('#font').value = state.font;
-      const voiceSelect = $('#text-voice');
-      for (const voice of window.speechSynthesis?.getVoices() || []) voiceSelect.add(new Option(voice.name, voice.voiceURI));
-      voiceSelect.value = state.voice;
+      syncVoiceSelect();
     }
     if (state.tray === 'grab' && state.tools.grab === 'grab' && !(nativeUi && nativeTray)) {
       layer.innerHTML += '<div class="path-controls"><button class="pill" data-action="path">Path</button><button class="pill" data-action="loop-path">Loop Path</button><button class="pill" data-action="preview-object">Play Object</button></div>';
@@ -1496,6 +1523,10 @@ async function activate(action) {
   } else if (id === 'slide') {
     selectedSlide = Number(value);
     showSlides();
+  } else if (id === 'voice-step') {
+    actionMotionState();
+    const uri = voiceStep(state.voice, Number(value), voiceCatalog.voices);
+    if (uri !== null) { state.voice = uri; applyTextStyle(); updateActionMotion(); syncTool(); }
   } else if (id === 'font-step' || id === 'font-size-step') {
     const change = textStep(state, `${id}:${value}`);
     if (change) { Object.assign(state, change); applyTextStyle(); updateActionMotion(); syncTool(); }
@@ -1553,7 +1584,11 @@ app.addEventListener('change', async event => {
     chooseColor(target.value);
   } else if (['font', 'font-size', 'text-voice'].includes(target.id)) {
     if (target.id === 'font') state.font = target.value;
-    else if (target.id === 'text-voice') state.voice = target.value;
+    else if (target.id === 'text-voice') {
+      if (document.activeElement === target && voiceSelectTarget !== scene.actionState.target) return;
+      if (target.value && voiceCatalog.voices.filter(voice => voice.voiceURI === target.value).length !== 1) return;
+      state.voice = target.value;
+    }
     else {
       const size = editedSize(target.value);
       if (size === null) return;

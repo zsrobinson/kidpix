@@ -394,7 +394,10 @@ async function expectPixels(page, tray, { composite = false, color = '#000000' }
       differences.push({ x, y, actual: [...actual.data.subarray(actualOffset, actualOffset + 4)], expected: [...expectedPng.data.subarray(offset, offset + 4)] });
     }
   }
-  expect(checked, 'Independent source comparison includes full actor area').toBeGreaterThan(5000);
+  const scaled = actual.width !== 1024 || actual.height !== 768;
+  // Scaled screenshots deliberately retain only flat 3x3 source interiors;
+  // full-resolution canvas checks above still compare the complete actor area.
+  expect(checked, scaled ? 'Scaled comparison includes source-stable actor interiors' : 'Independent source comparison includes full actor area').toBeGreaterThan(scaled ? 1500 : 5000);
   expect(differences, `${tray} ${composite ? 'visible studio stack' : 'actor composition'} follows registered source poses and clean backdrop`).toEqual([]);
 }
 

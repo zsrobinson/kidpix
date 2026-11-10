@@ -7,6 +7,7 @@ The current public build identifies its version, source revision and build time 
 - Animate Save and the existing 3D Export button with their six recovered programs and twenty source-verified frames, including authored press, rest and hover playback.
 - Preserve Save's existing dialog choices and stereo Export behavior. Keep command dispatch immediate, motion ownership independent of modal/download lifetime, and artwork adoption silent through held fallback input.
 - Preserve static controls when required artwork programs are missing, empty or truncated; keep the existing library and tool-tab motion contracts.
+- Keep semantic Save and Export activation available independently of artwork readiness while preserving physical contact ownership and the existing modal behavior.
 - Release validation is pending. No drawing-performance change is included. Native references remain 0/17; physical iPad/Pencil latency, foreground-idle causation and audible feel remain unverified. The enlarged vacuum actor remains disabled.
 
 ## 0.19.1

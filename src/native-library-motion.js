@@ -252,10 +252,13 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
     if (!a) return;
     // A fallback press can become ready before its physical release/click.
     // Start its source state before main decides who owns the activation cue.
-    if (contact || (guard.busy() && keyboard !== a)) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+    // A semantic command is not a second contact. Its existing handler decides
+    // whether to cancel other input (Save opens a modal; Export need not).
+    const semanticCommand = momentary && event.detail === 0;
+    if (!semanticCommand && (contact || (guard.busy() && keyboard !== a))) { event.preventDefault(); event.stopImmediatePropagation(); return; }
     onGroup(a.record.group, a.record.name);
     if (keyboard !== a) state(a, 1);
-    releaseKey(); keyboard = null; keyboardKey = null;
+    if (keyboard === a) { releaseKey(); keyboard = null; keyboardKey = null; }
     if (!authoritative) state(a, 2);
     else activation = a;
   }, { ...options, capture: true });

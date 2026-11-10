@@ -1,3 +1,4 @@
+import { pencilPredictions } from './pencil-prediction.js'
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js'
 import { pointerSamples, createPressureInput, pressureFactor, interpolatePressure, nativePressurePoint } from './pointer-samples.js'
 import { brushOpacity, brushSpacing, drawBrushDab } from './paint-brushes.js'
@@ -165,6 +166,30 @@ export function createPaint(canvas, hooks = {}) {
   let paper = null
   const inputOwner = interactionOwner(canvas.ownerDocument)
   let gesture = null
+  // Opt-in display state only. Never enters preview/art or canonical compose.
+  let prediction = null
+  let predictionTimer
+  let predictionGeneration = 0
+  let predictionAfter = -Infinity
+  function clearPrediction() {
+    prediction = null
+    clearTimeout(predictionTimer)
+    predictionGeneration++
+  }
+  function updatePrediction(event, current, after) {
+    if (hooks.pencilPredictionPreview !== true || !current.predictionEligible) return
+    predictionAfter = Math.max(after, event.timeStamp)
+    const estimate = pencilPredictions(event, { now: performance.now(), after,
+      pointFor, start: current.last, spacing: brushSpacing(current.options) })
+    if (!estimate) return
+    prediction = { ...estimate, current }
+    const generation = predictionGeneration
+    predictionTimer = setTimeout(() => {
+      if (generation !== predictionGeneration || gesture !== current) return
+      clearPrediction()
+      render()
+    }, Math.max(0, estimate.expires - performance.now()))
+  }
   // A held contact can create a discrete action or pending polygon vertex
   // without a retained drawing gesture. It still needs a terminal lifecycle.
   let contact = null
@@ -262,6 +287,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function cancel() {
+    clearPrediction()
     const current = gesture
     current?.nativeTracking?.end()
     stopNativeBrushPolling(current)
@@ -333,7 +359,7 @@ export function createPaint(canvas, hooks = {}) {
     drawLayer(context, foreground)
   }
 
-  function compose(context, { includeForeground = true, includePreview = false } = {}) {
+  function compose(context, { includeForeground = true, includePreview = false } = {}, displaySource = null) {
     context.save()
     context.fillStyle = '#ffffff'
     context.fillRect(0, 0, width, height)
@@ -348,7 +374,7 @@ export function createPaint(canvas, hooks = {}) {
       context.drawImage(work.canvas, 0, 0)
     } else {
       context.drawImage(art.canvas, 0, 0)
-      if (includePreview && active && active.type !== 'native-moving') overlayStrokeTo(context, active)
+      if (includePreview && active && active.type !== 'native-moving') overlayStrokeTo(context, active, displaySource)
     }
     movingPaint.drawTo(context)
     if (includeForeground) renderForegroundTo(context)
@@ -356,7 +382,20 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function render() {
-    compose(display, { includePreview: true, includeForeground: hooks.includeForeground !== false })
+    let displaySource = null
+    if (prediction && prediction.current === gesture) {
+      if (performance.now() >= prediction.expires) clearPrediction()
+      else {
+        // Reuse existing scratch surface. Copy once per display composition,
+        // never per sample; Pencil has no paper-mask/native work dependency.
+        work.clearRect(0, 0, width, height)
+        work.drawImage(preview.canvas, 0, 0)
+        const current = { ...gesture, last: { ...gesture.last } }
+        for (const point of prediction.points) strokeTo(current, point, work)
+        displaySource = work.canvas
+      }
+    }
+    compose(display, { includePreview: true, includeForeground: hooks.includeForeground !== false }, displaySource)
     const activeSelection = gesture?.type === 'select' ? gesture.selection : selection
     if (!activeSelection) return
     drawSelectionPath(display, activeSelection)
@@ -421,14 +460,14 @@ export function createPaint(canvas, hooks = {}) {
         textureBias: dab.textureBias, invertTexture: brush.invertTexture })
   }
 
-  function overlayStrokeTo(context, current) {
+  function overlayStrokeTo(context, current, displaySource = null) {
     const { options: brush } = current
     if (current.nativeMarker?.used) {
       current.nativeMarker.flush()
       context.drawImage(preview.canvas, 0, 0)
       return
     }
-    let source = preview.canvas
+    let source = displaySource || preview.canvas
     const usePaper = !current.nativeDabs && ['chalk', 'crayon', 'marker', 'brush', 'paint'].includes(brush.tool)
     const mask = usePaper && paperMask()
     if (mask) {
@@ -605,7 +644,7 @@ export function createPaint(canvas, hooks = {}) {
     } else strokeTo(brush, end)
   }
 
-  function drawDab(current, point) {
+  function drawDab(current, point, target = preview) {
     const { options: baseBrush, dab, image, random } = current
     const factor = current.pressureInput ? pressureFactor(point.pressure ?? .5) : 1
     const brush = factor !== 1 && !dab ? { ...baseBrush, size: baseBrush.size * factor } : baseBrush
@@ -632,7 +671,7 @@ export function createPaint(canvas, hooks = {}) {
       }
       drawOriginalDab(preview, point, brush, dab, image, random, current.step++)
       if (factor !== 1) preview.restore()
-    } else drawBrushDab(preview, point, brush, image, random, current.step++)
+    } else drawBrushDab(target, point, brush, image, random, current.step++)
   }
 
   function sprayWhileHeld(current) {
@@ -674,7 +713,7 @@ export function createPaint(canvas, hooks = {}) {
     current.nativePoll = setTimeout(poll, 5)
   }
 
-  function strokeTo(current, end) {
+  function strokeTo(current, end, targetContext = preview) {
     const { options: brush } = current
     if (current.nativeTracking || current.nativeLineSpacing !== undefined) {
       const target = nativePoint(end)
@@ -704,7 +743,7 @@ export function createPaint(canvas, hooks = {}) {
         compose(sample, { includeForeground: false, includePreview: true })
         mixPixels(sample, preview, point, brush)
       } else {
-        drawDab(current, point)
+        drawDab(current, point, targetContext)
       }
       offset += spacing
     }
@@ -777,6 +816,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function cut() {
+    if (prediction) { clearPrediction(); render() }
     const data = copy()
     if (!data) return null
     const before = snapshot()
@@ -787,6 +827,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function paste() {
+    if (prediction) { clearPrediction(); render() }
     if (!clipboard) return false
     const before = snapshot()
     art.drawImage(clipboard.canvas, clipboard.bounds.x + 12, clipboard.bounds.y + 12)
@@ -820,6 +861,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function placeText(text, placement = {}) {
+    if (prediction) { clearPrediction(); render() }
     if (!text?.trim()) return false
     const before = snapshot()
     const size = placement.size || 28
@@ -997,6 +1039,9 @@ export function createPaint(canvas, hooks = {}) {
         gesture.pressureInput = createPressureInput(event)
         point.pressure = gesture.pressureInput.sample(event)
       }
+      gesture.predictionEligible = hooks.pencilPredictionPreview === true && event.pointerType === 'pen' &&
+        tool === 'pencil' && variant === 'freehand' && brush.mode !== 'wacky' && !dab && !image && !nativeShapes
+      predictionAfter = event.timeStamp
       if (dab && image) {
         gesture.nativeTracking = createNativeBrushTracking({ spacing: dab.spacing, lineSpacing: nativeLineSpacing(brush, dab) })
       }
@@ -1038,6 +1083,8 @@ export function createPaint(canvas, hooks = {}) {
 
     if (gesture.pointerId !== event.pointerId) return
     const current = gesture
+    clearPrediction()
+    let predictionSampleAfter = predictionAfter
     paintAudio.move(current.end, point)
     current.end = point
     if (current.type === 'native-moving') {
@@ -1071,6 +1118,7 @@ export function createPaint(canvas, hooks = {}) {
       if (event.type !== 'pointerup' && performance.now() - current.lastNativeShapeAt >= 100) drawDab(current, point)
     } else {
       for (const entry of pointerSamples(event)) {
+        predictionSampleAfter = Math.max(predictionSampleAfter, entry.timeStamp)
         const sample = pointFor(entry)
         if (current.pressureInput) sample.pressure = current.pressureInput.sample(entry, event)
         strokeTo(current, sample)
@@ -1079,6 +1127,7 @@ export function createPaint(canvas, hooks = {}) {
         if (current.pressureInput) current.end = sample
       }
     }
+    updatePrediction(event, current, predictionSampleAfter)
     render()
   }
 
@@ -1088,6 +1137,7 @@ export function createPaint(canvas, hooks = {}) {
       return
     }
     if (gesture.pointerId !== event.pointerId) return
+    clearPrediction()
     const current = gesture
     stopNativeBrushPolling(current)
     if (current.nativeTracking) current.nativeTracking.end()
@@ -1120,6 +1170,7 @@ export function createPaint(canvas, hooks = {}) {
 
   async function setLayer(name, asset, settings = {}) {
     if (pageOperation) return false
+    if (prediction) { clearPrediction(); render() }
     const request = ++updateId
     const image = await loadAsset(asset)
     const frontAsset = settings.foreground
@@ -1139,6 +1190,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   async function placeAsset(asset, placement = {}) {
+    if (prediction) { clearPrediction(); render() }
     if (pageOperation) return false
     const request = updateId
     const image = await loadAsset(asset)
@@ -1151,6 +1203,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   async function loadImage(asset) {
+    if (prediction) { clearPrediction(); render() }
     if (pageOperation) return false
     const request = ++updateId
     const image = await loadAsset(asset)
@@ -1177,6 +1230,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   async function restore(state) {
+    if (prediction) { clearPrediction(); render() }
     if (pageOperation) return false
     if (typeof state === 'string' && state.startsWith('{')) state = JSON.parse(state)
     if (!state || state.version !== 1) throw new Error('Unsupported picture file')
@@ -1202,6 +1256,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function setOptions(next) {
+    if (prediction) { clearPrediction(); render() }
     const changed = ['tool', 'variant', 'mode'].some(key => key in next && next[key] !== options[key]) ||
       movingPaint.active && 'effectIndex' in next && next.effectIndex !== options.effectIndex
     if (changed) {
@@ -1264,6 +1319,9 @@ export function createPaint(canvas, hooks = {}) {
     if (contact === event.pointerId) cancel()
   }, listenerOptions)
   onInteractionInactive(canvas, cancel, listeners.signal)
+  canvas.ownerDocument.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && prediction) { clearPrediction(); render() }
+  }, listenerOptions)
   render()
 
   return {

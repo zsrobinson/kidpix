@@ -3,6 +3,12 @@ const actor = page => page.locator('[data-native-action-motion]');
 const snap = page => actor(page).evaluate(c => JSON.parse(c.dataset.motionSnapshot));
 const control = (page, action) => page.locator(`#tray-buttons [data-action="${action}"]`);
 const click = (page, action) => page.locator(`[data-action="${action}"]`).last().evaluate(b => b.click());
+async function alignClock(page) {
+  // A 112ms advance must deliver a RAF at least100ms after pointer entry.
+  // Without alignment the last callback can arrive only97ms after entry.
+  const now = await page.evaluate(() => performance.now());
+  await page.clock.runFor((16 - now % 16) % 16);
+}
 async function start(page) {
   await page.goto('/'); await click(page,'tray:text');
   await expect(actor(page)).toBeVisible();
@@ -147,7 +153,7 @@ test('four arrows: both source tracking poses, hover, rest, boundaries, vacated 
     await page.locator('#font').selectOption('serif');
     await page.locator('#font-size').fill('42'); await page.locator('#font-size').press('Tab');
     await control(page,action).hover(); await page.clock.runFor(16); await expectSourcePixels(page,'text','text');
-    await page.mouse.down(); await expectSourcePixels(page,'text','text');
+    await alignClock(page); await page.mouse.down(); await expectSourcePixels(page,'text','text');
     expect((await snap(page)).find(s=>s.name===action).frameIndex).toBe(0);
     await page.clock.runFor(112); expect((await snap(page)).find(s=>s.name===action).frameIndex).toBe(1);
     await expectSourcePixels(page,'text','text');
@@ -213,7 +219,7 @@ test('saved unknown font and size survive selection and undo without coercion',a
 });
 test('same tray rerender retains held arrow stream and commits once',async ({page}) => {
   await object(page); await page.clock.install(); await page.clock.pauseAt(new Date(Date.now()+60000));
-  await control(page,'font-size-step:1').hover(); await page.mouse.down(); await page.clock.runFor(112);
+  await control(page,'font-size-step:1').hover(); await alignClock(page); await page.mouse.down(); await page.clock.runFor(112);
   expect((await snap(page)).find(s=>s.name==='font-size-step:1').frameIndex).toBe(1);
   await click(page,'tray:text');
   expect((await snap(page)).find(s=>s.name==='font-size-step:1')).toMatchObject({frameIndex:1,state:1});

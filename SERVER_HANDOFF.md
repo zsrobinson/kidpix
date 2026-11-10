@@ -328,3 +328,40 @@ comparison/regressionerrors; acceptedbaselineswerenotchanged. Combinedfinal
 reviewfoundnofindings,11targetedactualappchecks passed. Thecandidateisready
 forfinalcommit/pushandexact-revisionpublicverification; receipts
 `artifacts/t3/release-0100/`. Preserveallintentionalworkingchanges.
+
+## Current server state, 2026-11-10
+
+0.10.0 is live at `bc18c2a46deef542b46171305bd17b134f174388`, built
+2026-11-09T23:38:57.353Z. All285 public browser checks passed, alongside330
+development,285 built,193 Node and94 WebKit checks with one explicit skip.
+All17 static captures remained pixel-identical; no native reference was accepted.
+The complete receipt is `artifacts/t3/release-0100/validation.json`.
+
+The local0.11 candidate integrates the recovered Firehose page wipe. Both required
+media objects (manifest and WaterCleaner7433 WAV,75,554bytes) were uploaded in
+payload-first order and publicly checksum-verified. The enlarged actor remains
+disabled: its owner geometry, final studio transform, inherited clip and terminal
+pose lifetime are still unproved. The existing Big Eraser panel remains separate.
+
+Parent fixes resolve three reproduced review blockers: late Stamp Editor opens,
+partial begin lock leaks, and orphaned playback after failed commit. Original
+scene nodes, path clock and picture-track handles now survive rollback. The final
+independent review found no actionable findings after26 browser probes/cases and
+eight helper tests. Parent focused56 and Node193/build/dry-run checks passed.
+Full dev/built/WebKit release lanes are running; do not publish until they pass.
+The first interrupted runs and WebKit fixture failures remain separate evidence;
+clock initialization and retained fault-injection wrappers were corrected without
+changing the application to satisfy those fixtures. All17 static captures are
+pixel-identical to0.10. Receipt directory: `artifacts/t3/release-0110/`.
+
+One genuine Windows original launch reached the application's own QuickTime-required
+refusal after successful official installation and separate API initialization.
+It did not reach PaintZone, About, drawing, Undo or Firehose. The actual process
+had a Default1/elevated1/HIGH administrator token, not a standard-user token.
+Cleanup succeeded; no policy or application patch was used. Evidence remains in
+the isolated checkout's `artifacts/t3/windows-original-retry/`; root static follow-up
+is `artifacts/t3/windows-quicktime-gate-audit/`. That diagnostic used different
+discovery and initialization flags than the app, so its success is not equivalent
+to successful app startup. Do not add guessed optional features or claim a cause
+without a faithful diagnostic. Native accepted references remain0/17; Windows
+2.2.1.271 and Mac2.2/build615 remain distinct. Actual iPad hardware is untested.

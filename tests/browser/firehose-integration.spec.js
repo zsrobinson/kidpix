@@ -28,8 +28,8 @@ async function setup(page) {
   });
   await page.locator('#picture-file').setInputFiles({ name: 'test.kidpix-web', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(picture)) });
   await expect(page.locator('[data-object="text"]')).toBeAttached();
-  await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  await page.clock.install({ time: new Date(1000000) });
+  await page.clock.pauseAt(new Date(1001000));
   return picture;
 }
 async function fire(page) {
@@ -82,7 +82,9 @@ test('real Firehose freezes full picture, owns cue, blocks keyboard/touch and cl
   await page.keyboard.press('Control+z');
   const restored = await save(page);
   expect(restored.objects).toEqual(original.objects); expect(restored.sound.name).toEqual(original.sound.name);
-  expect(restored.sound.src.split('?')[0]).toEqual(original.sound.src);
+  for (const track of ['sound', 'narration']) {
+    expect(new URL(restored[track].src, page.url()).pathname).toEqual(new URL(original[track].src, page.url()).pathname);
+  }
   expect(restored.narration.name).toEqual(original.narration.name); expect(restored.backdrop).toEqual(original.backdrop);
   expect(restored.paint.art).toEqual(original.paint.art);
   await page.keyboard.press('Control+y');
@@ -206,10 +208,16 @@ test('@module dispose and failed begin release guards; a late manifest cannot re
 test('partial begin failure releases the acquired paint checkpoint and permits reentry', async ({ page }) => {
   await setup(page);
   await page.evaluate(() => {
-    const pause = speechSynthesis.pause.bind(speechSynthesis);
-    speechSynthesis.pause = () => { speechSynthesis.pause = pause; throw Error('begin pause failure'); };
+    // Retain the instrumented platform wrapper across the physical click and
+    // explicitly model an unpaused queue so this acquisition must be reached.
+    const speech = window.beginSpeech = speechSynthesis;
+    window.beginPauseCalls = 0;
+    Object.defineProperty(speech, 'paused', { configurable: true, get: () => false });
+    const pause = speech.pause.bind(speech);
+    speech.pause = () => { window.beginPauseCalls++; speech.pause = pause; throw Error('begin pause failure'); };
   });
   await page.locator('#hit-layer [data-action="clear"]').click();
+  expect(await page.evaluate(() => window.beginPauseCalls)).toBe(1);
   await expect(page.locator('.firehose-wipe')).toHaveCount(0);
   const replacement = { version: 1, format: 'kidpix-web', title: 'Replacement', paint: { version: 1 },
     objects: [{ id: 'replacement', kind: 'text', text: 'Replacement', x: 20, y: 20, width: 200, height: 80, size: 32, font: 'sans-serif', color: '#000000' }] };

@@ -3,7 +3,7 @@ import { PNG } from 'pngjs';
 
 const backgrounds = page => page.getByRole('button', { name: 'Backgrounds', exact: true });
 const rollover = page => page.locator('#native-buttons [data-native-rollover="backgrounds"]');
-const underlying = page => page.locator('#native-buttons [data-native-part="backgrounds"]');
+const underlying = page => page.locator('#native-buttons [data-native-library-motion="backgrounds"]');
 
 test.beforeEach(async ({ page }) => {
   page.rolloverErrors = [];
@@ -90,7 +90,7 @@ test('actual Backgrounds control uses word-10 script 1002, preserves progress in
   await expect(image).toBeHidden();
   await expect(underlying(page)).toBeVisible();
   const idlePath = await underlying(page).getAttribute('src');
-  expect(new URL(idlePath, page.url()).pathname).toContain(`/${page.nativeUi.buttons.backgrounds.images[0]}`);
+  expect(new URL(idlePath, page.url()).pathname).toContain('/button-animations/1000-2.png');
   await page.clock.runFor(1000);
   await expect(image).toBeHidden();
 });
@@ -121,14 +121,14 @@ test('actual Backgrounds press cancels rollover and selected or disabled control
   await moveInside(page);
   await page.clock.runFor(500);
   await expect(image).toBeHidden();
-  await expect(underlying(page)).toBeVisible();
+  await expect(page.locator('[data-native-part="backgrounds"]')).toBeVisible();
   await page.mouse.move(1023, 767);
   await control.evaluate(element => element.setAttribute('aria-disabled', 'false'));
   await moveInside(page);
   await expect(image).toBeVisible();
   await control.evaluate(element => element.setAttribute('aria-disabled', 'true'));
   await expect(image).toBeHidden();
-  await expect(underlying(page)).toBeVisible();
+  await expect(page.locator('[data-native-part="backgrounds"]')).toBeVisible();
 });
 
 const firehose = page => page.getByRole('button', { name: 'Firehose Screen Eraser', exact: true });

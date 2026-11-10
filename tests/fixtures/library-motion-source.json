@@ -1,0 +1,426 @@
+{
+  "macEaselSha256": "6ed6b36a445cb61c5b26e0f9436bcdb55d2cc9c2539af3e4437134fcad6bfd6c",
+  "scripts": {
+    "1000": {
+      "rect": [
+        27,
+        15,
+        105,
+        61
+      ],
+      "ids": [
+        3,
+        2,
+        3
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [],
+      "rgbaSha256": [
+        "2893a15366aecfa83571ac6c21e7c22dca60f11216fd632d3d055cfd6a73eca7",
+        "b82a9085c1763e4d5af1f97b50b8534110a0b089723cb352844cb48b0155049d",
+        "2893a15366aecfa83571ac6c21e7c22dca60f11216fd632d3d055cfd6a73eca7"
+      ],
+      "rawSha256": "4390f2170eb8eed98da32285b5327ca6fb6964415c93e536db8ba8e11434c52c"
+    },
+    "1001": {
+      "rect": [
+        27,
+        15,
+        105,
+        61
+      ],
+      "ids": [
+        2,
+        1,
+        2
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [
+        {
+          "tick": 0,
+          "sound": 1000,
+          "channel": 1
+        }
+      ],
+      "rgbaSha256": [
+        "b82a9085c1763e4d5af1f97b50b8534110a0b089723cb352844cb48b0155049d",
+        "b02c78d9f9ed433cf6edb008ebd30c55294f669b9c50b4ee27251c0e272f47f7",
+        "b82a9085c1763e4d5af1f97b50b8534110a0b089723cb352844cb48b0155049d"
+      ],
+      "rawSha256": "ac5ee29efbd28ebd57a8413f39f7681d8779cad58fa22f305f7944fe593647af"
+    },
+    "1002": {
+      "rect": [
+        27,
+        15,
+        105,
+        61
+      ],
+      "ids": [
+        4,
+        3,
+        5,
+        3
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 4,
+      "sounds": [],
+      "rgbaSha256": [
+        "ae55fcf26bc6911ad7c26decbd2adf6f2df2dfc1f4578d91192d2cf4f90b7229",
+        "2893a15366aecfa83571ac6c21e7c22dca60f11216fd632d3d055cfd6a73eca7",
+        "2dfcff2b49b9784db1b477b77a9b188c082129ce6845dbf517b9c42d51017fb8",
+        "2893a15366aecfa83571ac6c21e7c22dca60f11216fd632d3d055cfd6a73eca7"
+      ],
+      "rawSha256": "99c54a30f92bd4b7f812b8f46d64126df5e23d91b29a24a900139dd44cbe861d"
+    },
+    "1003": {
+      "rect": [
+        36,
+        85,
+        91,
+        55
+      ],
+      "ids": [
+        6,
+        7,
+        8
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [],
+      "rgbaSha256": [
+        "d3d45cbe0fe5d3b3853c3201429633983d13327407fdd9f68bd4bf5f490fef0e",
+        "98ec723694197b3a7a6386fa60b02df1582420478a560771629bde2fe460eab2",
+        "e3e5248fc25f0d5163e795915119773ae323c3fc89e839380ea743fad8fb91fd"
+      ],
+      "rawSha256": "a9ae4048a4ce2b815b807e3153b50d54e52c630d7d23d1b6bf7c1a0c57773681"
+    },
+    "1004": {
+      "rect": [
+        36,
+        85,
+        91,
+        55
+      ],
+      "ids": [
+        7,
+        6,
+        7
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [
+        {
+          "tick": 0,
+          "sound": 1000,
+          "channel": 1
+        }
+      ],
+      "rgbaSha256": [
+        "98ec723694197b3a7a6386fa60b02df1582420478a560771629bde2fe460eab2",
+        "d3d45cbe0fe5d3b3853c3201429633983d13327407fdd9f68bd4bf5f490fef0e",
+        "98ec723694197b3a7a6386fa60b02df1582420478a560771629bde2fe460eab2"
+      ],
+      "rawSha256": "6608aeb80188e7c6fd3e15d0dbeb22f1c56e9866bc0e6c1a3b2b18460a5c5ac4"
+    },
+    "1005": {
+      "rect": [
+        36,
+        85,
+        91,
+        55
+      ],
+      "ids": [
+        9,
+        8,
+        10,
+        8
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 4,
+      "sounds": [],
+      "rgbaSha256": [
+        "c3e4ea589c46c43659a7d1a4d0df478403ab5f0d00024bb53d8b743743e07ef5",
+        "e3e5248fc25f0d5163e795915119773ae323c3fc89e839380ea743fad8fb91fd",
+        "826ca2fae334c1d6aae980a606d335ad263c3f569478fd1ffc1613505e333f63",
+        "e3e5248fc25f0d5163e795915119773ae323c3fc89e839380ea743fad8fb91fd"
+      ],
+      "rawSha256": "c6dfd77b3a29d033f2cfd12740f511c90ba5ae240c604694e2f4e2b9f591628a"
+    },
+    "1006": {
+      "rect": [
+        38,
+        148,
+        106,
+        70
+      ],
+      "ids": [
+        11,
+        12,
+        13
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [],
+      "rgbaSha256": [
+        "479a0115b56ffc50ff43f2dd9a26110b4ffbc40153e827759011812f75a6eb50",
+        "0d9a2814a9c9bfdb41f1e3d6dd09e2d18bd02b4280a338c00edf963d667ef691",
+        "9dae2419bad2964746e37beb274c1e327964e555060b7c75bb9510acaac0c266"
+      ],
+      "rawSha256": "0be6a8423a6633a4e5c63f33b62bc45a23b52f2a6292aadda492519ad11943fa"
+    },
+    "1007": {
+      "rect": [
+        38,
+        148,
+        106,
+        70
+      ],
+      "ids": [
+        12,
+        11,
+        12
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [
+        {
+          "tick": 0,
+          "sound": 1000,
+          "channel": 1
+        }
+      ],
+      "rgbaSha256": [
+        "0d9a2814a9c9bfdb41f1e3d6dd09e2d18bd02b4280a338c00edf963d667ef691",
+        "479a0115b56ffc50ff43f2dd9a26110b4ffbc40153e827759011812f75a6eb50",
+        "0d9a2814a9c9bfdb41f1e3d6dd09e2d18bd02b4280a338c00edf963d667ef691"
+      ],
+      "rawSha256": "29d0145c5a201a45c838f778185f900153a8c5e714016a4f92eda42bcb1687dd"
+    },
+    "1008": {
+      "rect": [
+        38,
+        148,
+        106,
+        70
+      ],
+      "ids": [
+        14,
+        13,
+        15,
+        13
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 4,
+      "sounds": [],
+      "rgbaSha256": [
+        "c2d6fce8431ab7b5fb2959b290542a775e9e42c47f47467f521d41a1df5ca08e",
+        "9dae2419bad2964746e37beb274c1e327964e555060b7c75bb9510acaac0c266",
+        "a1ff5c02892f11b5a40bdaa07de1fef75069e4cbab5ff5f6b077c02c545f21e8",
+        "9dae2419bad2964746e37beb274c1e327964e555060b7c75bb9510acaac0c266"
+      ],
+      "rawSha256": "ac45de0b8155c8230370b40739a1476fb297181c9ace50d4d947f5e717d0f878"
+    },
+    "1009": {
+      "rect": [
+        14,
+        222,
+        103,
+        67
+      ],
+      "ids": [
+        16,
+        17,
+        18
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [],
+      "rgbaSha256": [
+        "1ba905f3a194636c5239acd0bf5dfef303d5b87d1281e76eacebd6991df22268",
+        "d51d7e8e05cd0918f7522d79c7c652ee6474efd8af5a7480234007118b6fe516",
+        "bb090d763abbfec120c6dc81e6784e10ee9452449c535b645644c8920ec2cf5f"
+      ],
+      "rawSha256": "b162b1f6d94acf9db172d4d2772754af45796346e5a36ee41697c6875abaf2ea"
+    },
+    "1010": {
+      "rect": [
+        14,
+        222,
+        103,
+        67
+      ],
+      "ids": [
+        17,
+        16,
+        17
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 3,
+      "sounds": [
+        {
+          "tick": 0,
+          "sound": 1000,
+          "channel": 1
+        }
+      ],
+      "rgbaSha256": [
+        "d51d7e8e05cd0918f7522d79c7c652ee6474efd8af5a7480234007118b6fe516",
+        "1ba905f3a194636c5239acd0bf5dfef303d5b87d1281e76eacebd6991df22268",
+        "d51d7e8e05cd0918f7522d79c7c652ee6474efd8af5a7480234007118b6fe516"
+      ],
+      "rawSha256": "813c2666aa5e55283102afae4cba04c4d23582e2253c84f536247ddf0c7d7955"
+    },
+    "1011": {
+      "rect": [
+        14,
+        222,
+        103,
+        67
+      ],
+      "ids": [
+        19,
+        18,
+        20,
+        18
+      ],
+      "tickMs": 100,
+      "ticks": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "endCheckTick": 4,
+      "sounds": [],
+      "rgbaSha256": [
+        "038c5e8345a3862e51cc30317d5bfb12b80904d0778f22ba47a7027a5cd5b884",
+        "bb090d763abbfec120c6dc81e6784e10ee9452449c535b645644c8920ec2cf5f",
+        "43e338fad951341df1a3ec6e9523905d79fd5ea3f67b7d122ea918291d221568",
+        "bb090d763abbfec120c6dc81e6784e10ee9452449c535b645644c8920ec2cf5f"
+      ],
+      "rawSha256": "ffb8a42d078f1cb9f0117ddc07c3e4aa309977c7ed1d5e67ecfa45edc4823277"
+    }
+  },
+  "mediaKeys": [
+    "ui/ui.json",
+    "ui/button-animations.json",
+    "ui/easel-1000.wav",
+    "ui/backgrounds-0.png",
+    "ui/backgrounds-1.png",
+    "ui/backgrounds-2.png",
+    "ui/backgrounds-3.png",
+    "ui/stickers-0.png",
+    "ui/stickers-1.png",
+    "ui/stickers-2.png",
+    "ui/stickers-3.png",
+    "ui/animations-0.png",
+    "ui/animations-1.png",
+    "ui/animations-2.png",
+    "ui/animations-3.png",
+    "ui/media-0.png",
+    "ui/media-1.png",
+    "ui/media-2.png",
+    "ui/media-3.png",
+    "ui/button-animations/1000-0.png",
+    "ui/button-animations/1000-1.png",
+    "ui/button-animations/1000-2.png",
+    "ui/button-animations/1001-0.png",
+    "ui/button-animations/1001-1.png",
+    "ui/button-animations/1001-2.png",
+    "ui/button-animations/1002-0.png",
+    "ui/button-animations/1002-1.png",
+    "ui/button-animations/1002-2.png",
+    "ui/button-animations/1002-3.png",
+    "ui/button-animations/1003-0.png",
+    "ui/button-animations/1003-1.png",
+    "ui/button-animations/1003-2.png",
+    "ui/button-animations/1004-0.png",
+    "ui/button-animations/1004-1.png",
+    "ui/button-animations/1004-2.png",
+    "ui/button-animations/1005-0.png",
+    "ui/button-animations/1005-1.png",
+    "ui/button-animations/1005-2.png",
+    "ui/button-animations/1005-3.png",
+    "ui/button-animations/1006-0.png",
+    "ui/button-animations/1006-1.png",
+    "ui/button-animations/1006-2.png",
+    "ui/button-animations/1007-0.png",
+    "ui/button-animations/1007-1.png",
+    "ui/button-animations/1007-2.png",
+    "ui/button-animations/1008-0.png",
+    "ui/button-animations/1008-1.png",
+    "ui/button-animations/1008-2.png",
+    "ui/button-animations/1008-3.png",
+    "ui/button-animations/1009-0.png",
+    "ui/button-animations/1009-1.png",
+    "ui/button-animations/1009-2.png",
+    "ui/button-animations/1010-0.png",
+    "ui/button-animations/1010-1.png",
+    "ui/button-animations/1010-2.png",
+    "ui/button-animations/1011-0.png",
+    "ui/button-animations/1011-1.png",
+    "ui/button-animations/1011-2.png",
+    "ui/button-animations/1011-3.png"
+  ]
+}

@@ -33,6 +33,16 @@ export function rolloverCleanupRequired(button, reason = 0) {
 }
 
 const decodedImages = new Map();
+export function preloadButtonImage(view, url) {
+  if (!decodedImages.has(url)) {
+    const image = new view.Image();
+    image.src = url;
+    decodedImages.set(url, image.decode().then(() => image).catch(error => {
+      decodedImages.delete(url); throw error;
+    }));
+  }
+  return decodedImages.get(url);
+}
 const actions = {
   animations: 'tray:toons', fill: 'tray:bucket', export: 'stereo', exit: 'quit',
   firehose: 'clear', 'paper-texture': 'paper',
@@ -54,7 +64,7 @@ function findControl(root, name) {
   return [...root.querySelectorAll('[data-action]')].find(control => control.dataset.action === action);
 }
 
-export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, renderLayer, { excludeNames = [] } = {}) {
+export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, renderLayer, { excludeNames = [], fallbackNames = [], enabled = () => true } = {}) {
   const data = manifest?.buttonAnimations ?? manifest;
   if (!Array.isArray(data?.buttons) || !data.scripts || !hitRoot || !renderLayer) return () => {};
   const document = hitRoot.ownerDocument;
@@ -99,17 +109,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
   }, options);
 
   function preload(path) {
-    const url = assetUrl(path);
-    if (!decodedImages.has(url)) {
-      const image = new view.Image();
-      image.src = url;
-      const ready = image.decode().then(() => image).catch(error => {
-        decodedImages.delete(url);
-        throw error;
-      });
-      decodedImages.set(url, ready);
-    }
-    return decodedImages.get(url);
+    return preloadButtonImage(view, assetUrl(path));
   }
 
   for (const button of data.buttons) {
@@ -126,7 +126,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
     image.draggable = false;
     image.hidden = true;
     image.style.cssText = `${place(...clip.rect)};pointer-events:none;`;
-    image.dataset.nativeRollover = button.name;
+    image.dataset[fallbackNames.includes(button.name) ? 'nativeFallbackRollover' : 'nativeRollover'] = button.name;
     image.dataset.script = String(clip.script ?? button.rolloverScript);
     renderLayer.append(image);
     const observer = new view.MutationObserver(() => { if (unavailable()) stop(); });
@@ -146,7 +146,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
     const audioCleanup = new Map();
 
     function unavailable() {
-      return suspensions > 0 || control.getAttribute('aria-pressed') === 'true'
+      return !enabled(button.name) || suspensions > 0 || control.getAttribute('aria-pressed') === 'true'
         || control.getAttribute('aria-disabled') === 'true'
         || control.matches(':disabled') || control.hidden;
     }

@@ -111,3 +111,10 @@ BigPicker's source programs 1500/1501 contain seven registered groups each. The 
 4. Implement Big Eraser from traced renderer/parameter evidence, starting with one native effect rather than speculative coverage of every label.
 
 For each scope, require source archive/program IDs, frame/registration export, caller lifecycle evidence, browser pixel and interruption tests, and a statement of what still needs a native runtime recording. No static audit can establish exact Mac event-loop jitter, audio latency or subjective feel by itself.
+
+## Four main library controls
+
+The historical static main-state gap is now addressed for Backgrounds, Stickers,
+Animations and Sounds & Movies only. See [library-button-motion.md](library-button-motion.md)
+for Mac source pins, browser adaptations, validation and remaining native limits.
+Other Easel controls and unsupported alternate programs remain outside this slice.

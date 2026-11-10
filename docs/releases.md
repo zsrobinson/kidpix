@@ -6,7 +6,8 @@ The current public build identifies its version, source revision and build time 
 
 - Add an explicit “Pencil preview (experimental)” switch in the Paint Zone menu, off by default. A browser preference remembers explicit choices without changing saved projects or document history.
 - Use browser-provided estimates only for eligible pen/freehand Pencil strokes. Keep temporary marks out of saved ink, exports, clipboard and Undo/Redo; clear them on correction, release, cancellation, expiry or switching the option off.
-- Preserve existing native tools and display settings. Independent integrated review, full release gates and public acceptance are pending. No new media is required.
+- Keep expanded menus readable and touch-sized in tablet portrait and split view, with scrolling and viewport-aware placement. Reject remapped compatibility clicks while paper or another control owns input.
+- Preserve existing native tools and display settings. Independent correction review, full release gates and public acceptance are pending. No new media is required.
 - Physical Pencil accuracy and latency benefit remain unverified. Native references remain 0/17; the enlarged vacuum stays disabled.
 
 ## 0.21.0

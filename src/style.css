@@ -195,6 +195,29 @@ select { min-width: 0; }
 #menu details > div { min-width: 170px; position: absolute; top: 100%; left: 0; padding: 4px; background: #e5eff4; color: #0f2844; box-shadow: 0 5px 12px #0007; }
 #menu details button { display: block; width: 100%; text-align: left; color: inherit; background: transparent; border: 0; padding: 5px 8px; white-space: nowrap; }
 #menu details button:hover { background: #24497c; color: white; }
+#menu-items.unscaled-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: 360px;
+  display: block;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #7892a3;
+}
+#menu-items.unscaled-menu details { font-size: 16px; }
+#menu-items.unscaled-menu summary,
+#menu-items.unscaled-menu button {
+  min-height: 44px;
+  padding: 12px;
+  font-size: 16px;
+  line-height: 20px;
+}
+#menu-items.unscaled-menu button { white-space: normal; }
+#menu-items.unscaled-menu > button { width: 100%; color: inherit; background: transparent; border: 0; text-align: right; }
+#menu-items.unscaled-menu > button:hover { background: #24497c; color: white; }
+#menu-items.unscaled-menu details > div { position: static; min-width: 0; box-shadow: none; }
+#menu-items.unscaled-menu p { margin: 12px; font-size: 14px; line-height: 20px; }
 #status {
   position: absolute;
   z-index: 7;

@@ -78,7 +78,10 @@ let toolRequest = 0;
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const button = (action, label, x, y, w, h, extra = '') =>
   `<button type="button" class="hit ${extra}" data-action="${action}" title="${label}" aria-label="${label}" style="${place(x, y, w, h)}"></button>`;
-const menu = (label, commands) => `<details><summary>${label}</summary><div>${commands.map(([action, title]) => `<button type="button" data-action="${action}"${action === 'pencil-preview' ? ` role="switch" aria-checked="${pencilPreview.enabled}" aria-describedby="pencil-preview-help"` : ''}>${action === 'pencil-preview' ? `<span aria-hidden="true" id="pencil-preview-check">${pencilPreview.enabled ? '✓' : '○'}</span> ` : ''}${title}</button>`).join('')}${label === 'Paint Zone' ? '<p id="pencil-preview-help">Temporary browser estimates for supported pen/freehand Pencil only. May shift or do nothing without estimates.</p>' : ''}</div></details>`;
+const menu = (label, commands) => `<details><summary>${label}</summary><div>${commands.map(([action, title]) => {
+  const preview = action === 'pencil-preview';
+  return `<button type="button" data-action="${action}"${preview ? ` role="switch" aria-checked="${pencilPreview.enabled}" aria-describedby="pencil-preview-help"` : ''}>${preview ? `<span aria-hidden="true" id="pencil-preview-check">${pencilPreview.enabled ? '✓' : '○'}</span> ` : ''}${title}</button>${preview ? '<p id="pencil-preview-help">Temporary browser estimates for supported pen/freehand Pencil only. May shift or do nothing without estimates.</p>' : ''}`;
+}).join('')}</div></details>`;
 
 app.innerHTML = `
   <div id="viewport">
@@ -139,6 +142,7 @@ app.innerHTML = `
       <nav id="menu" aria-label="Kid Pix menus">
         <button id="menu-trigger" type="button" aria-label="Show menus" aria-expanded="false" data-action="menu">▼</button>
         <div id="menu-items" hidden>
+          <button type="button" data-action="menu-close" aria-label="Close menus">Close</button>
           ${menu('File', [['new', 'New Picture'], ['open', 'Open Picture…'], ['save', 'Save Picture…'], ['export', 'Export PNG…'], ['ideas', 'Idea Machine…'], ['print', 'Print Picture…']])}
           ${menu('Edit', [['undo', 'Undo'], ['redo', 'Redo'], ['edit:cut', 'Cut'], ['edit:copy', 'Copy'], ['edit:paste', 'Paste'], ['import-image', 'Import Image…']])}
           ${menu('Paint Zone', [['pencil-preview', 'Pencil preview (experimental)'], ['play', 'Play Picture'], ['path', 'Path Animation Tool'], ['loop-path', 'Loop Path'], ['preview-object', 'Play Object'], ['enlarge', 'Enlarge to Fill Canvas'], ['record-video', 'Video Narration…'], ['record-sound', 'Record Sound…'], ['flipbook', 'Add Picture to Slide Show'], ['slideshow', 'Go to Slide Show'], ['clear', 'Erase Picture']])}
@@ -162,6 +166,41 @@ const effects = $('#scene-effects').getContext('2d');
 const status = $('#status');
 const title = $('#picture-title');
 const dialog = $('#dialog');
+const menuItems = $('#menu-items');
+if (typeof menuItems.showPopover === 'function') {
+  menuItems.setAttribute('popover', 'manual');
+  menuItems.classList.add('unscaled-menu');
+}
+
+function positionMenu() {
+  if (menuItems.hidden || !menuItems.classList.contains('unscaled-menu')) return;
+  const view = window.visualViewport;
+  const left = view?.offsetLeft ?? 0, top = view?.offsetTop ?? 0;
+  const width = view?.width ?? innerWidth, height = view?.height ?? innerHeight;
+  menuItems.style.maxWidth = `${Math.max(0, width - 16)}px`;
+  menuItems.style.maxHeight = `${Math.max(0, height - 16)}px`;
+  const anchor = $('#menu-trigger').getBoundingClientRect();
+  const box = menuItems.getBoundingClientRect();
+  menuItems.style.left = `${Math.round(Math.max(left + 8, Math.min(anchor.left, left + width - box.width - 8)))}px`;
+  menuItems.style.top = `${Math.round(Math.max(top + 8, Math.min(anchor.bottom + 8, top + height - box.height - 8)))}px`;
+}
+
+function setMenuOpen(open) {
+  if (open) {
+    menuItems.hidden = false;
+    if (menuItems.classList.contains('unscaled-menu')) menuItems.showPopover();
+    positionMenu();
+  } else {
+    if (menuItems.classList.contains('unscaled-menu') && menuItems.matches(':popover-open')) menuItems.hidePopover();
+    menuItems.hidden = true;
+  }
+  $('#menu-trigger').setAttribute('aria-expanded', String(open));
+}
+
+menuItems.addEventListener('toggle', positionMenu, true);
+new ResizeObserver(positionMenu).observe(menuItems);
+window.visualViewport?.addEventListener('resize', positionMenu);
+window.visualViewport?.addEventListener('scroll', positionMenu);
 
 function showStatus(message, ms = 2200) {
   clearTimeout(notice);
@@ -219,6 +258,7 @@ function scaleStudio() {
   viewport.style.width = `${1024 * scale}px`;
   viewport.style.height = `${768 * scale}px`;
   studio.style.transform = `scale(${scale})`;
+  positionMenu();
 }
 
 new ResizeObserver(scaleStudio).observe(app);
@@ -1509,10 +1549,8 @@ const commands = {
     // The existing empty-options path clears only disposable estimates.
     if (!enabled) paint.setOptions({});
   },
-  menu: () => {
-    $('#menu-items').hidden = !$('#menu-items').hidden;
-    $('#menu-trigger').setAttribute('aria-expanded', String(!$('#menu-items').hidden));
-  },
+  menu: () => setMenuOpen(menuItems.hidden),
+  'menu-close': () => setMenuOpen(false),
   flipbook: () => {
     playUiSound(1032);
     slides.push({ preview: createComposite().toDataURL(), picture: project() });
@@ -1649,8 +1687,7 @@ app.addEventListener('click', event => {
   const control = event.target.closest('[data-action]');
   if (control) {
     if (control.closest('#menu-items')) {
-      $('#menu-items').hidden = true;
-      $('#menu-trigger').setAttribute('aria-expanded', 'false');
+      setMenuOpen(false);
       for (const item of app.querySelectorAll('#menu details')) item.open = false;
     }
     if (control.dataset.action === 'clear' && control.closest('#hit-layer')) firehose.play();
@@ -1773,8 +1810,7 @@ document.addEventListener('keydown', event => {
     }
     openPalette(false);
     openPaper(false);
-    $('#menu-items').hidden = true;
-    $('#menu-trigger').setAttribute('aria-expanded', 'false');
+    setMenuOpen(false);
     state.extendedHelp = false;
     nativeCommandMotion?.updateSelection(state.extendedHelp);
     cancelRecordedPathInput();

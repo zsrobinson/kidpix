@@ -23,3 +23,12 @@ test('explicit choice persists and blocked storage retains session choice', () =
     assert.equal(p.enabled, false); assert.equal(p.toggle(), true); assert.equal(p.enabled, true); assert.equal(p.toggle(), false);
   }
 });
+
+test('prior readable ON survives quota write failure correctly for this instance',()=>{
+ let reads=0,writes=0;
+ const storage=()=>({getItem(){reads++;return 'true';},setItem(){writes++;throw Error('quota');}});
+ const preference=createPencilPreviewPreference(storage);
+ assert.equal(preference.enabled,true);assert.equal(preference.toggle(),false);
+ for(let i=0;i<1000;i++)assert.equal(preference.enabled,false);
+ assert.equal(reads,1);assert.equal(writes,1);assert.equal(preference.toggle(),true);assert.equal(reads,1);
+});

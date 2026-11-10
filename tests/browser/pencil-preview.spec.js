@@ -79,3 +79,34 @@ test('saved picture, New, Open and history do not contain or reset browser choic
   await expect.poll(() => c.evaluate(canvas => canvas.toDataURL())).toBe(savedInk);
   await expect(page.locator('#status')).not.toContainText('Could not');
 });
+
+test('existing ON and denied writes preserve this session choice',async({page})=>{
+ await page.addInitScript(()=>{
+  localStorage.setItem('kidpix.pencil-preview','true');
+  Storage.prototype.setItem=function(){throw new DOMException('quota','QuotaExceededError');};
+ });
+ await ready(page);await expect(choice(page)).toHaveAttribute('aria-checked','true');
+ await menu(page);await choice(page).click();await expect(choice(page)).toHaveAttribute('aria-checked','false');
+ await menu(page);await choice(page).click();await expect(choice(page)).toHaveAttribute('aria-checked','true');
+});
+
+test.describe('preview input ownership',()=>{
+ test.use({hasTouch:true});
+ test('OFF never reads estimate API, held paper rejects a competing switch touch',async({page})=>{
+  await page.addInitScript(()=>{
+   window.estimateReads=0;
+   Object.defineProperty(PointerEvent.prototype,'getPredictedEvents',{configurable:true,get(){window.estimateReads++;return ()=>[];}});
+  });
+  await ready(page);await menu(page);
+  async function send(type,x){await page.locator('#paper-canvas').evaluate((canvas,{type,x})=>{
+   canvas.setPointerCapture=()=>{};
+   const box=canvas.getBoundingClientRect();canvas.dispatchEvent(new PointerEvent(type,{pointerId:77,pointerType:'pen',button:0,buttons:type==='pointerup'?0:1,pressure:.5,clientX:box.x+x*box.width/720,clientY:box.y+150*box.height/542,bubbles:true}));
+  },{type,x});}
+  await send('pointerdown',20);await send('pointermove',45);
+  expect(await page.evaluate(()=>estimateReads)).toBe(0);
+  await choice(page).tap();await expect(choice(page)).toHaveAttribute('aria-checked','false');
+  await send('pointerup',45);await choice(page).tap();await expect(choice(page)).toHaveAttribute('aria-checked','true');
+  await send('pointerdown',20);await send('pointermove',45);await send('pointerup',45);
+  expect(await page.evaluate(()=>estimateReads)).toBe(1);
+ });
+});

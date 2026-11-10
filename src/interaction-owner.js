@@ -15,6 +15,9 @@ export function interactionOwner(document = globalThis.document) {
     const id = event.pointerId;
     if (event.type === 'dblclick' && event.detail > 0 && lastPhysicalClickRejected) { block(event); return; }
     if (event.type === 'click' && event.detail > 0) {
+      // Release handlers retire the owner before the browser's physical click.
+      // WebKit can remap a rejected touch's compatibility click to a mouse ID.
+      if (active) { lastPhysicalClickRejected = true; block(event); return; }
       lastPhysicalClickRejected = rejected.has(id)
         || Boolean(event.pointerType === 'touch' && active && id !== active.pointerId);
     }

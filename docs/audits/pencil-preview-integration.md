@@ -93,3 +93,13 @@ inclusion, full release gates and publication. No broad release/performance
 sweep, physical Pencil trial or source parity acceptance is asserted here.
 Native remains accepted0/17; enlarged vacuum remains disabled; physical Pencil
 benefit, audible behavior and foreground-visible idle remain unverified.
+
+## Parent split-view and input correction
+
+The first integration review found that studio scaling reduced the experimental switch to13.9px high with6.4px text at507×1024. Expanded menus now use a manual browser popover outside the studio's transformed clipping, while retaining the original DOM, delegated command routes and closed native chrome. Menu controls are44px high with16px text, the adjacent description is14px, viewport margins are8px, and short views scroll. Close, command activation and Escape keep visibility and aria-expanded synchronized. ResizeObserver and visual viewport events reposition open content; unsupported popover APIs retain the existing menu path. This follows the HTML popover standard's top-layer semantics: https://html.spec.whatwg.org/multipage/popover.html .
+
+The original split-view regression fails at the effective font-size assertion. The initial popup run passed9 cases and caught one bounds assertion before the queued details resize settled; its screenshot shows final placement corrected. A popup ResizeObserver and explicit placement-readiness checks now cover expansion/rotation. Those earlier logs/traces remain retained, not counted as clean acceptance. The warning is adjacent to its switch so short viewports show it before opting in.
+
+A new actual WebKit regression exposed a compatibility-click loophole: rejected touch down/up used pointer2, but its browser click arrived as mouse pointer1 while pen77 still owned the paper. Window-capture tracing confirmed ownership was still active and no cancellation occurred. The shared guard now rejects physical clicks while a contact is owned, independent of remapped identity. Release handlers retire ownership before legitimate physical clicks; semantic detail-zero commands remain available. Two Node controls fail before this change; four pass after it, including mouse-ID reuse, semantic availability and the original owner's release. The traced WebKit app case also fails before and passes after. No input sampling, prediction, native rendering or history algorithm changed.
+
+Retained browser regressions cover four tablet viewports, rotation and lower-menu reachability, readable ON plus quota write failures, zero estimate-property access while OFF, competing physical switch touches and fresh recovery. Broader final validation and independent correction review remain pending.

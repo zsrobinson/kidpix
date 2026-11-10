@@ -9,7 +9,7 @@ import { createPaint } from './paint.js';
 import { createScene } from './scene.js';
 import { makeId } from './id.js';
 import { readData, recordMedia } from './recording.js';
-import { editStamp } from './native-stamp-editor.js';
+import { editStamp, cancelStampEditor } from './native-stamp-editor.js';
 import { loadCatalog, original, originalCssUrl, rebaseProject } from './library.js';
 import { highlightLibraryItem, libraryCategories, showOriginalLibrary, trayKey } from './library-tray.js';
 import { loadNativeUi, nativeButtonParts, nativeCursor, renderNativeDrawing, renderNativeSizes, setSprite } from './native-ui.js';
@@ -990,14 +990,14 @@ function playPicture(next = !state.playing) {
   }
 }
 
-function clearPicture(playCue = true, clearPaint = () => paint.clear()) {
+function clearPicture(playCue = true, clearPaint = () => paint.clear(), stopPlayback = true) {
   backgroundRequest++;
   if (playCue) playUiSound(1029);
   const before = scene.snapshot();
   const sound = state.sound;
   const narration = state.narration;
   const backdrop = state.backdrop;
-  if (state.playing) playPicture(false);
+  if (stopPlayback && state.playing) playPicture(false);
   soundPreview?.pause();
   const wasLoading = loadingProject;
   loadingProject = true;
@@ -1050,43 +1050,62 @@ firehose = createFirehoseOperation({ surface, canvas, original,
     stopMicrophone();
     openPaper(false);
     openPalette(false);
+    cancelStampEditor();
     for (const modal of document.querySelectorAll('dialog[open]')) modal.close();
   },
   begin() {
     pictureGeneration++;
     backgroundRequest++;
     loadingProject = false;
-    const before = scene.snapshot();
     const tracks = { sound: state.sound, narration: state.narration, backdrop: state.backdrop };
     const undo = undoStack.slice(), redo = redoStack.slice();
-    const checkpoint = paint.beginPageOperation();
-    const wasPlaying = state.playing;
     const wasFaceRedo = undoFaceRedo;
-    const resumeScene = scene.suspend();
-    const players = [soundPreview, ...picturePlayers].filter(player => player && !player.paused);
-    players.forEach(player => player.pause());
-    window.speechSynthesis?.pause();
-    return {
-      commit() {
-        try { clearPicture(false, checkpoint.clear); }
-        catch (error) {
-          loadingProject = true;
-          try {
-            checkpoint.rollback(); scene.restore(before); Object.assign(state, tracks);
-            if (state.playing !== wasPlaying) playPicture(wasPlaying);
-            undoFaceRedo = wasFaceRedo;
-            undoStack.splice(0, undoStack.length, ...undo); redoStack.splice(0, redoStack.length, ...redo);
-          } finally { loadingProject = false; syncHistory(); }
-          throw error;
-        }
-      },
-      release(committed) {
-        checkpoint.release();
-        resumeScene();
-        if (!committed) players.forEach(player => player.play().catch(() => {}));
-        window.speechSynthesis?.resume();
-      },
-    };
+    const cleanup = [];
+    function release(committed) {
+      let failure;
+      // Stop playback only after the document commit succeeds. A rollback keeps
+      // the original players, speech queue and path clock under their owners.
+      if (committed && state.playing) {
+        try { playPicture(false); } catch (error) { failure = error; }
+      }
+      for (const dispose of cleanup.splice(0).reverse()) {
+        try { dispose(committed); } catch (error) { failure ??= error; }
+      }
+      if (failure) throw failure;
+    }
+    try {
+      const checkpoint = paint.beginPageOperation();
+      cleanup.push(() => checkpoint.release());
+      const sceneCheckpoint = scene.suspend();
+      cleanup.push(() => sceneCheckpoint.release());
+      for (const player of [soundPreview, ...picturePlayers].filter(player => player && !player.paused)) {
+        cleanup.push(committed => { if (!committed) player.play().catch(() => {}); });
+        player.pause();
+      }
+      const speech = window.speechSynthesis;
+      if (speech && !speech.paused) {
+        cleanup.push(() => speech.resume());
+        speech.pause();
+      }
+      return {
+        commit() {
+          try { clearPicture(false, checkpoint.clear, false); }
+          catch (error) {
+            loadingProject = true;
+            try {
+              checkpoint.rollback(); sceneCheckpoint.rollback(); Object.assign(state, tracks);
+              undoFaceRedo = wasFaceRedo;
+              undoStack.splice(0, undoStack.length, ...undo); redoStack.splice(0, redoStack.length, ...redo);
+            } finally { loadingProject = false; syncHistory(); }
+            throw error;
+          }
+        },
+        release,
+      };
+    } catch (error) {
+      try { release(false); } catch { /* Preserve the original acquisition error. */ }
+      throw error;
+    }
   },
   composite: createComposite,
   onError: () => showStatus('Could not erase the picture.'),

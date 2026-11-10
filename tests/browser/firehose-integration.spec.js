@@ -48,7 +48,7 @@ async function save(page) {
   return JSON.parse(Buffer.concat(parts).toString());
 }
 
-test('real Firehose freezes full picture, owns cue, blocks keyboard/touch and clears with one unified undo/redo', async ({ page }) => {
+test('real Firehose freezes full picture, owns cue, blocks keyboard/touch and clears with one unified undo/redo', async ({ page }, testInfo) => {
   const original = await setup(page);
   await page.locator('#hit-layer [data-action="play"]').evaluate(b => b.click());
   await page.clock.runFor(300);
@@ -62,7 +62,7 @@ test('real Firehose freezes full picture, owns cue, blocks keyboard/touch and cl
   expect((await pixel(page, '.firehose-wipe'))[3]).toBe(0);
   await page.clock.runFor(20);
   expect((await pixel(page, '.firehose-wipe'))[3]).toBe(77);
-  await page.screenshot({ path: 'artifacts/t3/firehose-runtime/frozen-composite.png' });
+  await page.screenshot({ path: testInfo.outputPath('frozen-composite.png') });
   expect((await pixel(page, '.firehose-wipe', 1, 1))[3]).toBe(0);
   await page.keyboard.press('Control+z');
   await page.evaluate(() => {
@@ -201,4 +201,93 @@ test('@module dispose and failed begin release guards; a late manifest cannot re
     const result = { released, committed, errors, children: surface.children.length, busy: operation.busy || failed.busy };
     surface.remove(); return result;
   })).toEqual({ released: 1, committed: 0, errors: 1, children: 0, busy: false });
+});
+
+test('partial begin failure releases the acquired paint checkpoint and permits reentry', async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => {
+    const pause = speechSynthesis.pause.bind(speechSynthesis);
+    speechSynthesis.pause = () => { speechSynthesis.pause = pause; throw Error('begin pause failure'); };
+  });
+  await page.locator('#hit-layer [data-action="clear"]').click();
+  await expect(page.locator('.firehose-wipe')).toHaveCount(0);
+  const replacement = { version: 1, format: 'kidpix-web', title: 'Replacement', paint: { version: 1 },
+    objects: [{ id: 'replacement', kind: 'text', text: 'Replacement', x: 20, y: 20, width: 200, height: 80, size: 32, font: 'sans-serif', color: '#000000' }] };
+  await page.locator('#picture-file').setInputFiles({ name: 'replacement.kidpix-web', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(replacement)) });
+  await expect(page.locator('[data-object="replacement"]')).toHaveCount(1);
+  await fire(page);
+  await page.clock.runFor(2200);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('[data-object="replacement"]')).toHaveCount(1);
+});
+
+test('failed playing-picture commit retains track ownership and the suspended scene clock', async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => {
+    const players = new Set(); window.activePlayers = players;
+    Object.defineProperty(HTMLMediaElement.prototype, 'paused', { configurable: true, get() { return !players.has(this); } });
+    HTMLMediaElement.prototype.play = function () { players.add(this); return Promise.resolve(); };
+    HTMLMediaElement.prototype.pause = function () { players.delete(this); };
+  });
+  await page.locator('#hit-layer [data-action="play"]').click();
+  await page.clock.runFor(300);
+  const prior = await page.locator('[data-object="text"]').evaluate(node => ({ x: node.style.left, y: node.style.top }));
+  await page.evaluate(() => {
+    window.originalTracks = [...window.activePlayers].filter(player => player.src.includes('water-cleaner-7433'));
+    const root = document.querySelector('#objects'), replace = root.replaceChildren;
+    root.replaceChildren = function (...args) { root.replaceChildren = replace; throw Error('commit failure'); };
+  });
+  await fire(page);
+  await page.clock.runFor(2200);
+  await expect(page.locator('.firehose-wipe')).toHaveCount(0);
+  expect(await page.evaluate(() => window.originalTracks.length === 2 && window.originalTracks.every(player => window.activePlayers.has(player))
+    && [...window.activePlayers].filter(player => player.src.includes('water-cleaner-7433')).length === 2)).toBe(true);
+  const after = await page.locator('[data-object="text"]').evaluate(node => ({ x: node.style.left, y: node.style.top }));
+  // Only the remaining callbacks after completion advance the original path;
+  // the 2200ms wipe must not restart it or advance its entire wall duration.
+  expect(parseFloat(after.x)).toBeGreaterThanOrEqual(parseFloat(prior.x));
+  expect(parseFloat(after.x) - parseFloat(prior.x)).toBeLessThan(100);
+  await page.locator('#hit-layer [data-action="play"]').click();
+  expect(await page.evaluate(() => [...window.activePlayers].filter(player => player.src.includes('water-cleaner-7433')).length)).toBe(0);
+});
+
+for (const pending of ['manifest.json', 'frame.png']) test(`pending Stamp Editor ${pending} is canceled before wipe and cannot open after commit`, async ({ page }) => {
+  await setup(page);
+  let release, started;
+  const gate = new Promise(resolve => { release = resolve; });
+  const requested = new Promise(resolve => { started = resolve; });
+  const pattern = `**/ui/stamp-editor/${pending}*`;
+  await page.route(pattern, async route => {
+    const response = await route.fetch(); started(); await gate; await route.fulfill({ response });
+  });
+  await page.locator('[data-action="tray:stamp"]').click();
+  await page.locator('#library-tray [data-item]').first().click();
+  await page.locator('[data-action="stamp-edit"]').click();
+  await requested;
+  await fire(page);
+  const response = page.waitForResponse(pattern);
+  release(); await (await response).finished();
+  await page.clock.runFor(2200);
+  await expect(page.locator('dialog.native-stamp-editor[open],dialog.stamp-editor[open]')).toHaveCount(0);
+  // New session proves cancellation also relinquishes the singleton owner.
+  await page.locator('[data-action="stamp-edit"]').click();
+  await expect(page.locator('dialog.native-stamp-editor[open]')).toHaveCount(1);
+  await page.locator('dialog.native-stamp-editor [data-command="cancel"]').click();
+});
+
+test('@module fallback Stamp Editor cancels while the stamp image is decoding', async ({ page }) => {
+  await page.goto('/');
+  expect(await page.evaluate(async () => {
+    const { editStamp } = await import('/src/stamp-editor.js');
+    const controller = new AbortController();
+    const decode = HTMLImageElement.prototype.decode;
+    let finishDecode;
+    HTMLImageElement.prototype.decode = () => new Promise(resolve => { finishDecode = resolve; });
+    let saved = false;
+    const opening = editStamp({ src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==' }, '#000000', () => { saved = true; }, { signal: controller.signal });
+    controller.abort(); finishDecode();
+    await opening;
+    HTMLImageElement.prototype.decode = decode;
+    return { saved, editors: document.querySelectorAll('dialog.stamp-editor').length };
+  })).toEqual({ saved: false, editors: 0 });
 });

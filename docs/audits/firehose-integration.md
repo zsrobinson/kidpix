@@ -34,7 +34,8 @@ No unsupported panel option is routed through the new wipe.
 - `src/main.js`: only the existing Firehose button in `#hit-layer` starts this
   operation. Generic menu clear and Big Eraser retain their immediate behavior.
   Settle held paint (including moving paint's delivered-frame policy), scene
-  drag/path and focused Text before capture. Close pending editors and stop the
+  drag/path and focused Text before capture. Cancel pending or open Stamp Editor
+  sessions across manifest, stamp-image and artwork awaits, and stop the
   microphone. A picture generation invalidates pending file reads, project
   restores, layered backgrounds and Idea Machine continuations.
 - `src/paint.js`: `beginPageOperation` is an opaque synchronous checkpoint with
@@ -42,10 +43,11 @@ No unsupported panel option is routed through the new wipe.
   new asynchronous paint mutations until release. Private image/history buffers
   stay private; no asynchronous public serialization acts as a checkpoint.
 - `src/scene.js`: `settle` finishes drag/edit ownership; `suspend` pauses path
-  progression and connected playing videos, returning a resume closure. Composite
+  progression and connected playing videos, returning rollback/release methods.
+  Rollback retains the original nodes, selection, previews and playback clock. Composite
   drawing uses actual displayed path coordinates. Picture/preview tracks pause;
   cancellation resumes their existing players, rather than starting new tracks.
-  Speech is paused/resumed. GIFs may keep decoding beneath the opaque snapshot;
+  Speech is resumed only when this operation paused it. GIFs may keep decoding beneath the opaque snapshot;
   they cannot change the presented wipe composite.
 - `src/interaction-owner.js`: `reject` tombstones contacts begun during the
   operation through their terminal click, even if cancellation happens first.
@@ -65,6 +67,13 @@ explicitly restores its opaque paint checkpoint, scene/tracks/backdrop and both
 history stacks before release. This matters because the source helper catches an
 onCommit exception without calling onCancel. Snapshot/begin failures also release
 owned guards; failed/refused sound cannot strand them.
+
+Partial begin acquisitions register cleanup immediately and unwind in reverse
+order, even when a later media/speech call fails. Playback stop is deferred until
+the document commit succeeds; rollback resumes the same owned track handles and
+scene clock without creating replacement audio or restarting speech. Regression
+probes include failed speech suspension, failed commit during successful modeled
+playback followed by Stop, and cancellation during editor manifest/art decoding.
 
 ## Deliberate browser policies
 

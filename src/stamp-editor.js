@@ -1,9 +1,11 @@
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 
-export async function editStamp(stamp, initialColor, onSave) {
+export async function editStamp(stamp, initialColor, onSave, { signal } = {}) {
+  if (signal?.aborted) return;
   const image = new Image();
   image.src = stamp.src;
   await image.decode();
+  if (signal?.aborted) return;
 
   const dialog = document.createElement('dialog');
   dialog.className = 'stamp-editor';
@@ -123,8 +125,14 @@ export async function editStamp(stamp, initialColor, onSave) {
     update();
   });
 
-  dialog.addEventListener('close', () => { finishGesture(); listeners.abort(); dialog.remove(); }, { once: true });
+  const abort = () => dialog.close();
+  dialog.addEventListener('close', () => {
+    signal?.removeEventListener('abort', abort);
+    finishGesture(); listeners.abort(); dialog.remove();
+  }, { once: true });
   update();
+  if (signal?.aborted) { listeners.abort(); return; }
   document.body.append(dialog);
   dialog.showModal();
+  signal?.addEventListener('abort', abort, { once: true });
 }

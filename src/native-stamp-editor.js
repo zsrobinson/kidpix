@@ -60,18 +60,30 @@ function fillPixels(context, x, y, color) {
 
 export function editStamp(stamp, initialColor, onSave) {
   if (editorSession) return editorSession.promise;
-  const session = {};
+  const session = { controller: new AbortController() };
   editorSession = session;
-  session.promise = openStampEditor(stamp, initialColor, onSave).finally(() => {
+  session.promise = openStampEditor(stamp, initialColor, onSave, session.controller.signal).catch(error => {
+    if (!session.controller.signal.aborted) throw error;
+    return null;
+  }).finally(() => {
     if (editorSession === session) editorSession = null;
   });
   return session.promise;
 }
 
-async function openStampEditor(stamp, initialColor, onSave) {
+// Invalidate pending decode work as well as an already presented editor.
+export function cancelStampEditor() {
+  const session = editorSession;
+  editorSession = null;
+  session?.controller.abort();
+}
+
+async function openStampEditor(stamp, initialColor, onSave, signal) {
   const manifest = await loadManifest();
+  if (signal.aborted) return null;
   if (!manifest) {
-    await editFallbackStamp(stamp, initialColor, onSave);
+    await editFallbackStamp(stamp, initialColor, onSave, { signal });
+    if (signal.aborted) return null;
     const fallback = document.querySelector('dialog.stamp-editor[open]');
     if (fallback) await new Promise(resolve => fallback.addEventListener('close', resolve, { once: true }));
     return null;
@@ -79,6 +91,7 @@ async function openStampEditor(stamp, initialColor, onSave) {
   const stampImage = new Image();
   stampImage.src = stamp.src;
   await stampImage.decode();
+  if (signal.aborted) return null;
 
   const listeners = new AbortController();
   const options = { signal: listeners.signal };
@@ -299,23 +312,30 @@ async function openStampEditor(stamp, initialColor, onSave) {
   window.addEventListener('resize', resize, options);
   resize();
   update();
+  let resolveClosed;
+  const closed = new Promise(resolve => { resolveClosed = resolve; });
+  let finished = false;
+  function finish() {
+    if (finished) return;
+    finished = true;
+    signal.removeEventListener('abort', finish);
+    try { finishGesture(); } catch { /* Still remove the session on audio failure. */ }
+    listeners.abort();
+    try { sound?.pause(); } catch { /* An owned sound cannot retain the editor. */ }
+    dialog.remove();
+    resolveClosed(saved);
+  }
+  signal.addEventListener('abort', finish, { once: true });
+  dialog.addEventListener('close', finish, { once: true });
   try {
     await Promise.all([...stage.querySelectorAll('img')].map(image => image.decode()));
+    if (signal.aborted) { finish(); return closed; }
+    document.body.append(dialog);
+    dialog.showModal();
+    canvas.focus();
   } catch (error) {
-    listeners.abort();
-    sound?.pause();
-    dialog.remove();
+    finish();
     throw error;
   }
-  document.body.append(dialog);
-  const closed = new Promise(resolve => dialog.addEventListener('close', () => {
-    finishGesture();
-    listeners.abort();
-    sound?.pause();
-    dialog.remove();
-    resolve(saved);
-  }, { once: true }));
-  dialog.showModal();
-  canvas.focus();
   return closed;
 }

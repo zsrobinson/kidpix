@@ -207,12 +207,36 @@ export function createScene(root, surface, onChange) {
       finishInactive();
     },
     suspend() {
+      const prior = { objects, selected, previews: [...previews], nodes: [...root.childNodes] };
       suspended = true;
       const videos = [...root.querySelectorAll('video')].filter(video => !video.paused);
-      videos.forEach(video => video.pause());
-      return () => {
+      const paused = [];
+      function release() {
         suspended = false;
-        videos.filter(video => video.isConnected).forEach(video => video.play().catch(() => {}));
+        let failure;
+        for (const video of paused.splice(0)) {
+          try { if (video.isConnected) video.play().catch(() => {}); }
+          catch (error) { failure ??= error; }
+        }
+        if (failure) throw failure;
+      }
+      try {
+        for (const video of videos) { paused.push(video); video.pause(); }
+      } catch (error) {
+        try { release(); } catch { /* Preserve the original pause error. */ }
+        throw error;
+      }
+      return {
+        // Retain media nodes and the existing playback clock across a failed
+        // document commit, rather than rebuilding/restarting their players.
+        rollback() {
+          objects = prior.objects;
+          selected = prior.selected;
+          previews.clear();
+          prior.previews.forEach(id => previews.add(id));
+          root.replaceChildren(...prior.nodes);
+        },
+        release,
       };
     },
     addAsset(asset, point = { x: 360, y: 271 }) {

@@ -13,8 +13,13 @@ await mkdir(output, { recursive: true });
 const port = Number(process.env.PORT || 4251);
 const engine = process.env.ENGINE || 'chromium';
 const instrument = process.env.INSTRUMENT !== '0';
+// Restrict paired source controls to the canvas representation under test.
+const motionRevision = process.env.MOTION_REVISION;
+const motionSources = new Map(motionRevision ? ['native-tool-motion.js', 'native-drawing-motion.js'].map(name =>
+ [name, execFileSync('git', ['show', `${motionRevision}:src/${name}`], { encoding: 'utf8' })]) : []);
 const server = await createServer({ configLoader: 'runner', cacheDir: `${output}/cache`,
  plugins: [{ name: 'fixed-stroke-seed', enforce: 'pre', transform(code, id) {
+  for (const [name, source] of motionSources) if (id.endsWith(`/src/${name}`)) return source;
   if (!id.endsWith('/src/paint.js')) return;
   const seam = 'makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))';
   if (!code.includes(seam)) throw Error('Seed seam changed');
@@ -24,7 +29,7 @@ const server = await createServer({ configLoader: 'runner', cacheDir: `${output}
  } }], server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: { ignored: ['**/*'] } } });
 let browser;
 const results = { harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
- engine, instrument, legacySyncCatchup:process.env.LEGACY_SYNC_CATCHUP==='1', profiled:!!process.env.PROFILE, traced:!!process.env.TRACE, scene:process.env.SCENE||'blank', displayReadFrequently:process.env.DISPLAY_READ_FREQUENTLY!=='0', cpu: Number(process.env.CPU || 1), seed: 53, samples: 240,
+ motionSourceHashes: Object.fromEntries([...motionSources].map(([name,source]) => [name,createHash('sha256').update(source).digest('hex')])), motionRevision: motionRevision || null, engine, instrument, legacySyncCatchup:process.env.LEGACY_SYNC_CATCHUP==='1', profiled:!!process.env.PROFILE, traced:!!process.env.TRACE, scene:process.env.SCENE||'blank', displayReadFrequently:process.env.DISPLAY_READ_FREQUENTLY!=='0', cpu: Number(process.env.CPU || 1), seed: 53, samples: 240,
  limitations: 'Desktop headless engine; RAF callback and intended-deadline proxies, no compositor visibility or physical iPad latency.', baselines: [], rows: [] };
 const stats = values => { const a = values.filter(Number.isFinite).sort((a,b)=>a-b); return { n:a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],worst:a.at(-1) }; };
 try {
@@ -71,6 +76,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('#paper-canvas').getContext('2d').getImageData(0,0,1,1).data[0]===221);
  }
  await page.evaluate(async()=>Promise.all([...document.images].filter(i=>i.src).map(i=>i.decode().catch(()=>{}))));
+ results.motionCanvases = await page.locator('[data-native-tool-motion], .native-secondary-motion > canvas').evaluateAll(canvases => canvases.map(c => ({ width:c.width, height:c.height, style:c.getAttribute('style'), rgbaBytes:c.width*c.height*4 })));
  await page.waitForTimeout(1500);await measureIdle('warm-app-idle');
  const patterns=(process.env.PATTERNS||'60x1,120x1,240x1,60x2,60x4').split(',').map(p=>{const [hz,batch]=p.split('x').map(Number);if(![60,120,240].includes(hz)||![1,2,4].includes(batch))throw Error('Invalid pattern');return{hz,batch};});
  for(let trial=0;trial<Number(process.env.TRIALS||3);trial++)for(const tool of (process.env.TOOLS||'pencil,chalk,crayon,marker').split(','))for(const driver of (process.env.DRIVERS||'inpage,protocol,cdp').split(','))for(const {hz,batch} of patterns){
@@ -127,7 +133,8 @@ try {
   const row={trial,tool,driver,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
    actualEvents:instrument?m.events.length:null,actualSamples:instrument?m.events.reduce((n,e)=>n+e.samples,0):null,trusted:instrument?m.events.filter(e=>e.trusted).length:null,
    callbackFrame:stats(callbackGaps),callbackCount:m.callbackTimes.length,callbackHz:m.callbackTimes.length*1000/(m.ended-m.started),leadingGap,trailingGap,maxObservedOrCensoredGap:Math.max(leadingGap,trailingGap,...callbackGaps),
-   handler:stats(m.events.map(e=>e.ms)),frame:stats(m.frames),nextRAF:stats(m.nextRAF),eventStampAge:stats(m.events.map(e=>e.stampAge)),
+   syntheticDeliveredEvents:m.delivery.length,syntheticDeliveredSamples:m.delivery.reduce((n,e)=>n+e.samples,0),
+   dispatchHandler:stats(m.delivery.map(e=>e.end-e.start)),handler:stats(m.events.map(e=>e.ms)),frame:stats(m.frames),nextRAF:stats(m.nextRAF),eventStampAge:stats(m.events.map(e=>e.stampAge)),
    deadlineAge:stats(m.delivery.filter(e=>Number.isFinite(e.due)).map(e=>e.start-e.due)),
    deliveryInterval:stats((m.delivery.length?m.delivery:m.events).slice(1).map((e,i)=>e.start-(m.delivery.length?m.delivery:m.events)[i].start)),
    achievedEventHz:(m.delivery.length?m.delivery:m.events).length>1?((m.delivery.length?m.delivery:m.events).length-1)*1000/((m.delivery.length?m.delivery:m.events).at(-1).start-(m.delivery.length?m.delivery:m.events)[0].start):null,
@@ -149,6 +156,7 @@ try {
   if(process.env.MAX_FRAME_P95&&(r.frame.p95>Number(process.env.MAX_FRAME_P95)||r.maxObservedOrCensoredGap>Number(process.env.MAX_FRAME_P95)))failures.push({key,metric:'frameP95OrGap',value:Math.max(r.frame.p95||0,r.maxObservedOrCensoredGap||0),max:Number(process.env.MAX_FRAME_P95)});
   return failures;
  });
+ if(process.env.MAX_MOTION_RGBA_BYTES){const bytes=results.motionCanvases.reduce((sum,c)=>sum+c.rgbaBytes,0);if(bytes>Number(process.env.MAX_MOTION_RGBA_BYTES))results.budgetFailures.push({metric:'motionRGBABytes',value:bytes,max:Number(process.env.MAX_MOTION_RGBA_BYTES)});}
  if(results.budgetFailures.length){console.error(JSON.stringify({budgetFailures:results.budgetFailures}));process.exitCode=1;}
 } finally {
  await writeFile(`${output}/results.json`,JSON.stringify(results,null,2));await browser?.close();await server.close();

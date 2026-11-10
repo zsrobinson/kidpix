@@ -25,8 +25,9 @@ const injection = {
       return fixture
     }
     if (!id.endsWith('/src/main.js')) return
-    assert(source.includes('const paint = createPaint(canvas, {'))
-    return source.replace('const paint = createPaint(canvas, {', 'const paint = createPaint(canvas, { pencilPredictionPreview: window.__predictionEnabled === true,') +
+    assert.equal(source.split('const paint = createPaint(canvas, {').length, 2)
+    assert.equal(source.split('get pencilPredictionPreview() { return pencilPreview.enabled; }').length, 2)
+    return source +
       '\nwindow.__predictionTest = { paint, createPaint, state, scene, createComposite };'
   },
 }
@@ -36,19 +37,23 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
   if (built) {
     await build({ configLoader: 'runner', mode: 'cloudflare', plugins: [injection], cacheDir: `${root}/cache`, build: { outDir: `${root}/build` } })
     server = createBrowserBuildServer({ buildRoot: `${process.cwd()}/${root}/build` })
-    await new Promise(resolve => server.listen(4612, '127.0.0.1', resolve))
+    await new Promise(resolve => server.listen(4692, '127.0.0.1', resolve))
   } else {
-    server = await createServer({ configLoader: 'runner', plugins: [injection], cacheDir: `${root}/cache`, server: { host: '127.0.0.1', port: 4611, strictPort: true, hmr: false, watch: { ignored: ['**/*'] } } })
+    server = await createServer({ configLoader: 'runner', plugins: [injection], cacheDir: `${root}/cache`, server: { host: '127.0.0.1', port: 4691, strictPort: true, hmr: false, watch: { ignored: ['**/*'] } } })
     await server.listen()
   }
   try {
     if (process.env.PENCIL_CHECKS) {
-      for (const engine of ['chromium', 'webkit']) await new Promise((resolve, reject) => {
+      if (!process.env.PENCIL_PREVIEW_FAULT) for (const engine of ['chromium', 'webkit'].filter(name => !process.env.PENCIL_PREVIEW_ENGINE || process.env.PENCIL_PREVIEW_ENGINE === name)) await new Promise((resolve, reject) => {
         const child = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '-c', 'scripts/pencil-prediction-checks.config.mjs', 'pencil-pressure.spec.js', 'brush-engine.spec.js', 'tool-tab-lifecycle.spec.js'], { stdio: 'inherit', env: { ...process.env, ENGINE: engine } })
         child.on('error', reject); child.on('exit', code => code === 0 ? resolve() : reject(Error(`checks ${engine}: ${code}`)))
       })
       continue
     }
+    if (!process.env.PENCIL_PREVIEW_FAULT) for (const engine of ['chromium', 'webkit'].filter(name => !process.env.PENCIL_PREVIEW_ENGINE || process.env.PENCIL_PREVIEW_ENGINE === name)) await new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '-c', 'scripts/pencil-prediction-checks.config.mjs', 'pencil-preview.spec.js'], { stdio: 'inherit', env: { ...process.env, ENGINE: engine, PENCIL_PREVIEW_PORT: built ? '4692' : '4691' } })
+      child.on('error', reject); child.on('exit', code => code === 0 ? resolve() : reject(Error(`UI checks ${engine}: ${code}`)))
+    })
     for (const [engine, launcher] of [['chromium', chromium], ['webkit', webkit]].filter(([name]) => !process.env.PENCIL_PREVIEW_ENGINE || process.env.PENCIL_PREVIEW_ENGINE === name)) {
       const browser = await launcher.launch()
       const context = await browser.newContext({ viewport: { width: 1366, height: 1024 } })
@@ -59,9 +64,14 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
       try {
         const page = await context.newPage()
         if (process.env.PENCIL_PREVIEW_FAULT === 'missing-assets') await page.route('**/original/tools/brushes/**', route => route.abort())
-        await page.addInitScript(fault => { window.__predictionEnabled = true; window.__predictionErrorFault = fault === 'pageerror' }, process.env.PENCIL_PREVIEW_FAULT)
-        await page.goto(`http://127.0.0.1:${built ? 4612 : 4611}/`)
+        await page.addInitScript(fault => { window.__predictionErrorFault = fault === 'pageerror' }, process.env.PENCIL_PREVIEW_FAULT)
+        await page.goto(`http://127.0.0.1:${built ? 4692 : 4691}/`)
         await page.waitForFunction(() => window.__predictionTest && document.querySelector('#paper-canvas')?.dataset.paintReady === 'ready')
+        assert.equal(await page.locator('[data-action="pencil-preview"]').getAttribute('aria-checked'), 'false')
+        await page.getByRole('button', { name: 'Show menus' }).click()
+        await page.locator('#menu summary').filter({ hasText: /^Paint Zone$/ }).click()
+        await page.getByRole('switch', { name: 'Pencil preview (experimental)' }).click()
+        assert.equal(await page.getByRole('switch', { name: 'Pencil preview (experimental)', includeHidden: true }).getAttribute('aria-checked'), 'true')
         let trustedPenProbe = null
         if (engine === 'chromium' && !built) {
           try { trustedPenProbe = JSON.parse(await readFile(`${root}/trusted-pen.json`, 'utf8')) } catch { /* first bounded receipt only */ }
@@ -220,14 +230,50 @@ for (const built of (process.env.PENCIL_CHECKS ? [false] : [false, true])) {
           sceneImage.getContext('2d').fillStyle = '#00aa00'; sceneImage.getContext('2d').fillRect(0,0,60,60)
           scene.addAsset({ src: sceneImage.toDataURL(), width: 60, height: 60 }, { x: 300, y: 250 })
           await Promise.all(Array.from(document.querySelectorAll('#objects img')).map(image => image.decode()))
-          const sceneBefore = createComposite().toDataURL()
           const c = studio.canvas; c.setPointerCapture = () => {}; c.releasePointerCapture = () => {}
+          const toggle = () => document.querySelector('[data-action="pencil-preview"]').click()
+          const studioCanonical = () => {
+            const target = document.createElement('canvas'); target.width = c.width; target.height = c.height
+            studio.renderTo(target.getContext('2d'), { includePreview: true, includeForeground: false })
+            return target.toDataURL()
+          }
+          toggle()
+          send(c, 'pointerdown', 45, 250, .2)
+          send(c, 'pointermove', 90, 250, .8, [{ x: 155, y: 250 }])
+          equal(c.toDataURL(), studioCanonical(), 'real default-off gesture ignores constructor estimates')
+          toggle()
+          send(c, 'pointermove', 95, 250, .8, [{ x: 160, y: 250 }])
+          equal(c.toDataURL(), studioCanonical(), 'enabling midstroke cannot make an ineligible gesture eligible')
+          send(c, 'pointercancel', 95, 250)
+          for (const api of ['missing', 'throw', 'empty']) {
+            send(c, 'pointerdown', 45, 250, .2)
+            send(c, 'pointermove', 90, 250, .8, [], { api })
+            equal(c.toDataURL(), studioCanonical(), `real opted-in ${api} API stays canonical`)
+            send(c, 'pointercancel', 90, 250)
+          }
+          for (const pointerType of ['mouse', 'touch']) {
+            send(c, 'pointerdown', 45, 250, .2, [], { pointerType })
+            send(c, 'pointermove', 90, 250, .8, [{ x: 155, y: 250, pointerType }], { pointerType })
+            equal(c.toDataURL(), studioCanonical(), `real opted-in ${pointerType} stays canonical`)
+            send(c, 'pointercancel', 90, 250, 0, [], { pointerType })
+          }
+          const sceneAtStroke = createComposite().toDataURL()
           send(c, 'pointerdown', 45, 250, .2); const count = send(c, 'pointermove', 90, 250, .8, [{ x: 155, y: 250, pressure: .6 }])
           equal(count, 1, 'browser constructor returned nonempty modeled API list')
-          equal(createComposite().toDataURL(), sceneBefore, 'actual app scene export remains baseline during uncommitted actual and predicted ink')
+          equal(createComposite().toDataURL(), sceneAtStroke, 'actual app scene export remains baseline during uncommitted actual and predicted ink')
           const mid = c.toDataURL(); const canonical = document.createElement('canvas'); canonical.width = c.width; canonical.height = c.height
           studio.renderTo(canonical.getContext('2d'), { includePreview: true, includeForeground: false })
-          different(mid, canonical.toDataURL(), 'actual studio default Pencil is eligible with private opt-in')
+          different(mid, canonical.toDataURL(), 'actual studio default Pencil is eligible with real menu opt-in')
+          const savedBeforeOff = JSON.stringify(studio.save()), undoBeforeOff = studio.canUndo
+          toggle()
+          equal(c.toDataURL(), studioCanonical(), 'real menu OFF clears tail synchronously')
+          equal(JSON.stringify(studio.save()), savedBeforeOff, 'OFF leaves saved art untouched')
+          equal(studio.canUndo, undoBeforeOff, 'OFF adds no history entry')
+          send(c, 'pointermove', 92, 250, .8, [{ x: 160, y: 250 }])
+          equal(c.toDataURL(), studioCanonical(), 'OFF prevents new estimates')
+          toggle()
+          send(c, 'pointermove', 94, 250, .8, [{ x: 160, y: 250 }])
+          different(c.toDataURL(), studioCanonical(), 'eligible gesture can resume disposable estimates')
           send(c, 'pointermove', 70, 280, .2); equal(c.toDataURL(), (() => { studio.renderTo(canonical.getContext('2d'), { includePreview: true, includeForeground: false }); return canonical.toDataURL() })(), 'actual app correction exact')
           send(c, 'pointerup', 70, 280, 0)
           window.__predictionFixture = { make, send, rgba, checks, assetErrors }

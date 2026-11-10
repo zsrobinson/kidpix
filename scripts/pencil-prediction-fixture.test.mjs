@@ -11,3 +11,13 @@ test('fixture traces require unique actual, random and native draw seams',()=>{
   assert.throws(()=>plugin.transform(source+'\n'+seam,'/src/paint.js'),/fixture seam changed/);
  }
 });
+const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+test('private app fixture preserves the real preference getter and requires unique wiring', () => {
+  const output = plugin.transform(main, '/src/main.js');
+  assert.equal(output.split('get pencilPredictionPreview() { return pencilPreview.enabled; }').length, 2);
+  assert.equal(output.split('pencilPredictionPreview:').length, 1);
+  for (const seam of ['const paint = createPaint(canvas, {', 'get pencilPredictionPreview() { return pencilPreview.enabled; }']) {
+    assert.throws(() => plugin.transform(main.replace(seam, ''), '/src/main.js'));
+    assert.throws(() => plugin.transform(main + '\n' + seam, '/src/main.js'));
+  }
+});

@@ -9,6 +9,7 @@ import { TEXT_FONTS, TEXT_STEPPERS, editedSize, textStep } from './text-values.j
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 import './style.css';
 import { createPaint } from './paint.js';
+import { createPencilPreviewPreference } from './pencil-preview-preference.js';
 import { createScene } from './scene.js';
 import { makeId } from './id.js';
 import { readData, recordMedia } from './recording.js';
@@ -32,6 +33,7 @@ import { createNativeSecondaryMotion } from './native-secondary-motion.js';
 // Install before any application or popup capture handler.
 interactionOwner(document);
 const app = document.querySelector('#app');
+const pencilPreview = createPencilPreviewPreference();
 const state = {
   tray: 'draw', tools: { draw: 'pencil', paint: 'brush', bucket: 'bucket', mixer: 'mega', grab: 'grab', eraser: 'round' },
   sizes: { draw: 8, paint: 8, mixer: 8, stamp: 8, eraser: 16 },
@@ -76,7 +78,7 @@ let toolRequest = 0;
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const button = (action, label, x, y, w, h, extra = '') =>
   `<button type="button" class="hit ${extra}" data-action="${action}" title="${label}" aria-label="${label}" style="${place(x, y, w, h)}"></button>`;
-const menu = (label, commands) => `<details><summary>${label}</summary><div>${commands.map(([action, title]) => `<button type="button" data-action="${action}">${title}</button>`).join('')}</div></details>`;
+const menu = (label, commands) => `<details><summary>${label}</summary><div>${commands.map(([action, title]) => `<button type="button" data-action="${action}"${action === 'pencil-preview' ? ` role="switch" aria-checked="${pencilPreview.enabled}" aria-describedby="pencil-preview-help"` : ''}>${action === 'pencil-preview' ? `<span aria-hidden="true" id="pencil-preview-check">${pencilPreview.enabled ? '✓' : '○'}</span> ` : ''}${title}</button>`).join('')}${label === 'Paint Zone' ? '<p id="pencil-preview-help">Temporary browser estimates for supported pen/freehand Pencil only. May shift or do nothing without estimates.</p>' : ''}</div></details>`;
 
 app.innerHTML = `
   <div id="viewport">
@@ -139,7 +141,7 @@ app.innerHTML = `
         <div id="menu-items" hidden>
           ${menu('File', [['new', 'New Picture'], ['open', 'Open Picture…'], ['save', 'Save Picture…'], ['export', 'Export PNG…'], ['ideas', 'Idea Machine…'], ['print', 'Print Picture…']])}
           ${menu('Edit', [['undo', 'Undo'], ['redo', 'Redo'], ['edit:cut', 'Cut'], ['edit:copy', 'Copy'], ['edit:paste', 'Paste'], ['import-image', 'Import Image…']])}
-          ${menu('Paint Zone', [['play', 'Play Picture'], ['path', 'Path Animation Tool'], ['loop-path', 'Loop Path'], ['preview-object', 'Play Object'], ['enlarge', 'Enlarge to Fill Canvas'], ['record-video', 'Video Narration…'], ['record-sound', 'Record Sound…'], ['flipbook', 'Add Picture to Slide Show'], ['slideshow', 'Go to Slide Show'], ['clear', 'Erase Picture']])}
+          ${menu('Paint Zone', [['pencil-preview', 'Pencil preview (experimental)'], ['play', 'Play Picture'], ['path', 'Path Animation Tool'], ['loop-path', 'Loop Path'], ['preview-object', 'Play Object'], ['enlarge', 'Enlarge to Fill Canvas'], ['record-video', 'Video Narration…'], ['record-sound', 'Record Sound…'], ['flipbook', 'Add Picture to Slide Show'], ['slideshow', 'Go to Slide Show'], ['clear', 'Erase Picture']])}
           ${menu('Help', [['help', 'Extended Help'], ['about', 'About KID PIX 3D']])}
         </div>
       </nav>
@@ -246,6 +248,7 @@ function drawForeground() {
 const scene = createScene($('#objects'), surface, (before, after, ranges) => remember({ before, after, ranges, kind: 'scene' }));
 const paint = createPaint(canvas, {
   includeForeground: false,
+  get pencilPredictionPreview() { return pencilPreview.enabled; },
   onBigErase: () => clearPicture(),
   onChange({ kind, paperSource }) {
     syncPaperSelection(paperSource);
@@ -1499,6 +1502,13 @@ const commands = {
   bold: () => { state.bold = !state.bold; applyTextStyle(); showTray(); },
   italic: () => { state.italic = !state.italic; applyTextStyle(); showTray(); },
   underline: () => { state.underline = !state.underline; applyTextStyle(); showTray(); },
+  'pencil-preview': () => {
+    const enabled = pencilPreview.toggle();
+    $('[data-action="pencil-preview"]').setAttribute('aria-checked', String(enabled));
+    $('#pencil-preview-check').textContent = enabled ? '✓' : '○';
+    // The existing empty-options path clears only disposable estimates.
+    if (!enabled) paint.setOptions({});
+  },
   menu: () => {
     $('#menu-items').hidden = !$('#menu-items').hidden;
     $('#menu-trigger').setAttribute('aria-expanded', String(!$('#menu-items').hidden));

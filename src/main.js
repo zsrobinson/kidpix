@@ -1089,7 +1089,8 @@ function clearPicture(playCue = true, clearPaint = () => paint.clear(), stopPlay
   let cleared;
   try {
     cleared = clearPaint();
-    scene.restore([]);
+    // Clear edits this picture; New and Open replace the document clipboard.
+    scene.restore([], { history: true });
     state.sound = null;
     state.narration = null;
     state.backdrop = null;

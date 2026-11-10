@@ -317,3 +317,25 @@ test('source clipboard capture denial cancels safely and permits a fresh pointer
   await control(page,'cut').evaluate(b=>delete b.setPointerCapture);
   await control(page,'cut').click();await expect(page.locator('.object-text')).toHaveText('aef');
 });
+
+test('Clear retains previously copied text while New resets the document clipboard', async ({ page }) => {
+  await start(page); await box(page,'Keep'); await range(page,0,4);
+  await control(page,'copy').evaluate(button=>button.click());
+  await expect(control(page,'paste')).toBeEnabled();
+  await page.locator('.object-text').blur();
+  await page.locator('#hit-layer [data-action="clear"]').evaluate(button=>button.click());
+  await expect(page.locator('.firehose-wipe')).toBeVisible();
+  await expect(page.locator('.firehose-wipe')).toHaveCount(0);
+  await expect(page.locator('.object-text')).toHaveCount(0);
+  await box(page,'After'); await range(page,5,5);
+  await expect(control(page,'paste')).toBeEnabled();
+  await control(page,'paste').evaluate(button=>button.click());
+  await expect(page.locator('.object-text')).toHaveText('AfterKeep');
+  await click(page,'undo'); await expect(page.locator('.object-text')).toHaveText('After');
+  await range(page,5,5); await expect(control(page,'paste')).toBeEnabled();
+  await click(page,'redo'); await expect(page.locator('.object-text')).toHaveText('AfterKeep');
+  await click(page,'new'); await page.locator('#dialog-actions').getByRole('button',{name:'New Picture',exact:true}).click();
+  await click(page,'tray:text');
+  await box(page,'New'); await range(page,3,3);
+  await expect(control(page,'paste')).toBeDisabled();
+});

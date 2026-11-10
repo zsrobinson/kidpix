@@ -12,7 +12,7 @@ Independent input: `/home/zsrobinson/code/kidpix/artifacts/t3/text-clipboard-nex
 
 MBTN9383 rows12/13/14 dispatch240/241/242 to current-editor character Cut/Copy/Paste. These are mode0 momentary actions with no disabled artwork or selected latch. Tracking has two draws of the SAME sprite; tick1 at100ms carries one cue. The existing action interpreter retains timing, channel ownership and end gates. Regions are Cut409,647,41,86; Copy449,647,42,43; Paste449,690,42,43. Restoration ownership is a separate clipboard rectangle, disjoint from Read and live fields. At x449 the browser DOM orders Copy above Cut; the acceptance assertion is a browser ownership decision, not a native edge-priority claim.
 
-Browser scope is a dedicated document-local, session-scoped plaintext clipboard. It survives box/tray changes, clears on New/Open/document replacement/disposal, and is absent from project snapshots. Whole-object menus, keyboard shortcuts outside the editor, Grab and Scissors retain their existing routes and clipboards. Native editor keyboard and copy/cut/paste defaults are untouched. No clipboard events are intercepted or synchronized, no `navigator.clipboard` APIs are invoked, and there is no OS interoperability or rich-style claim. Ordinary native clipboard data and the tray clipboard can therefore differ.
+Browser scope is a dedicated document-local, session-scoped plaintext clipboard. It survives box/tray changes, Clear and history, clears on New/Open/document replacement/disposal, and is absent from project snapshots. Whole-object menus, keyboard shortcuts outside the editor, Grab and Scissors retain their existing routes and clipboards. Native editor keyboard and copy/cut/paste defaults are untouched. No clipboard events are intercepted or synchronized, no `navigator.clipboard` APIs are invoked, and there is no OS interoperability or rich-style claim. Ordinary native clipboard data and the tray clipboard can therefore differ.
 
 Capabilities are browser policy: Cut/Copy require a nonempty current editable range; Paste requires an editable current range/caret plus nonempty internal `text/plain` payload. No editor or stale target is a no-op; Paste never creates a box. Collapsed Cut/Copy leave payload and history untouched. Read's collapsed-to-whole-box fallback is never used. Application labels are Cut Text, Copy Text and Paste Text with ordinary success feedback.
 
@@ -134,3 +134,28 @@ No native or hardware acceptance is claimed: native remains0/17, physical iPad/P
 Pinned WebKit focused coverage ran172 dev /134 built selected cases. Its two Chromium-integer action-oracle failures are resolved by the unchanged-threshold WebKit compositor (18/18 action cases dev; both full source-composition cases built pass). The built capture exception is resolved by the guarded shared manager. Final clipboard coverage is88/88 dev and80/80 built in each engine, including source pixels, generation scoping and capture denial. Combined final Chromium logs are99/99 and91/91, and WebKit built91/91. WebKit dev's final combined run is98/99: its secondary-audio pointer proposal was safely canceled when capture was denied. The audio-gate fixture now uses the same source control's Space activation to isolate actual playing-audio ownership from platform capture refusal; pointer cancellation is independently asserted. The complete11-case audio suite is rerun in each engine/dev/build after this fixture correction. No audio source/promise/terminal contract was changed. WebKit skips Chromium protocol freeze/resume, actual CDP pen delivery and unconfirmed BFCache; none represents hardware acceptance.
 
 Final audio reruns: **11/11 in Chromium dev, Chromium built, WebKit27.2 dev and WebKit27.2 built**. See `audio-{chromium,webkit}-{dev,built}-final.log`. Each asserts real-app pending, playing, pause/abort/emptied/rejection, cancellation and stale-owner behavior; no already-ended audio is resurrected and no source interval is stretched. Together with253 Node, the private production build and Worker dry run these satisfy the isolated check components without writing the root build/cache. All optional media failure/retry and source-pixel tolerances remain exact as described above.
+
+## 0.17 parent Clear integration correction
+
+The actual Clear commit still called ordinary `scene.restore([])`, advancing the
+document epoch and discarding text copied before the wipe. The existing wipe
+history regression only covered text copied afterward. An actual-app regression
+confirmed successful Copy before Clear, then failed because Paste was disabled
+after the wipe. Clear now restores with `history:true`, preserving the clipboard
+as an edit of the same picture. New and Open still use document replacement.
+
+The new case verifies Copy → Clear → Paste → Undo/Redo, then verifies New resets
+the payload. It uses semantic clipboard clicks to isolate the lifecycle from the
+separately tested pointer-capture paths. Its initial post-fix run reached every
+clipboard assertion but timed out because the test forgot that New selects the
+Drawing tray; explicitly returning to Text corrected that fixture omission.
+The original disabled-Paste failure and the fixture failure remain retained.
+
+Commands: the clipboard dev config with Chromium and grep
+`Clear retains previously|wipe Undo/Redo|session|document|history` passes23 cases.
+`node artifacts/t3/release-0170/run-clear-gates.mjs` passes the three Clear/history/
+New/Open cases in pinned WebKit dev, pinned WebKit built and Chromium built.
+`npm run check` passes253 Node cases, asset verification, production build and
+Worker dry run after this correction. Evidence is under `release-0170/` and
+`/tmp/kidpix-0170-clear-*.log`. Independent review and full release suites remain
+pending;0.16 is still public. No new media, native or physical-device claim.

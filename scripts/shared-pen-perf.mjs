@@ -9,8 +9,13 @@ import { cpus } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { snapshotPNG, samePixels } from './shared-pen-pixels.mjs';
+import { idleOwnerTransform, assertOwnerWindow } from './shared-pen-idle-control.mjs';
 import { studioControlPlugin, stageState } from './shared-pen-studio-control.mjs';
 const controlMode = process.env.CONTROL_MODE || 'full';
+if(process.env.MOTION_REVISION && process.env.IDLE_OWNERS && process.env.IDLE_OWNERS!=='off')throw Error('Do not combine source revision and idle suppression');
+const idleOwners = process.env.IDLE_OWNERS || 'off';
+if(!['off','default','parked'].includes(idleOwners))throw Error('Invalid IDLE_OWNERS');
+if(idleOwners!=='off' && (controlMode!=='full'||process.env.UI_SCENARIO!=='quiescent'))throw Error('Idle owners requires full/quiescent');
 const presentation = process.env.PRESENTATION || 'default';
 if(controlMode==='minimal' && (process.env.SCENE && process.env.SCENE!=='blank' || process.env.UI_SCENARIO!=='quiescent'))throw Error('Minimal control requires blank/quiescent; it has no source UI actors');
 const uiScenario = process.env.UI_SCENARIO || 'legacy-undo';
@@ -29,6 +34,7 @@ const motionSources = new Map(motionRevision ? ['native-tool-motion.js', 'native
 const server = await createServer({ configLoader: 'runner', cacheDir: `${output}/cache`,
  plugins: [studioControlPlugin(controlMode,presentation), { name: 'fixed-stroke-seed', enforce: 'pre', transform(code, id) {
   for (const [name, source] of motionSources) if (id.endsWith(`/src/${name}`)) return source;
+  if(idleOwners!=='off' && id.endsWith('/src/native-tool-motion.js'))code=idleOwnerTransform(code);
   if (id.endsWith('/src/main.js') && uiScenario !== 'legacy-undo') {
    const seam = 'const clip = clips[index];';
    if (!code.includes(seam)) throw Error('Undo source seam changed');
@@ -52,7 +58,7 @@ const server = await createServer({ configLoader: 'runner', cacheDir: `${output}
    return code.replace(callbackSeam,`const sharedTraceStart=performance.now();refreshState();const sharedRefreshEnd=performance.now();owner.controller.step(time);
     if(window.sharedPerf?.enabled)window.sharedUITrace.push({time:sharedTraceStart,actor:'motion-callback',tray:current.tray,refreshCurrent:Boolean(refreshCurrent),refreshMs:sharedRefreshEnd-sharedTraceStart,stepMs:performance.now()-sharedRefreshEnd});`);
   }
-  if (!id.endsWith('/src/paint.js')) return;
+  if (!id.endsWith('/src/paint.js')) return code;
   const seam = 'makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))';
   if (!code.includes(seam)) throw Error('Seed seam changed');
   code=code.replace(seam, 'makeRandom(53)');
@@ -64,8 +70,8 @@ const server = await createServer({ configLoader: 'runner', cacheDir: `${output}
   return code;
  } }], server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: { ignored: ['**/*'] } } });
 let browser, page;
-const results = { helperHashes:Object.fromEntries(await Promise.all(['shared-pen-studio-control.mjs','shared-pen-pixels.mjs'].map(async name=>[name,createHash('sha256').update(await readFile(new URL(name,import.meta.url))).digest('hex')]))), harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
- motionSourceHashes: Object.fromEntries([...motionSources].map(([name,source]) => [name,createHash('sha256').update(source).digest('hex')])), motionRevision: motionRevision || null, engine, controlMode, presentation, sourceActors:controlMode==='minimal'?'absent; actual paint history only':'production studio', instrument, uiScenario, undoScript:uiScenario==='legacy-undo'?null:undoScript, uiTrace, legacySyncCatchup:process.env.LEGACY_SYNC_CATCHUP==='1', profiled:!!process.env.PROFILE, traced:!!process.env.TRACE, scene:process.env.SCENE||'blank', displayAlpha:process.env.DISPLAY_ALPHA!=='0', displayReadFrequently:process.env.DISPLAY_READ_FREQUENTLY!=='0', cpu: Number(process.env.CPU || 1), seed: 53, samples: 240,
+const results = { helperHashes:Object.fromEntries(await Promise.all(['shared-pen-studio-control.mjs','shared-pen-pixels.mjs','shared-pen-idle-control.mjs'].map(async name=>[name,createHash('sha256').update(await readFile(new URL(name,import.meta.url))).digest('hex')]))), harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+ motionSourceHashes: Object.fromEntries([...motionSources].map(([name,source]) => [name,createHash('sha256').update(source).digest('hex')])), motionRevision: motionRevision || null, engine, controlMode, presentation, idleOwners, sourceActors:controlMode==='minimal'?'absent; actual paint history only':'production studio', instrument, uiScenario, undoScript:uiScenario==='legacy-undo'?null:undoScript, uiTrace, legacySyncCatchup:process.env.LEGACY_SYNC_CATCHUP==='1', profiled:!!process.env.PROFILE, traced:!!process.env.TRACE, scene:process.env.SCENE||'blank', displayAlpha:process.env.DISPLAY_ALPHA!=='0', displayReadFrequently:process.env.DISPLAY_READ_FREQUENTLY!=='0', cpu: Number(process.env.CPU || 1), seed: 53, samples: 240,
  limitations: 'Desktop headless engine; RAF callback and intended-deadline proxies, no compositor visibility or physical iPad latency.', baselines: [], rows: [] };
 const stats = values => { const a = values.filter(Number.isFinite).sort((a,b)=>a-b); return { n:a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],worst:a.at(-1) }; };
 try {
@@ -162,10 +168,14 @@ try {
   }
   const stage=await page.evaluate(stageState);
   if(stage.chain.find(n=>n.id==='surface').presentation.contain!==(presentation==='surface-paint'?'paint':'none'))throw Error('Presentation treatment did not apply');
+  const promotionTarget=presentation==='paper-promote'?'paper-canvas':presentation==='surface-promote'?'surface':null;
+  if(promotionTarget && stage.chain.find(n=>n.id===promotionTarget).presentation.willChange!=='transform')throw Error('Promotion hint did not compute');
+  if(presentation==='studio-no-gradient' && stage.chain.find(n=>n.id==='studio').presentation.backgroundImage!=='none')throw Error('Gradient removal did not compute');
   const uiBefore=await page.evaluate(()=>window.sharedUIState());
   if(uiScenario==='quiescent' && (uiBefore.undo.some(a=>!a.hidden)||uiBefore.motion.some(c=>JSON.parse(c.motionSnapshot).some(a=>!a.finished))))throw Error('UI-idle precondition changed before replay');
   if(process.env.TRACE&&cdp)await cdp.send('Tracing.start',{categories:'devtools.timeline,v8.execute',transferMode:'ReturnAsStream'});
   if(process.env.PROFILE&&cdp){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');}
+  const ownerBefore=idleOwners==='off'?null:await page.evaluate(parked=>{const owners=window.sharedIdleOwners?.filter(o=>o.state().active);if(owners?.length!==3)throw Error('Expected three owners: '+JSON.stringify(window.sharedIdleOwners?.map(o=>o.state())));return owners.map(o=>parked?o.park():o.state());},idleOwners==='parked');
   await page.evaluate(()=>window.startSharedPerf());
   const wallStart=performance.now();
   if(driver==='inpage')await page.evaluate(async({points,hz,batch,legacy})=>{
@@ -191,7 +201,9 @@ try {
    await send('pointerup',[points.at(-1)]);
   }
   const elapsed=performance.now()-wallStart;
-  const m=await page.evaluate(async()=>{window.sharedPerf.enabled=false;window.sharedPerf.ended=performance.now();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return window.sharedPerf;});
+  const m=await page.evaluate(async()=>{window.sharedPerf.enabled=false;window.sharedPerf.ended=performance.now();window.sharedPerf.ownerEnd=window.sharedIdleOwners?.filter(o=>o.state().active).map(o=>o.state());window.sharedIdleOwners?.forEach(o=>{if(o.state().parked)o.resume();});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return window.sharedPerf;});
+  const ownerResumed=idleOwners==='off'?null:await page.evaluate(()=>window.sharedIdleOwners.filter(o=>o.state().active).map(o=>o.state()));
+  if(ownerBefore)assertOwnerWindow(ownerBefore,m.ownerEnd,ownerResumed,idleOwners==='parked');
   const uiAfter=await page.evaluate(()=>window.sharedUIState());
   if(process.env.PROFILE&&cdp){const {profile}=await cdp.send('Profiler.stop');await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}.cpuprofile`,JSON.stringify(profile));}
   if(process.env.TRACE&&cdp){
@@ -200,9 +212,12 @@ try {
    await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}.trace.json`,trace);
   }
   const pixels=await page.locator('#paper-canvas').evaluate(async canvas=>{const afterRelease=canvas.toDataURL();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const ctx=canvas.getContext('2d');const rgba=ctx.getImageData(0,0,canvas.width,canvas.height).data;let nonOpaque=0;for(let i=3;i<rgba.length;i+=4)if(rgba[i]!==255)nonOpaque++;return{afterRelease,stable:afterRelease===canvas.toDataURL(),contextAttributes:ctx.getContextAttributes?.()||null,nonOpaque};});
+  const studioPNG=await page.screenshot();
+  const studioPixels=snapshotPNG('data:image/png;base64,'+studioPNG.toString('base64'));
+  await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}-studio.png`,studioPNG);
   const callbackGaps=m.callbackTimes.slice(1).map((t,i)=>t-m.callbackTimes[i]);
   const leadingGap=(m.callbackTimes[0]??m.ended)-m.started,trailingGap=m.ended-(m.callbackTimes.at(-1)??m.started);
-  const row={trial,tool,driver,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
+  const row={trial,tool,driver,studioPixels,ownerBefore,ownerEnd:m.ownerEnd,ownerResumed,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
    actualEvents:instrument?m.events.length:null,actualSamples:instrument?m.events.reduce((n,e)=>n+e.samples,0):null,trusted:instrument?m.events.filter(e=>e.trusted).length:null,
    callbackFrame:stats(callbackGaps),callbackCount:m.callbackTimes.length,callbackHz:m.callbackTimes.length*1000/(m.ended-m.started),leadingGap,trailingGap,maxObservedOrCensoredGap:Math.max(leadingGap,trailingGap,...callbackGaps),
    syntheticDeliveredEvents:m.delivery.length,syntheticDeliveredSamples:m.delivery.reduce((n,e)=>n+e.samples,0),

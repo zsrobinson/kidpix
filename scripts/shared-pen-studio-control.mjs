@@ -15,10 +15,11 @@ await window.selectMinimalTool('pencil');
 </script></body></html>`;
 
 export function studioControlPlugin(mode, presentation = 'default') {
- if (!['default','surface-paint'].includes(presentation))throw Error('Invalid PRESENTATION');
+ if (!['default','surface-paint','paper-promote','surface-promote','studio-no-gradient'].includes(presentation))throw Error('Invalid PRESENTATION');
  if (!controlModes.includes(mode)) throw Error('Invalid CONTROL_MODE');
  return { name:'shared-pen-studio-control', transformIndexHtml(html) {
-  return presentation==='default'?html:html.replace('</head>','<style>#surface{contain:paint}</style></head>');
+  const css={default:'','surface-paint':'#surface{contain:paint}','paper-promote':'#paper-canvas{will-change:transform}','surface-promote':'#surface{will-change:transform}','studio-no-gradient':'#app #studio{background-image:none}'}[presentation];
+  return css?html.replace('</head>',`<style>${css}</style></head>`):html;
  }, configureServer(server) {
   server.middlewares.use(async(req,res,next)=>{
    if(mode!=='minimal'||req.url.split('?')[0]!=='/')return next();

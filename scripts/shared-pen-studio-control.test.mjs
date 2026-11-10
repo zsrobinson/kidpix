@@ -31,3 +31,27 @@ test('control gates reject a source actor not completed or media still playing',
   const runs=pair();mutate(runs[0].rows[0].uiBefore);assert.throws(()=>compareStudioRuns(runs));
  }
 });
+
+test('promotion controls change only the selected presentation hint',()=>{
+ for(const [mode,selector] of [['paper-promote','#paper-canvas'],['surface-promote','#surface']]){
+  const original='<head></head><body>retained studio</body>';
+  const html=studioControlPlugin('full',mode).transformIndexHtml(original);
+  assert.equal(html,`<head><style>${selector}{will-change:transform}</style></head><body>retained studio</body>`);
+ }
+});
+
+test('presentation comparison rejects changed whole-studio pixels even if ink matches',()=>{
+ const runs=pair();runs[1].controlMode='full';runs[1].rows[0].uiBefore=structuredClone(runs[0].rows[0].uiBefore);for(const r of runs)r.rows[0].studioPixels={width:2732,height:2048,rgbaHash:'same'};
+ assert.equal(compareStudioRuns(runs).strokes,2);
+ runs[1].rows[0].studioPixels.rgbaHash='changed';assert.throws(()=>compareStudioRuns(runs),/Visible studio pixels differ/);
+});
+
+test('gradient removal remains an explicit attribution-only style',()=>{
+ const html=studioControlPlugin('full','studio-no-gradient').transformIndexHtml('<head></head><body>studio</body>');
+ assert.equal(html,'<head><style>#app #studio{background-image:none}</style></head><body>studio</body>');
+});
+
+test('minimal control retains exact ink comparison while its omitted studio is explicit',()=>{
+ const runs=pair();for(const [i,r] of runs.entries())r.rows[0].studioPixels={width:2732,height:2048,rgbaHash:String(i)};
+ assert.equal(compareStudioRuns(runs).strokes,2);
+});

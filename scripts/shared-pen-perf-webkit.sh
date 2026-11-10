@@ -26,6 +26,7 @@ docker run --pull never --rm --init --name "$container" --network host --cap-dro
  --env "MOTION_REVISION=${MOTION_REVISION:-}" --env "MAX_MOTION_RGBA_BYTES=${MAX_MOTION_RGBA_BYTES:-}" \
  --env "REVISION=$(git rev-parse HEAD)" --env "PORT=${PORT:-4251}" --env ENGINE=webkit \
  --env XDG_CACHE_HOME=/tmp/shared-pen --env "SCENE=${SCENE:-blank}" \
+ --env "IDLE_OWNERS=${IDLE_OWNERS:-off}" \
  --env "PRESENTATION=${PRESENTATION:-default}" \
  --env "CONTROL_MODE=${CONTROL_MODE:-full}" \
  --env "UI_SCENARIO=${UI_SCENARIO:-legacy-undo}" --env "UNDO_SCRIPT=${UNDO_SCRIPT:-1095}" --env "UI_TRACE=${UI_TRACE:-0}" \

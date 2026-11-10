@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { assertOwnerWindow } from './shared-pen-idle-control.mjs';
 import { samePixels } from './shared-pen-pixels.mjs';
 
 export function compareStudioRuns(runs) {
@@ -11,6 +12,7 @@ export function compareStudioRuns(runs) {
  for(const run of runs){
   for(const key of ['engine','browser','harnessSha256','instrument','uiTrace','seed','samples','scene','uiScenario','displayAlpha','displayReadFrequently','cpu','helperHashes'])assert.deepEqual(run[key],reference[key],key);
   assert.equal(run.uiScenario,'quiescent');assert.equal(run.instrument,false);assert.equal(run.uiTrace,false);
+  assert.equal(run.idleOwners==='off'||!run.idleOwners,reference.idleOwners==='off'||!reference.idleOwners,'Owner instrumentation mismatch');
   assert.deepEqual(run.errors,[]);assert.deepEqual(run.budgetFailures,[]);
   for(const row of run.rows){
    assert.deepEqual(row.box,first.box,'Input box drift');
@@ -28,6 +30,8 @@ export function compareStudioRuns(runs) {
    assert(state.motion.every(c=>JSON.parse(c.motionSnapshot).every(a=>a.finished)),'Unfinished motion');
    assert(state.media.filter(a=>a.src.includes('/ui/')).every(a=>a.paused||a.ended||a.error),'Active UI media');
    if(run.controlMode==='full'){assert(state.undo.length>0);assert(state.motion.length>0);}else{assert.equal(state.undo.length,0);assert.equal(state.motion.length,0);}
+   if(row.ownerBefore)assertOwnerWindow(row.ownerBefore,row.ownerEnd,row.ownerResumed,run.idleOwners==='parked');
+   if(first.studioPixels && reference.controlMode==='full' && run.controlMode==='full'){assert(row.studioPixels,'Missing whole studio pixels');assert(samePixels(row.studioPixels,first.studioPixels),'Visible studio pixels differ');}
    strokes++;
   }
  }

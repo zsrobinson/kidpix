@@ -93,3 +93,10 @@ docker run --rm --init --network host --cap-drop ALL --shm-size 512m \
 Only test outputs are writable inside the mounted project. Host networking in
 this command is the tested Linux setup. Stop the development server afterward.
 When updating Playwright, update and verify the matching image/digest too.
+
+During the Firehose page operation, pointer and keyboard picture mutation is
+blocked. Contacts begun during the wipe stay rejected through their final click,
+even if Escape or browser interruption cancels first. The existing gesture owner
+is settled before capture. DPR2 scaled Chromium coverage is recorded in the
+[Firehose audit](audits/firehose-integration.md); physical iPad acceptance remains
+outstanding.

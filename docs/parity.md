@@ -98,3 +98,9 @@ Pixelmatch uses threshold 0.1 and excludes classified anti-alias differences. Th
 Choose one discrepancy at a time: reproduce the recipe, inspect overlay/diff, change the implementation, rerun, then inspect and accept the intended web baseline change. Extend the scenarios with background occlusion, stamps, brush masks, gradients, paper, text and animation once matching native captures are available. Audio, motion timing, recording, native project interchange and movie export need behavioral or timed-media references beyond these still-image comparisons.
 
 Static reverse engineering has already recovered the original wait interval, frame order, registration offsets and sound-cue mapping for the 20 Undo Guy routines. The browser follows those records, including repeated waits and the immediate terminal wait. See [the binary evidence](reverse-engineering.md) for reproducible addresses and [the DMG inventory](resource-inventory.md) for further authored animation material. No native runtime recording has yet verified interruption behavior, event-loop jitter or audio latency. Several cursor-to-tool assignments are based on visual glyph identification, explicitly recorded in the generated cursor manifest; undecoded cursor encodings remain unsupported.
+
+The bounded Firehose button page wipe uses the recovered RBubbleCleaner paths
+and cue, with a frozen browser composite and one unified clear transaction.
+See [the integration audit](audits/firehose-integration.md) for source facts,
+browser cancellation/paper policies, focused verification and disabled actor.
+This does not change the native reference count (0/17).

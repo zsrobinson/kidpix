@@ -47,6 +47,12 @@ export function interactionOwner(document = globalThis.document) {
   for (const type of ['blur', 'pagehide']) window.addEventListener(type, interrupted);
   document.addEventListener('visibilitychange', () => { if (document.hidden) interrupted(); });
   const api = {
+    // Modal page operations reject a down through its eventual physical click,
+    // even when the operation ends before that contact lifts.
+    reject(event) {
+      rejected.set(event.pointerId, { down: true });
+      lastPhysicalClickRejected = true;
+    },
     claim(event, surface) {
       if (active || rejected.has(event.pointerId)) return false;
       active = { pointerId: event.pointerId, pointerType: event.pointerType, surface };

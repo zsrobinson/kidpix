@@ -43,6 +43,7 @@ export function createScene(root, surface, onChange) {
   let mode = 'paint';
   let playing = false;
   let animation;
+  let suspended = false;
   let drag = null;
   let path = null;
   let pathStarted = 0;
@@ -201,6 +202,19 @@ export function createScene(root, surface, onChange) {
   }
 
   return {
+    settle() {
+      root.ownerDocument.activeElement?.blur();
+      finishInactive();
+    },
+    suspend() {
+      suspended = true;
+      const videos = [...root.querySelectorAll('video')].filter(video => !video.paused);
+      videos.forEach(video => video.pause());
+      return () => {
+        suspended = false;
+        videos.filter(video => video.isConnected).forEach(video => video.play().catch(() => {}));
+      };
+    },
     addAsset(asset, point = { x: 360, y: 271 }) {
       const aspect = (asset.width || 120) / (asset.height || 120);
       const full = asset.group === 'frames';
@@ -361,9 +375,12 @@ export function createScene(root, surface, onChange) {
       cancelAnimationFrame(animation);
       render();
       if (!next) return;
-      const start = performance.now();
+      let start = performance.now();
+      let previous = start;
       function tick(now) {
-        for (const object of objects) {
+        if (suspended) start += now - previous;
+        previous = now;
+        if (!suspended) for (const object of objects) {
           const point = pathPosition(object, now - start);
           if (!point) continue;
           const node = root.querySelector(`[data-object="${object.id}"]`);
@@ -397,7 +414,8 @@ export function createScene(root, surface, onChange) {
     },
     draw(context, rightEye = null) {
       for (const node of root.children) {
-        const object = objects.find(item => item.id === node.dataset.object);
+        const saved = objects.find(item => item.id === node.dataset.object);
+        const object = { ...saved, x: parseFloat(node.style.left), y: parseFloat(node.style.top) };
         if (object.kind === 'text') {
           context.save();
           context.fillStyle = object.color;

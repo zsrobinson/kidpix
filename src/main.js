@@ -1,3 +1,4 @@
+import { createFirehoseOperation } from './firehose-operation.js';
 import { guardStepperInput } from './stepper-input.js';
 import { createStudioColorPicker } from './studio-color-picker.js';
 import { createTextRangeKeeper } from './text-range.js';
@@ -58,6 +59,8 @@ let selectedPaper = 12300;
 let nativePaperPicker;
 let studioColorPicker;
 let gradientDefinitions = [];
+let pictureGeneration = 0;
+let firehose;
 let backgroundRequest = 0;
 const undoStack = [];
 const redoStack = [];
@@ -797,6 +800,7 @@ async function enableMicrophone() {
     if (request !== micRequest) { stream.getTracks().forEach(track => track.stop()); return; }
     const context = new AudioContext();
     await context.resume();
+    if (request !== micRequest) { stream.getTracks().forEach(track => track.stop()); context.close(); return; }
     soundMeter = context.createAnalyser();
     soundMeter.fftSize = 256;
     context.createMediaStreamSource(stream).connect(soundMeter);
@@ -834,6 +838,8 @@ async function drawLayers(context, layers, right = false) {
 }
 
 async function applyAsset(item, point) {
+  if (firehose?.busy) return;
+  const generation = pictureGeneration;
   if (!item.src) {
     showStatus(`${item.name} has no browser-ready media in this import.`);
     return;
@@ -855,10 +861,10 @@ async function applyAsset(item, point) {
         await drawLayers(layerCanvas.getContext('2d'), item.layers);
         front = layerCanvas.toDataURL();
       }
-      if (request !== backgroundRequest) return;
+      if (request !== backgroundRequest || generation !== pictureGeneration) return;
       const before = state.backdrop;
       const result = await paint.setBackground(item.src, { foreground: front, clearArt: true });
-      if (result) {
+      if (result && generation === pictureGeneration) {
         state.backdrop = item;
         if (undoStack.at(-1)?.kind === 'paint') undoStack[undoStack.length - 1] = { kind: 'background', before, after: item };
       }
@@ -942,8 +948,9 @@ function importFile(kind) {
 }
 
 async function clearBackground() {
+  const generation = pictureGeneration;
   const before = state.backdrop;
-  if (await paint.setBackground(null, { clearArt: true })) {
+  if (await paint.setBackground(null, { clearArt: true }) && generation === pictureGeneration) {
     state.backdrop = null;
     if (undoStack.at(-1)?.kind === 'paint') undoStack[undoStack.length - 1] = { kind: 'background', before, after: null };
   }
@@ -983,22 +990,25 @@ function playPicture(next = !state.playing) {
   }
 }
 
-function clearPicture() {
+function clearPicture(playCue = true, clearPaint = () => paint.clear()) {
   backgroundRequest++;
-  playUiSound(1029);
+  if (playCue) playUiSound(1029);
   const before = scene.snapshot();
   const sound = state.sound;
   const narration = state.narration;
   const backdrop = state.backdrop;
   if (state.playing) playPicture(false);
   soundPreview?.pause();
+  const wasLoading = loadingProject;
   loadingProject = true;
-  const cleared = paint.clear();
-  scene.restore([]);
-  state.sound = null;
-  state.narration = null;
-  state.backdrop = null;
-  loadingProject = false;
+  let cleared;
+  try {
+    cleared = clearPaint();
+    scene.restore([]);
+    state.sound = null;
+    state.narration = null;
+    state.backdrop = null;
+  } finally { loadingProject = wasLoading; }
   if (cleared || before.length || sound || narration || backdrop) {
     remember({ kind: 'clear', paint: cleared, before, sound, narration, backdrop });
   }
@@ -1030,6 +1040,58 @@ function createComposite(result = document.createElement('canvas')) {
   return result;
 }
 
+// This operation owns the whole picture, independently of rollover and panel choices.
+firehose = createFirehoseOperation({ surface, canvas, original,
+  settle() {
+    cancelRecordedPathInput();
+    paint.cancel();
+    scene.settle();
+    objectPlacement = null;
+    stopMicrophone();
+    openPaper(false);
+    openPalette(false);
+    for (const modal of document.querySelectorAll('dialog[open]')) modal.close();
+  },
+  begin() {
+    pictureGeneration++;
+    backgroundRequest++;
+    loadingProject = false;
+    const before = scene.snapshot();
+    const tracks = { sound: state.sound, narration: state.narration, backdrop: state.backdrop };
+    const undo = undoStack.slice(), redo = redoStack.slice();
+    const checkpoint = paint.beginPageOperation();
+    const wasPlaying = state.playing;
+    const wasFaceRedo = undoFaceRedo;
+    const resumeScene = scene.suspend();
+    const players = [soundPreview, ...picturePlayers].filter(player => player && !player.paused);
+    players.forEach(player => player.pause());
+    window.speechSynthesis?.pause();
+    return {
+      commit() {
+        try { clearPicture(false, checkpoint.clear); }
+        catch (error) {
+          loadingProject = true;
+          try {
+            checkpoint.rollback(); scene.restore(before); Object.assign(state, tracks);
+            if (state.playing !== wasPlaying) playPicture(wasPlaying);
+            undoFaceRedo = wasFaceRedo;
+            undoStack.splice(0, undoStack.length, ...undo); redoStack.splice(0, redoStack.length, ...redo);
+          } finally { loadingProject = false; syncHistory(); }
+          throw error;
+        }
+      },
+      release(committed) {
+        checkpoint.release();
+        resumeScene();
+        if (!committed) players.forEach(player => player.play().catch(() => {}));
+        window.speechSynthesis?.resume();
+      },
+    };
+  },
+  composite: createComposite,
+  onError: () => showStatus('Could not erase the picture.'),
+});
+
 let colorSample;
 function samplePictureColor(point) {
   colorSample ??= document.createElement('canvas');
@@ -1053,13 +1115,15 @@ function project() {
 }
 
 async function restoreProject(data) {
+  if (firehose?.busy) return;
+  const generation = pictureGeneration;
   if (data?.version !== 1 || data?.format !== 'kidpix-web' || !Array.isArray(data.objects)) throw new Error('Choose a Kid Pix web picture.');
   data = rebaseProject(data);
   loadingProject = true;
   try {
     if (state.playing) playPicture(false);
     soundPreview?.pause();
-    await paint.restore(data.paint);
+    if (!await paint.restore(data.paint) || generation !== pictureGeneration) return;
     scene.restore(data.objects);
     state.sound = data.sound ?? null;
     state.narration = data.narration ?? null;
@@ -1211,16 +1275,18 @@ const commands = {
   ]),
   open: () => $('#picture-file').click(),
   ideas: async () => {
+    const generation = pictureGeneration;
     try {
       const response = await fetch(original('ideas/index.json'));
       if (!response.ok) throw new Error();
       const ideas = await response.json();
+      if (generation !== pictureGeneration || firehose.busy) return;
       showPicker('Idea Machine', ideas.map(idea => ({
         ...idea, image: original(`ideas/${idea.image}`), thumbnail: original(`ideas/${idea.thumbnail}`),
       })), async idea => {
         freshPicture();
         title.value = idea.name;
-        await paint.setBackground(idea.image);
+        if (!await paint.setBackground(idea.image) || generation !== pictureGeneration) return;
         if (idea.sound) new Audio(original(`ideas/${idea.sound}`)).play().catch(() => {});
       });
     } catch { showStatus('The Idea Machine library is unavailable.'); }
@@ -1357,6 +1423,7 @@ const commands = {
 };
 
 async function activate(action) {
+  if (firehose?.busy) return;
   const [id, value] = action.split(':');
   const group = state.tray;
   if (id === 'tray') { playUiSound(libKeys.has(value) && value !== 'stamp' ? 1000 : 1002); stopMicrophone(); selectTray(value); }
@@ -1436,7 +1503,8 @@ app.addEventListener('click', event => {
       $('#menu-trigger').setAttribute('aria-expanded', 'false');
       for (const item of app.querySelectorAll('#menu details')) item.open = false;
     }
-    activate(control.dataset.action);
+    if (control.dataset.action === 'clear' && control.closest('#hit-layer')) firehose.play();
+    else activate(control.dataset.action);
   } else if (!event.target.closest('#palette')) openPalette(false);
 });
 
@@ -1454,6 +1522,7 @@ $('#slide-grid').addEventListener('dblclick', event => {
 $('#slide-title').addEventListener('change', () => showSlides());
 
 app.addEventListener('change', async event => {
+  const generation = pictureGeneration;
   const target = event.target;
   if (target.id === 'category' || target.id === 'media-category') {
     if (target.id === 'media-category') state.media = target.value;
@@ -1480,6 +1549,7 @@ app.addEventListener('change', async event => {
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
+      if (generation !== pictureGeneration || firehose.busy) return;
       if (data.format === 'kidpix-web-slides' && data.version === 1 && Array.isArray(data.slides)) {
         const imported = rebaseProject(data);
         slides = imported.slides;
@@ -1500,6 +1570,7 @@ app.addEventListener('change', async event => {
     if (!file) return;
     try {
       const src = await readData(file);
+      if (generation !== pictureGeneration || firehose.busy) return;
       if (importKind === 'image') {
         await paint.loadImage(src);
         return;

@@ -85,7 +85,7 @@ export function createNativeBigEraser({ manifest, context, rect,
   const clearOverlay = () => context.clearRect(...rect);
   const stop = run => {
     if (run.frame != null) cancel(run.frame);
-    run.audio?.pause?.();
+    try { run.audio?.pause?.(); } catch { /* Cleanup still releases the page. */ }
   };
 
   function abort(reason = 'cancel') {

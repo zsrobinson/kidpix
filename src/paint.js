@@ -189,6 +189,7 @@ export function createPaint(canvas, hooks = {}) {
   const actionTargets = new WeakMap()
   let actionTargetSequence = 0
   let clipboard = null
+  let pageOperation = false
   let updateId = 0
   const movingPaint = createNativeMovingPaint({
     containsPoint: point => point.x >= 0 && point.y >= 0 && point.x < width && point.y < height,
@@ -1117,6 +1118,7 @@ export function createPaint(canvas, hooks = {}) {
 
 
   async function setLayer(name, asset, settings = {}) {
+    if (pageOperation) return false
     const request = ++updateId
     const image = await loadAsset(asset)
     const frontAsset = settings.foreground
@@ -1136,6 +1138,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   async function placeAsset(asset, placement = {}) {
+    if (pageOperation) return false
     const request = updateId
     const image = await loadAsset(asset)
     if (request !== updateId || !image) return false
@@ -1147,6 +1150,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   async function loadImage(asset) {
+    if (pageOperation) return false
     const request = ++updateId
     const image = await loadAsset(asset)
     if (request !== updateId || !image) return false
@@ -1172,6 +1176,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   async function restore(state) {
+    if (pageOperation) return false
     if (typeof state === 'string' && state.startsWith('{')) state = JSON.parse(state)
     if (!state || state.version !== 1) throw new Error('Unsupported picture file')
     const request = ++updateId
@@ -1261,6 +1266,26 @@ export function createPaint(canvas, hooks = {}) {
   render()
 
   return {
+    // Opaque synchronous checkpoint: no private canvases or async serialization.
+    beginPageOperation() {
+      if (pageOperation) throw new Error('Page operation already active')
+      cancel()
+      updateId++
+      const prior = snapshot(), undo = back.slice(), redo = forward.slice()
+      pageOperation = true
+      let ended = false
+      return {
+        clear() { if (!ended) return clear() },
+        rollback() {
+          if (ended) return
+          loadSnapshot(prior)
+          back.splice(0, back.length, ...undo)
+          forward.splice(0, forward.length, ...redo)
+          notify('restore')
+        },
+        release() { ended = true; pageOperation = false; updateId++ },
+      }
+    },
     canvas,
     setOptions,
     resetNativeSpray() { nextNativeShape = null },

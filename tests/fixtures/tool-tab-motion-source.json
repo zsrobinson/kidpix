@@ -1,0 +1,3397 @@
+{
+ "macEaselSha256": "6ed6b36a445cb61c5b26e0f9436bcdb55d2cc9c2539af3e4437134fcad6bfd6c",
+ "resourceHashes": {
+  "(b'MBTN', 75)": "056f19050f392680c2076d3349bc46debaec2cdaa484ac09ad00214f397c0137",
+  "(b'REGS', 1000)": "d6a4bfc5e03ac3e3bbc95e378c645ece7dac080f50d688bba9d28728e1301af4",
+  "(b'REGS', 1001)": "36682f93cf3930614e27efe90d5ac5fa5437e0524161f1b365b1a102da8dc7dd",
+  "(b'tBMH', 1000)": "b9eba5d104e37dd14384b256a4bd860999979fe67831e2f98d8a9f115c7a8e23"
+ },
+ "buttons": [
+  {
+   "row": 4,
+   "name": "mixer",
+   "rawWords": [
+    1021,
+    1022,
+    1022,
+    1022,
+    1,
+    0,
+    237,
+    1,
+    0,
+    0,
+    1023,
+    1,
+    0,
+    0,
+    1,
+    0
+   ],
+   "rowSha256": "96c2f5a94a8e85358652f9100af9ec38b14f62b54559ac962e0c16acbf35d194",
+   "initialBounds": {
+    "1021": [
+     75,
+     427,
+     131,
+     483
+    ],
+    "1022": [
+     75,
+     427,
+     131,
+     483
+    ],
+    "1023": [
+     75,
+     427,
+     131,
+     483
+    ]
+   },
+   "hitBoundsLTRB": [
+    75,
+    427,
+    131,
+    483
+   ],
+   "staticIndicesZeroBased": [
+    37,
+    36,
+    38,
+    35
+   ],
+   "selectedStaticVsTrackingTerminal": {
+    "staticImage": 36,
+    "trackingTerminalImage": 36,
+    "rgbaEqual": true
+   }
+  },
+  {
+   "row": 5,
+   "name": "grab",
+   "rawWords": [
+    1030,
+    1031,
+    1031,
+    1031,
+    1,
+    0,
+    227,
+    1,
+    0,
+    0,
+    1032,
+    1,
+    0,
+    0,
+    1,
+    0
+   ],
+   "rowSha256": "673184c3c62359f903cc2a8dc7fac8bd2a4d63b757f54f248ca2d31e8e1f630f",
+   "initialBounds": {
+    "1030": [
+     20,
+     551,
+     76,
+     607
+    ],
+    "1031": [
+     20,
+     551,
+     76,
+     607
+    ],
+    "1032": [
+     20,
+     551,
+     76,
+     607
+    ]
+   },
+   "hitBoundsLTRB": [
+    20,
+    551,
+    76,
+    607
+   ],
+   "staticIndicesZeroBased": [
+    52,
+    51,
+    53,
+    50
+   ],
+   "selectedStaticVsTrackingTerminal": {
+    "staticImage": 51,
+    "trackingTerminalImage": 51,
+    "rgbaEqual": true
+   }
+  },
+  {
+   "row": 6,
+   "name": "eraser",
+   "rawWords": [
+    1033,
+    1034,
+    1034,
+    1034,
+    1,
+    0,
+    228,
+    1,
+    0,
+    0,
+    1035,
+    1,
+    0,
+    0,
+    1,
+    0
+   ],
+   "rowSha256": "a489fb2176b4bb2e5913db398c017fd1c7ed419970d6de5753607089ce3d7e42",
+   "initialBounds": {
+    "1033": [
+     76,
+     551,
+     132,
+     607
+    ],
+    "1034": [
+     76,
+     551,
+     132,
+     607
+    ],
+    "1035": [
+     76,
+     551,
+     132,
+     607
+    ]
+   },
+   "hitBoundsLTRB": [
+    76,
+    551,
+    132,
+    607
+   ],
+   "staticIndicesZeroBased": [
+    57,
+    56,
+    58,
+    55
+   ],
+   "selectedStaticVsTrackingTerminal": {
+    "staticImage": 56,
+    "trackingTerminalImage": 56,
+    "rgbaEqual": true
+   }
+  },
+  {
+   "row": 7,
+   "name": "text",
+   "rawWords": [
+    1027,
+    1028,
+    1028,
+    1028,
+    1,
+    0,
+    229,
+    1,
+    0,
+    0,
+    1029,
+    1,
+    0,
+    0,
+    1,
+    0
+   ],
+   "rowSha256": "66dd52ec2bcbebc501962aa7214ad4e1bcf4a904627e1fc857c1c4f8d8e3072a",
+   "initialBounds": {
+    "1027": [
+     76,
+     489,
+     132,
+     545
+    ],
+    "1028": [
+     76,
+     489,
+     132,
+     545
+    ],
+    "1029": [
+     76,
+     489,
+     132,
+     545
+    ]
+   },
+   "hitBoundsLTRB": [
+    76,
+    489,
+    132,
+    545
+   ],
+   "staticIndicesZeroBased": [
+    47,
+    46,
+    48,
+    45
+   ],
+   "selectedStaticVsTrackingTerminal": {
+    "staticImage": 46,
+    "trackingTerminalImage": 46,
+    "rgbaEqual": true
+   }
+  },
+  {
+   "row": 8,
+   "name": "stamp",
+   "rawWords": [
+    1024,
+    1025,
+    1025,
+    1025,
+    1,
+    0,
+    236,
+    1,
+    0,
+    0,
+    1026,
+    1,
+    0,
+    0,
+    1,
+    0
+   ],
+   "rowSha256": "4e402a6fa85fee9af4c57c89595b0c1baa7e106a76a48bdc9de0f7a617aa3487",
+   "initialBounds": {
+    "1024": [
+     20,
+     489,
+     76,
+     545
+    ],
+    "1025": [
+     20,
+     489,
+     76,
+     545
+    ],
+    "1026": [
+     20,
+     489,
+     76,
+     545
+    ]
+   },
+   "hitBoundsLTRB": [
+    20,
+    489,
+    76,
+    545
+   ],
+   "staticIndicesZeroBased": [
+    42,
+    41,
+    43,
+    40
+   ],
+   "selectedStaticVsTrackingTerminal": {
+    "staticImage": 41,
+    "trackingTerminalImage": 41,
+    "rgbaEqual": true
+   }
+  },
+  {
+   "row": 9,
+   "name": "draw",
+   "rawWords": [
+    1012,
+    1013,
+    1013,
+    1013,
+    1,
+    0,
+    232,
+    1,
+    0,
+    0,
+    1014,
+    1,
+    0,
+    0,
+    1,
+    0
+   ],
+   "rowSha256": "f79e369403b982b91a10e7db08120e9c83c072a7bfc16e64f82328b3d33af5b3",
+   "initialBounds": {
+    "1012": [
+     20,
+     365,
+     76,
+     421
+    ],
+    "1013": [
+     20,
+     365,
+     76,
+     421
+    ],
+    "1014": [
+     20,
+     365,
+     76,
+     421
+    ]
+   },
+   "hitBoundsLTRB": [
+    20,
+    365,
+    76,
+    421
+   ],
+   "staticIndicesZeroBased": [
+    22,
+    21,
+    23,
+    20
+   ],
+   "selectedStaticVsTrackingTerminal": {
+    "staticImage": 21,
+    "trackingTerminalImage": 21,
+    "rgbaEqual": true
+   }
+  },
+  {
+   "row": 10,
+   "name": "paint",
+   "rawWords": [
+    1015,
+    1016,
+    1016,
+    1016,
+    1,
+    0,
+    233,
+    1,
+    0,
+    0,
+    1017,
+    1,
+    0,
+    0,
+    1,
+    0
+   ],
+   "rowSha256": "7558d697d92135d08f23be909aa4d9c0ebb7ce20375c8402bce1a1271784df1e",
+   "initialBounds": {
+    "1015": [
+     76,
+     365,
+     132,
+     421
+    ],
+    "1016": [
+     76,
+     365,
+     132,
+     421
+    ],
+    "1017": [
+     76,
+     365,
+     132,
+     421
+    ]
+   },
+   "hitBoundsLTRB": [
+    76,
+    365,
+    132,
+    421
+   ],
+   "staticIndicesZeroBased": [
+    27,
+    26,
+    28,
+    25
+   ],
+   "selectedStaticVsTrackingTerminal": {
+    "staticImage": 26,
+    "trackingTerminalImage": 26,
+    "rgbaEqual": true
+   }
+  },
+  {
+   "row": 11,
+   "name": "fill",
+   "rawWords": [
+    1018,
+    1019,
+    1019,
+    1019,
+    1,
+    0,
+    234,
+    1,
+    0,
+    0,
+    1020,
+    1,
+    0,
+    0,
+    1,
+    0
+   ],
+   "rowSha256": "a94674d708d42c17206660f475f52def305f0ef684c3d5d597f0ba1ccce325ad",
+   "initialBounds": {
+    "1018": [
+     19,
+     427,
+     75,
+     483
+    ],
+    "1019": [
+     19,
+     427,
+     75,
+     483
+    ],
+    "1020": [
+     19,
+     427,
+     75,
+     483
+    ]
+   },
+   "hitBoundsLTRB": [
+    19,
+    427,
+    75,
+    483
+   ],
+   "staticIndicesZeroBased": [
+    32,
+    31,
+    33,
+    30
+   ],
+   "selectedStaticVsTrackingTerminal": {
+    "staticImage": 31,
+    "trackingTerminalImage": 31,
+    "rgbaEqual": true
+   }
+  }
+ ],
+ "mediaKeys": [
+  "ui/button-animations.json",
+  "ui/button-animations/1012-0.png",
+  "ui/button-animations/1012-1.png",
+  "ui/button-animations/1012-2.png",
+  "ui/button-animations/1013-0.png",
+  "ui/button-animations/1013-1.png",
+  "ui/button-animations/1013-2.png",
+  "ui/button-animations/1014-0.png",
+  "ui/button-animations/1014-1.png",
+  "ui/button-animations/1014-2.png",
+  "ui/button-animations/1014-3.png",
+  "ui/button-animations/1015-0.png",
+  "ui/button-animations/1015-1.png",
+  "ui/button-animations/1015-2.png",
+  "ui/button-animations/1016-0.png",
+  "ui/button-animations/1016-1.png",
+  "ui/button-animations/1016-2.png",
+  "ui/button-animations/1017-0.png",
+  "ui/button-animations/1017-1.png",
+  "ui/button-animations/1017-2.png",
+  "ui/button-animations/1017-3.png",
+  "ui/button-animations/1018-0.png",
+  "ui/button-animations/1018-1.png",
+  "ui/button-animations/1018-2.png",
+  "ui/button-animations/1019-0.png",
+  "ui/button-animations/1019-1.png",
+  "ui/button-animations/1019-2.png",
+  "ui/button-animations/1020-0.png",
+  "ui/button-animations/1020-1.png",
+  "ui/button-animations/1020-2.png",
+  "ui/button-animations/1020-3.png",
+  "ui/button-animations/1021-0.png",
+  "ui/button-animations/1021-1.png",
+  "ui/button-animations/1021-2.png",
+  "ui/button-animations/1022-0.png",
+  "ui/button-animations/1022-1.png",
+  "ui/button-animations/1022-2.png",
+  "ui/button-animations/1023-0.png",
+  "ui/button-animations/1023-1.png",
+  "ui/button-animations/1023-2.png",
+  "ui/button-animations/1023-3.png",
+  "ui/button-animations/1024-0.png",
+  "ui/button-animations/1024-1.png",
+  "ui/button-animations/1024-2.png",
+  "ui/button-animations/1025-0.png",
+  "ui/button-animations/1025-1.png",
+  "ui/button-animations/1025-2.png",
+  "ui/button-animations/1026-0.png",
+  "ui/button-animations/1026-1.png",
+  "ui/button-animations/1026-2.png",
+  "ui/button-animations/1026-3.png",
+  "ui/button-animations/1027-0.png",
+  "ui/button-animations/1027-1.png",
+  "ui/button-animations/1027-2.png",
+  "ui/button-animations/1028-0.png",
+  "ui/button-animations/1028-1.png",
+  "ui/button-animations/1028-2.png",
+  "ui/button-animations/1029-0.png",
+  "ui/button-animations/1029-1.png",
+  "ui/button-animations/1029-2.png",
+  "ui/button-animations/1029-3.png",
+  "ui/button-animations/1030-0.png",
+  "ui/button-animations/1030-1.png",
+  "ui/button-animations/1030-2.png",
+  "ui/button-animations/1031-0.png",
+  "ui/button-animations/1031-1.png",
+  "ui/button-animations/1031-2.png",
+  "ui/button-animations/1032-0.png",
+  "ui/button-animations/1032-1.png",
+  "ui/button-animations/1032-2.png",
+  "ui/button-animations/1032-3.png",
+  "ui/button-animations/1033-0.png",
+  "ui/button-animations/1033-1.png",
+  "ui/button-animations/1033-2.png",
+  "ui/button-animations/1034-0.png",
+  "ui/button-animations/1034-1.png",
+  "ui/button-animations/1034-2.png",
+  "ui/button-animations/1035-0.png",
+  "ui/button-animations/1035-1.png",
+  "ui/button-animations/1035-2.png",
+  "ui/button-animations/1035-3.png",
+  "ui/draw-0.png",
+  "ui/draw-1.png",
+  "ui/draw-2.png",
+  "ui/draw-3.png",
+  "ui/easel-1001.wav",
+  "ui/easel-1002.wav",
+  "ui/eraser-0.png",
+  "ui/eraser-1.png",
+  "ui/eraser-2.png",
+  "ui/eraser-3.png",
+  "ui/fill-0.png",
+  "ui/fill-1.png",
+  "ui/fill-2.png",
+  "ui/fill-3.png",
+  "ui/grab-0.png",
+  "ui/grab-1.png",
+  "ui/grab-2.png",
+  "ui/grab-3.png",
+  "ui/mixer-0.png",
+  "ui/mixer-1.png",
+  "ui/mixer-2.png",
+  "ui/mixer-3.png",
+  "ui/paint-0.png",
+  "ui/paint-1.png",
+  "ui/paint-2.png",
+  "ui/paint-3.png",
+  "ui/stamp-0.png",
+  "ui/stamp-1.png",
+  "ui/stamp-2.png",
+  "ui/stamp-3.png",
+  "ui/text-0.png",
+  "ui/text-1.png",
+  "ui/text-2.png",
+  "ui/text-3.png",
+  "ui/ui.json"
+ ],
+ "mediaFiles": {
+  "ui/button-animations.json": {
+   "size": 133073,
+   "sha256": "71d55e80c6580ee87807d343749ced3699d1a372c342a8f39c1b3b6415400a92"
+  },
+  "ui/button-animations/1012-0.png": {
+   "size": 6865,
+   "sha256": "05e21ed8a1777705b8ce9f0a93b2f66a9efda0416eb317b8ed4d3ae6434eb3d9"
+  },
+  "ui/button-animations/1012-1.png": {
+   "size": 6823,
+   "sha256": "5d5c2a922763cffdeebc997a792f68773d644f1ddbefaad80b9ca0267f209bb8"
+  },
+  "ui/button-animations/1012-2.png": {
+   "size": 6979,
+   "sha256": "6fc7488f3f1dd04a948521dbb952fbf398023b0311c959f022673d41e150f71b"
+  },
+  "ui/button-animations/1013-0.png": {
+   "size": 6823,
+   "sha256": "5d5c2a922763cffdeebc997a792f68773d644f1ddbefaad80b9ca0267f209bb8"
+  },
+  "ui/button-animations/1013-1.png": {
+   "size": 6865,
+   "sha256": "05e21ed8a1777705b8ce9f0a93b2f66a9efda0416eb317b8ed4d3ae6434eb3d9"
+  },
+  "ui/button-animations/1013-2.png": {
+   "size": 6865,
+   "sha256": "05e21ed8a1777705b8ce9f0a93b2f66a9efda0416eb317b8ed4d3ae6434eb3d9"
+  },
+  "ui/button-animations/1014-0.png": {
+   "size": 6947,
+   "sha256": "a0fe90f5ab46970717efd7dbdeada320ad32df7ddd083323caaf7c81557c6b57"
+  },
+  "ui/button-animations/1014-1.png": {
+   "size": 6979,
+   "sha256": "6fc7488f3f1dd04a948521dbb952fbf398023b0311c959f022673d41e150f71b"
+  },
+  "ui/button-animations/1014-2.png": {
+   "size": 7089,
+   "sha256": "9894b4904c878906944e4a9fd956de31a9edec14a795498d63ec181591046790"
+  },
+  "ui/button-animations/1014-3.png": {
+   "size": 6979,
+   "sha256": "6fc7488f3f1dd04a948521dbb952fbf398023b0311c959f022673d41e150f71b"
+  },
+  "ui/button-animations/1015-0.png": {
+   "size": 7433,
+   "sha256": "b634afd93690fd310efedf48adebeb593c00557ff99fed6d579f01b433391262"
+  },
+  "ui/button-animations/1015-1.png": {
+   "size": 7412,
+   "sha256": "eb7c72d9ccd784c0da10fc18eb84c8f0efde4d9f8429ffb65d47f43adcb0e119"
+  },
+  "ui/button-animations/1015-2.png": {
+   "size": 7517,
+   "sha256": "325f49f3bea14055712f0a03f298643da3d9d0ff3e2ad0453cacce0ee3586cbf"
+  },
+  "ui/button-animations/1016-0.png": {
+   "size": 7412,
+   "sha256": "eb7c72d9ccd784c0da10fc18eb84c8f0efde4d9f8429ffb65d47f43adcb0e119"
+  },
+  "ui/button-animations/1016-1.png": {
+   "size": 7433,
+   "sha256": "b634afd93690fd310efedf48adebeb593c00557ff99fed6d579f01b433391262"
+  },
+  "ui/button-animations/1016-2.png": {
+   "size": 7433,
+   "sha256": "b634afd93690fd310efedf48adebeb593c00557ff99fed6d579f01b433391262"
+  },
+  "ui/button-animations/1017-0.png": {
+   "size": 7422,
+   "sha256": "153662f55ebc492ef739c2fc9a6e7fd3e90e617f7b3edcf4892e588fb93f2bb5"
+  },
+  "ui/button-animations/1017-1.png": {
+   "size": 7517,
+   "sha256": "325f49f3bea14055712f0a03f298643da3d9d0ff3e2ad0453cacce0ee3586cbf"
+  },
+  "ui/button-animations/1017-2.png": {
+   "size": 7679,
+   "sha256": "9b20da535c0a97fc2695c3252f2df5bbabe9e391c9d49466315906190514e72c"
+  },
+  "ui/button-animations/1017-3.png": {
+   "size": 7517,
+   "sha256": "325f49f3bea14055712f0a03f298643da3d9d0ff3e2ad0453cacce0ee3586cbf"
+  },
+  "ui/button-animations/1018-0.png": {
+   "size": 7307,
+   "sha256": "b99194bc33061a0b6fe15a4d35b7c559116308c9407c115837093afc667a3c01"
+  },
+  "ui/button-animations/1018-1.png": {
+   "size": 7276,
+   "sha256": "ac45999dbb1743fb65a8c3b587f7ad7122c06daeba84209afb4755b07a1bc243"
+  },
+  "ui/button-animations/1018-2.png": {
+   "size": 7541,
+   "sha256": "c2aa673d546cefc7ef92f2e38656391b4f2ec783b1dc5e3fd01602144df2bc0b"
+  },
+  "ui/button-animations/1019-0.png": {
+   "size": 7276,
+   "sha256": "ac45999dbb1743fb65a8c3b587f7ad7122c06daeba84209afb4755b07a1bc243"
+  },
+  "ui/button-animations/1019-1.png": {
+   "size": 7307,
+   "sha256": "b99194bc33061a0b6fe15a4d35b7c559116308c9407c115837093afc667a3c01"
+  },
+  "ui/button-animations/1019-2.png": {
+   "size": 7307,
+   "sha256": "b99194bc33061a0b6fe15a4d35b7c559116308c9407c115837093afc667a3c01"
+  },
+  "ui/button-animations/1020-0.png": {
+   "size": 7396,
+   "sha256": "d79d5041686e6bbeba4f14227986d11b9ba63bb15f5998709b1c15ac5e322405"
+  },
+  "ui/button-animations/1020-1.png": {
+   "size": 7541,
+   "sha256": "c2aa673d546cefc7ef92f2e38656391b4f2ec783b1dc5e3fd01602144df2bc0b"
+  },
+  "ui/button-animations/1020-2.png": {
+   "size": 7664,
+   "sha256": "8b00139ddff52c7bcc949a90788c42661fd0412e852e875cd13df2471c3453a5"
+  },
+  "ui/button-animations/1020-3.png": {
+   "size": 7541,
+   "sha256": "c2aa673d546cefc7ef92f2e38656391b4f2ec783b1dc5e3fd01602144df2bc0b"
+  },
+  "ui/button-animations/1021-0.png": {
+   "size": 7664,
+   "sha256": "d7d2906d26b78d356a7e58e0c3132e2076804fd7cd05e92a5f2a9ca64cc583b4"
+  },
+  "ui/button-animations/1021-1.png": {
+   "size": 7654,
+   "sha256": "f0b8fba5de0813ef7c080d7e110551a6180e454d0add7381eb8055cf325b7dd5"
+  },
+  "ui/button-animations/1021-2.png": {
+   "size": 7640,
+   "sha256": "9b5a19ddeea9340e7a472e221e1b43087239c1b8b262333563a1be93e11641e3"
+  },
+  "ui/button-animations/1022-0.png": {
+   "size": 7654,
+   "sha256": "f0b8fba5de0813ef7c080d7e110551a6180e454d0add7381eb8055cf325b7dd5"
+  },
+  "ui/button-animations/1022-1.png": {
+   "size": 7664,
+   "sha256": "d7d2906d26b78d356a7e58e0c3132e2076804fd7cd05e92a5f2a9ca64cc583b4"
+  },
+  "ui/button-animations/1022-2.png": {
+   "size": 7664,
+   "sha256": "d7d2906d26b78d356a7e58e0c3132e2076804fd7cd05e92a5f2a9ca64cc583b4"
+  },
+  "ui/button-animations/1023-0.png": {
+   "size": 7513,
+   "sha256": "8b6380c1ed7dc181c3121571baa1175a65d9b9517fe4e77248f832a9652a229f"
+  },
+  "ui/button-animations/1023-1.png": {
+   "size": 7640,
+   "sha256": "9b5a19ddeea9340e7a472e221e1b43087239c1b8b262333563a1be93e11641e3"
+  },
+  "ui/button-animations/1023-2.png": {
+   "size": 7652,
+   "sha256": "024db26c5f3675e5eba5fbd21c7f688f5f220b2f1aaa547f51a8f6a6fc0c89e8"
+  },
+  "ui/button-animations/1023-3.png": {
+   "size": 7640,
+   "sha256": "9b5a19ddeea9340e7a472e221e1b43087239c1b8b262333563a1be93e11641e3"
+  },
+  "ui/button-animations/1024-0.png": {
+   "size": 7040,
+   "sha256": "b596e00bbe5aa8308290f8c6b78fa57edef87bac2934f0895be00767e1b6d5f4"
+  },
+  "ui/button-animations/1024-1.png": {
+   "size": 6956,
+   "sha256": "c3331f05abb4fd0b2b95f13b30bba90665011b43e7937f917d2dd6f60aad2b33"
+  },
+  "ui/button-animations/1024-2.png": {
+   "size": 7084,
+   "sha256": "9b225575857bc6b8bde0e4e7d98a57bc66d237a6746b86a2a3b890b34305be68"
+  },
+  "ui/button-animations/1025-0.png": {
+   "size": 6956,
+   "sha256": "c3331f05abb4fd0b2b95f13b30bba90665011b43e7937f917d2dd6f60aad2b33"
+  },
+  "ui/button-animations/1025-1.png": {
+   "size": 7040,
+   "sha256": "b596e00bbe5aa8308290f8c6b78fa57edef87bac2934f0895be00767e1b6d5f4"
+  },
+  "ui/button-animations/1025-2.png": {
+   "size": 7040,
+   "sha256": "b596e00bbe5aa8308290f8c6b78fa57edef87bac2934f0895be00767e1b6d5f4"
+  },
+  "ui/button-animations/1026-0.png": {
+   "size": 6999,
+   "sha256": "5e294f05b530eabd6618d43cf41dcc68ca2af256eb12389b912f56be4795b490"
+  },
+  "ui/button-animations/1026-1.png": {
+   "size": 7084,
+   "sha256": "9b225575857bc6b8bde0e4e7d98a57bc66d237a6746b86a2a3b890b34305be68"
+  },
+  "ui/button-animations/1026-2.png": {
+   "size": 7205,
+   "sha256": "b7936bdf89ba7abf322e6d4e5a313104fa6eb866c06fb0d8ee27b3856cfc683f"
+  },
+  "ui/button-animations/1026-3.png": {
+   "size": 7084,
+   "sha256": "9b225575857bc6b8bde0e4e7d98a57bc66d237a6746b86a2a3b890b34305be68"
+  },
+  "ui/button-animations/1027-0.png": {
+   "size": 7361,
+   "sha256": "6b1c8703736b1c599162cb6a9c9bd759dedc51bf63c3006dbec9cb0bfec91fb7"
+  },
+  "ui/button-animations/1027-1.png": {
+   "size": 7284,
+   "sha256": "f63ee20c2561f67979f14bd56ae4dafedf25c6c0e0b3b007ea8e61f4ce58334b"
+  },
+  "ui/button-animations/1027-2.png": {
+   "size": 7428,
+   "sha256": "6fded93178e2bc9fe838a4c4203c553467bc7298f1e4c94660d5fdc7ab621c9a"
+  },
+  "ui/button-animations/1028-0.png": {
+   "size": 7284,
+   "sha256": "f63ee20c2561f67979f14bd56ae4dafedf25c6c0e0b3b007ea8e61f4ce58334b"
+  },
+  "ui/button-animations/1028-1.png": {
+   "size": 7361,
+   "sha256": "6b1c8703736b1c599162cb6a9c9bd759dedc51bf63c3006dbec9cb0bfec91fb7"
+  },
+  "ui/button-animations/1028-2.png": {
+   "size": 7361,
+   "sha256": "6b1c8703736b1c599162cb6a9c9bd759dedc51bf63c3006dbec9cb0bfec91fb7"
+  },
+  "ui/button-animations/1029-0.png": {
+   "size": 7274,
+   "sha256": "9c416a3bcef42c279497058f27b63a1338182f1da21fd58c43217c9b4c3a5a5c"
+  },
+  "ui/button-animations/1029-1.png": {
+   "size": 7428,
+   "sha256": "6fded93178e2bc9fe838a4c4203c553467bc7298f1e4c94660d5fdc7ab621c9a"
+  },
+  "ui/button-animations/1029-2.png": {
+   "size": 7448,
+   "sha256": "59afb8e51c2163f12cbd323041f1b0c369df70fd3151818636f95665fb04fc8b"
+  },
+  "ui/button-animations/1029-3.png": {
+   "size": 7428,
+   "sha256": "6fded93178e2bc9fe838a4c4203c553467bc7298f1e4c94660d5fdc7ab621c9a"
+  },
+  "ui/button-animations/1030-0.png": {
+   "size": 7093,
+   "sha256": "4509c33fbc8d3497065d5ee9212abf76e56207eac458b3d4ce91006485389580"
+  },
+  "ui/button-animations/1030-1.png": {
+   "size": 6963,
+   "sha256": "f7789cfb2f759a12ce1378e3b39eac8a752f0c57b9a2c4125ed59d4ef5cd3b77"
+  },
+  "ui/button-animations/1030-2.png": {
+   "size": 7076,
+   "sha256": "be5e1808fe72b38d2c059797faed11f285dbc3ce496ab60c4e0b59b3ef71611d"
+  },
+  "ui/button-animations/1031-0.png": {
+   "size": 6963,
+   "sha256": "f7789cfb2f759a12ce1378e3b39eac8a752f0c57b9a2c4125ed59d4ef5cd3b77"
+  },
+  "ui/button-animations/1031-1.png": {
+   "size": 7093,
+   "sha256": "4509c33fbc8d3497065d5ee9212abf76e56207eac458b3d4ce91006485389580"
+  },
+  "ui/button-animations/1031-2.png": {
+   "size": 7093,
+   "sha256": "4509c33fbc8d3497065d5ee9212abf76e56207eac458b3d4ce91006485389580"
+  },
+  "ui/button-animations/1032-0.png": {
+   "size": 6923,
+   "sha256": "3610515ebe2fb3076c091f3776f4d63bd288437481e075b99ea5953040ab0f1b"
+  },
+  "ui/button-animations/1032-1.png": {
+   "size": 7076,
+   "sha256": "be5e1808fe72b38d2c059797faed11f285dbc3ce496ab60c4e0b59b3ef71611d"
+  },
+  "ui/button-animations/1032-2.png": {
+   "size": 7123,
+   "sha256": "19ab572515fcda0ac492fb828aa494cae07c190af7eb78aa47fdfa9508fd5ff2"
+  },
+  "ui/button-animations/1032-3.png": {
+   "size": 7076,
+   "sha256": "be5e1808fe72b38d2c059797faed11f285dbc3ce496ab60c4e0b59b3ef71611d"
+  },
+  "ui/button-animations/1033-0.png": {
+   "size": 7135,
+   "sha256": "626e30397716f64d25774043b6d823df84073a32545aa669f4c1d13a113cf159"
+  },
+  "ui/button-animations/1033-1.png": {
+   "size": 7157,
+   "sha256": "242d41530aa1988d4e2cd609bbb3ac9f978ae8e0c9c49a6321234e126c480503"
+  },
+  "ui/button-animations/1033-2.png": {
+   "size": 7345,
+   "sha256": "2cb0051a1e4be3d2410f93fba678a1a0de3035eafaca10e0752d3e7886386672"
+  },
+  "ui/button-animations/1034-0.png": {
+   "size": 7157,
+   "sha256": "242d41530aa1988d4e2cd609bbb3ac9f978ae8e0c9c49a6321234e126c480503"
+  },
+  "ui/button-animations/1034-1.png": {
+   "size": 7135,
+   "sha256": "626e30397716f64d25774043b6d823df84073a32545aa669f4c1d13a113cf159"
+  },
+  "ui/button-animations/1034-2.png": {
+   "size": 7135,
+   "sha256": "626e30397716f64d25774043b6d823df84073a32545aa669f4c1d13a113cf159"
+  },
+  "ui/button-animations/1035-0.png": {
+   "size": 7138,
+   "sha256": "d8f4dc62bf0a979714d6254468e5303cad894ae6e46875ec8f6a2d0b32ad8b17"
+  },
+  "ui/button-animations/1035-1.png": {
+   "size": 7345,
+   "sha256": "2cb0051a1e4be3d2410f93fba678a1a0de3035eafaca10e0752d3e7886386672"
+  },
+  "ui/button-animations/1035-2.png": {
+   "size": 7154,
+   "sha256": "a120090cbb4d1e4c2f1f3a75f74f4d312891010c6352a474e81cd9bbf17dca01"
+  },
+  "ui/button-animations/1035-3.png": {
+   "size": 7345,
+   "sha256": "2cb0051a1e4be3d2410f93fba678a1a0de3035eafaca10e0752d3e7886386672"
+  },
+  "ui/draw-0.png": {
+   "size": 6979,
+   "sha256": "6fc7488f3f1dd04a948521dbb952fbf398023b0311c959f022673d41e150f71b"
+  },
+  "ui/draw-1.png": {
+   "size": 6823,
+   "sha256": "5d5c2a922763cffdeebc997a792f68773d644f1ddbefaad80b9ca0267f209bb8"
+  },
+  "ui/draw-2.png": {
+   "size": 6947,
+   "sha256": "a0fe90f5ab46970717efd7dbdeada320ad32df7ddd083323caaf7c81557c6b57"
+  },
+  "ui/draw-3.png": {
+   "size": 6865,
+   "sha256": "05e21ed8a1777705b8ce9f0a93b2f66a9efda0416eb317b8ed4d3ae6434eb3d9"
+  },
+  "ui/easel-1001.wav": {
+   "size": 21996,
+   "sha256": "2c5d9c8f62dd1628f789f33c86c4a024b3432ecc4377acb99631416668df6407"
+  },
+  "ui/easel-1002.wav": {
+   "size": 16590,
+   "sha256": "b0f130017836ef1a4737b2d74e9227d4a235652396ede91bf79bffac9e47a3f2"
+  },
+  "ui/eraser-0.png": {
+   "size": 7345,
+   "sha256": "2cb0051a1e4be3d2410f93fba678a1a0de3035eafaca10e0752d3e7886386672"
+  },
+  "ui/eraser-1.png": {
+   "size": 7157,
+   "sha256": "242d41530aa1988d4e2cd609bbb3ac9f978ae8e0c9c49a6321234e126c480503"
+  },
+  "ui/eraser-2.png": {
+   "size": 7138,
+   "sha256": "d8f4dc62bf0a979714d6254468e5303cad894ae6e46875ec8f6a2d0b32ad8b17"
+  },
+  "ui/eraser-3.png": {
+   "size": 7135,
+   "sha256": "626e30397716f64d25774043b6d823df84073a32545aa669f4c1d13a113cf159"
+  },
+  "ui/fill-0.png": {
+   "size": 7541,
+   "sha256": "c2aa673d546cefc7ef92f2e38656391b4f2ec783b1dc5e3fd01602144df2bc0b"
+  },
+  "ui/fill-1.png": {
+   "size": 7276,
+   "sha256": "ac45999dbb1743fb65a8c3b587f7ad7122c06daeba84209afb4755b07a1bc243"
+  },
+  "ui/fill-2.png": {
+   "size": 7396,
+   "sha256": "d79d5041686e6bbeba4f14227986d11b9ba63bb15f5998709b1c15ac5e322405"
+  },
+  "ui/fill-3.png": {
+   "size": 7307,
+   "sha256": "b99194bc33061a0b6fe15a4d35b7c559116308c9407c115837093afc667a3c01"
+  },
+  "ui/grab-0.png": {
+   "size": 7076,
+   "sha256": "be5e1808fe72b38d2c059797faed11f285dbc3ce496ab60c4e0b59b3ef71611d"
+  },
+  "ui/grab-1.png": {
+   "size": 6963,
+   "sha256": "f7789cfb2f759a12ce1378e3b39eac8a752f0c57b9a2c4125ed59d4ef5cd3b77"
+  },
+  "ui/grab-2.png": {
+   "size": 6923,
+   "sha256": "3610515ebe2fb3076c091f3776f4d63bd288437481e075b99ea5953040ab0f1b"
+  },
+  "ui/grab-3.png": {
+   "size": 7093,
+   "sha256": "4509c33fbc8d3497065d5ee9212abf76e56207eac458b3d4ce91006485389580"
+  },
+  "ui/mixer-0.png": {
+   "size": 7640,
+   "sha256": "9b5a19ddeea9340e7a472e221e1b43087239c1b8b262333563a1be93e11641e3"
+  },
+  "ui/mixer-1.png": {
+   "size": 7654,
+   "sha256": "f0b8fba5de0813ef7c080d7e110551a6180e454d0add7381eb8055cf325b7dd5"
+  },
+  "ui/mixer-2.png": {
+   "size": 7513,
+   "sha256": "8b6380c1ed7dc181c3121571baa1175a65d9b9517fe4e77248f832a9652a229f"
+  },
+  "ui/mixer-3.png": {
+   "size": 7664,
+   "sha256": "d7d2906d26b78d356a7e58e0c3132e2076804fd7cd05e92a5f2a9ca64cc583b4"
+  },
+  "ui/paint-0.png": {
+   "size": 7517,
+   "sha256": "325f49f3bea14055712f0a03f298643da3d9d0ff3e2ad0453cacce0ee3586cbf"
+  },
+  "ui/paint-1.png": {
+   "size": 7412,
+   "sha256": "eb7c72d9ccd784c0da10fc18eb84c8f0efde4d9f8429ffb65d47f43adcb0e119"
+  },
+  "ui/paint-2.png": {
+   "size": 7422,
+   "sha256": "153662f55ebc492ef739c2fc9a6e7fd3e90e617f7b3edcf4892e588fb93f2bb5"
+  },
+  "ui/paint-3.png": {
+   "size": 7433,
+   "sha256": "b634afd93690fd310efedf48adebeb593c00557ff99fed6d579f01b433391262"
+  },
+  "ui/stamp-0.png": {
+   "size": 7084,
+   "sha256": "9b225575857bc6b8bde0e4e7d98a57bc66d237a6746b86a2a3b890b34305be68"
+  },
+  "ui/stamp-1.png": {
+   "size": 6956,
+   "sha256": "c3331f05abb4fd0b2b95f13b30bba90665011b43e7937f917d2dd6f60aad2b33"
+  },
+  "ui/stamp-2.png": {
+   "size": 6999,
+   "sha256": "5e294f05b530eabd6618d43cf41dcc68ca2af256eb12389b912f56be4795b490"
+  },
+  "ui/stamp-3.png": {
+   "size": 7040,
+   "sha256": "b596e00bbe5aa8308290f8c6b78fa57edef87bac2934f0895be00767e1b6d5f4"
+  },
+  "ui/text-0.png": {
+   "size": 7428,
+   "sha256": "6fded93178e2bc9fe838a4c4203c553467bc7298f1e4c94660d5fdc7ab621c9a"
+  },
+  "ui/text-1.png": {
+   "size": 7284,
+   "sha256": "f63ee20c2561f67979f14bd56ae4dafedf25c6c0e0b3b007ea8e61f4ce58334b"
+  },
+  "ui/text-2.png": {
+   "size": 7274,
+   "sha256": "9c416a3bcef42c279497058f27b63a1338182f1da21fd58c43217c9b4c3a5a5c"
+  },
+  "ui/text-3.png": {
+   "size": 7361,
+   "sha256": "6b1c8703736b1c599162cb6a9c9bd759dedc51bf63c3006dbec9cb0bfec91fb7"
+  },
+  "ui/ui.json": {
+   "size": 248477,
+   "sha256": "4d3ecec280f8aae26c4236d9b0bef1bbdb17f71c7cdca443b25085f475677e78"
+  }
+ },
+ "scripts": {
+  "1021": {
+   "rawSha256": "b62aef3f99bd464e080cbf219460a133bb4cb7cdb7235de540cd7bcf53eb05ac",
+   "originXY": [
+    85,
+    422
+   ],
+   "rectXYWH": [
+    75,
+    427,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32804,
+     "image": 36,
+     "sourceXY": [
+      438,
+      -44
+     ],
+     "registrationXY": [
+      448,
+      -49
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32805,
+     "image": 37,
+     "sourceXY": [
+      439,
+      -44
+     ],
+     "registrationXY": [
+      449,
+      -49
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32806,
+     "image": 38,
+     "sourceXY": [
+      440,
+      -43
+     ],
+     "registrationXY": [
+      450,
+      -48
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 1,
+     "sound": 1001,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "b304510010529e9739699032ef4ae745dfa8d5707f04e3ff15a9bd2fa59bbe11",
+    "80741448362c2f95737601658447e1aea3518342d2ba58346b0723fbf1d2b705",
+    "fabe8558f27b6ebc37f8c6b41309193e20f026f420c8b59b50af0d32b2ff0b56"
+   ]
+  },
+  "1022": {
+   "rawSha256": "0134636c7934cac4f027560b09dcb048c1c9ee03fcb45bcb2510b36872fddc56",
+   "originXY": [
+    85,
+    422
+   ],
+   "rectXYWH": [
+    75,
+    427,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32805,
+     "image": 37,
+     "sourceXY": [
+      439,
+      -44
+     ],
+     "registrationXY": [
+      449,
+      -49
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32804,
+     "image": 36,
+     "sourceXY": [
+      438,
+      -44
+     ],
+     "registrationXY": [
+      448,
+      -49
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32804,
+     "image": 36,
+     "sourceXY": [
+      438,
+      -44
+     ],
+     "registrationXY": [
+      448,
+      -49
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 2,
+     "sound": 1002,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "80741448362c2f95737601658447e1aea3518342d2ba58346b0723fbf1d2b705",
+    "b304510010529e9739699032ef4ae745dfa8d5707f04e3ff15a9bd2fa59bbe11",
+    "b304510010529e9739699032ef4ae745dfa8d5707f04e3ff15a9bd2fa59bbe11"
+   ]
+  },
+  "1023": {
+   "rawSha256": "c0120ec794dcd45fe465e9bde02dcb7f28159c19a2972ffc5805752ab794780b",
+   "originXY": [
+    85,
+    422
+   ],
+   "rectXYWH": [
+    75,
+    427,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32807,
+     "image": 39,
+     "sourceXY": [
+      440,
+      -43
+     ],
+     "registrationXY": [
+      450,
+      -48
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32806,
+     "image": 38,
+     "sourceXY": [
+      440,
+      -43
+     ],
+     "registrationXY": [
+      450,
+      -48
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32808,
+     "image": 40,
+     "sourceXY": [
+      440,
+      -43
+     ],
+     "registrationXY": [
+      450,
+      -48
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    },
+    {
+     "tick": 3,
+     "rawImage": 32806,
+     "image": 38,
+     "sourceXY": [
+      440,
+      -43
+     ],
+     "registrationXY": [
+      450,
+      -48
+     ],
+     "boundsLTRB": [
+      75,
+      427,
+      131,
+      483
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 4,
+   "sounds": [],
+   "rgbaSha256": [
+    "7356987415ca148bb61ab2760646efd25e28cc98e5f1c3f4f30708904ca16840",
+    "fabe8558f27b6ebc37f8c6b41309193e20f026f420c8b59b50af0d32b2ff0b56",
+    "72a9f8c9368c498104b7f2dc52aadb643ba4e6b085d66dc9453093b1b0d61b45",
+    "fabe8558f27b6ebc37f8c6b41309193e20f026f420c8b59b50af0d32b2ff0b56"
+   ]
+  },
+  "1030": {
+   "rawSha256": "15124ee6547c44752d4a2d7d7167702091f817c385a3a3c8f61da05064dfd3da",
+   "originXY": [
+    27,
+    549
+   ],
+   "rectXYWH": [
+    20,
+    551,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32819,
+     "image": 51,
+     "sourceXY": [
+      493,
+      -184
+     ],
+     "registrationXY": [
+      500,
+      -186
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32820,
+     "image": 52,
+     "sourceXY": [
+      496,
+      -184
+     ],
+     "registrationXY": [
+      503,
+      -186
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32821,
+     "image": 53,
+     "sourceXY": [
+      497,
+      -186
+     ],
+     "registrationXY": [
+      504,
+      -188
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 1,
+     "sound": 1001,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "5401c322ab20f699ae2df6bcb9534d702129612da5320c105b915667d53ed026",
+    "8850b4339c4d0beb4e63096a9a3a57633249d501a70ee088c3ef3df5403e557b",
+    "0dcfeb9e4c87e6600b6ed2d5b438238a1cfe4e1d1e89cde9cdf210e03b8dc88e"
+   ]
+  },
+  "1031": {
+   "rawSha256": "bd022831df6b7e5aa1c349b7246ed7b120936bfa1ff5ac409ef477af425d634d",
+   "originXY": [
+    27,
+    549
+   ],
+   "rectXYWH": [
+    20,
+    551,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32820,
+     "image": 52,
+     "sourceXY": [
+      496,
+      -184
+     ],
+     "registrationXY": [
+      503,
+      -186
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32819,
+     "image": 51,
+     "sourceXY": [
+      493,
+      -184
+     ],
+     "registrationXY": [
+      500,
+      -186
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32819,
+     "image": 51,
+     "sourceXY": [
+      493,
+      -184
+     ],
+     "registrationXY": [
+      500,
+      -186
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 2,
+     "sound": 1002,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "8850b4339c4d0beb4e63096a9a3a57633249d501a70ee088c3ef3df5403e557b",
+    "5401c322ab20f699ae2df6bcb9534d702129612da5320c105b915667d53ed026",
+    "5401c322ab20f699ae2df6bcb9534d702129612da5320c105b915667d53ed026"
+   ]
+  },
+  "1032": {
+   "rawSha256": "df4c25f0acc1822ab73a73a5c4fa0d2ed1e8ce4813b92be3be8fdcfffef99ffd",
+   "originXY": [
+    27,
+    549
+   ],
+   "rectXYWH": [
+    20,
+    551,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32822,
+     "image": 54,
+     "sourceXY": [
+      497,
+      -183
+     ],
+     "registrationXY": [
+      504,
+      -185
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32821,
+     "image": 53,
+     "sourceXY": [
+      497,
+      -186
+     ],
+     "registrationXY": [
+      504,
+      -188
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32823,
+     "image": 55,
+     "sourceXY": [
+      498,
+      -186
+     ],
+     "registrationXY": [
+      505,
+      -188
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    },
+    {
+     "tick": 3,
+     "rawImage": 32821,
+     "image": 53,
+     "sourceXY": [
+      497,
+      -186
+     ],
+     "registrationXY": [
+      504,
+      -188
+     ],
+     "boundsLTRB": [
+      20,
+      551,
+      76,
+      607
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 4,
+   "sounds": [],
+   "rgbaSha256": [
+    "f2c33c90abdfcf5a522058d48809adb979dd72b88833d9f5fadadff356fec0e8",
+    "0dcfeb9e4c87e6600b6ed2d5b438238a1cfe4e1d1e89cde9cdf210e03b8dc88e",
+    "0f226827effe4f2a280f16247ce9ad6be96467ac09d22f78323b48534ef9601c",
+    "0dcfeb9e4c87e6600b6ed2d5b438238a1cfe4e1d1e89cde9cdf210e03b8dc88e"
+   ]
+  },
+  "1033": {
+   "rawSha256": "6aecc8a0732fe8ee02f5b397c510d10e7c022a2dbc53a855a15cf1460d7fa268",
+   "originXY": [
+    85,
+    543
+   ],
+   "rectXYWH": [
+    76,
+    551,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32824,
+     "image": 56,
+     "sourceXY": [
+      439,
+      -176
+     ],
+     "registrationXY": [
+      448,
+      -184
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32825,
+     "image": 57,
+     "sourceXY": [
+      440,
+      -175
+     ],
+     "registrationXY": [
+      449,
+      -183
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32826,
+     "image": 58,
+     "sourceXY": [
+      441,
+      -175
+     ],
+     "registrationXY": [
+      450,
+      -183
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 1,
+     "sound": 1001,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "64bfa6314a5197d216b153ca616376387462a8def4da0ccdb0cdcd614c834bd2",
+    "eb2f78ba03acb94fa4ffa4cf7d352bdae0ff0e3cf18cd1bdf5499475ad42a46d",
+    "069decc3bb1f1b1729cb5c447b6c038743e914a147adfa9fa1be77e9328dfdd6"
+   ]
+  },
+  "1034": {
+   "rawSha256": "69ee46750002afa70ffa747689939d57fbbd3f2138347d3cca535df0a40f8450",
+   "originXY": [
+    85,
+    543
+   ],
+   "rectXYWH": [
+    76,
+    551,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32825,
+     "image": 57,
+     "sourceXY": [
+      440,
+      -175
+     ],
+     "registrationXY": [
+      449,
+      -183
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32824,
+     "image": 56,
+     "sourceXY": [
+      439,
+      -176
+     ],
+     "registrationXY": [
+      448,
+      -184
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32824,
+     "image": 56,
+     "sourceXY": [
+      439,
+      -176
+     ],
+     "registrationXY": [
+      448,
+      -184
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 2,
+     "sound": 1002,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "eb2f78ba03acb94fa4ffa4cf7d352bdae0ff0e3cf18cd1bdf5499475ad42a46d",
+    "64bfa6314a5197d216b153ca616376387462a8def4da0ccdb0cdcd614c834bd2",
+    "64bfa6314a5197d216b153ca616376387462a8def4da0ccdb0cdcd614c834bd2"
+   ]
+  },
+  "1035": {
+   "rawSha256": "3b83c3931faa36d7213911a69f567cc5d89c97def41d6dc3dc17b65ea5671ade",
+   "originXY": [
+    85,
+    543
+   ],
+   "rectXYWH": [
+    76,
+    551,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32827,
+     "image": 59,
+     "sourceXY": [
+      441,
+      -176
+     ],
+     "registrationXY": [
+      450,
+      -184
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32826,
+     "image": 58,
+     "sourceXY": [
+      441,
+      -175
+     ],
+     "registrationXY": [
+      450,
+      -183
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32828,
+     "image": 60,
+     "sourceXY": [
+      442,
+      -176
+     ],
+     "registrationXY": [
+      451,
+      -184
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    },
+    {
+     "tick": 3,
+     "rawImage": 32826,
+     "image": 58,
+     "sourceXY": [
+      441,
+      -175
+     ],
+     "registrationXY": [
+      450,
+      -183
+     ],
+     "boundsLTRB": [
+      76,
+      551,
+      132,
+      607
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 4,
+   "sounds": [],
+   "rgbaSha256": [
+    "032142e6508938304574ffa769520e06a3562c17ab0b580e5df0a2814465efd9",
+    "069decc3bb1f1b1729cb5c447b6c038743e914a147adfa9fa1be77e9328dfdd6",
+    "4fddb24f963ce53713619af10b5e4ad8ea580e523d7a97aa599eeb4b9ed524b7",
+    "069decc3bb1f1b1729cb5c447b6c038743e914a147adfa9fa1be77e9328dfdd6"
+   ]
+  },
+  "1027": {
+   "rawSha256": "f816b902799b797d73c1c503102deb051510d8f01fb840968098861e151acd3c",
+   "originXY": [
+    86,
+    487
+   ],
+   "rectXYWH": [
+    76,
+    489,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32814,
+     "image": 46,
+     "sourceXY": [
+      439,
+      -118
+     ],
+     "registrationXY": [
+      449,
+      -120
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32815,
+     "image": 47,
+     "sourceXY": [
+      441,
+      -117
+     ],
+     "registrationXY": [
+      451,
+      -119
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32816,
+     "image": 48,
+     "sourceXY": [
+      441,
+      -118
+     ],
+     "registrationXY": [
+      451,
+      -120
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 1,
+     "sound": 1001,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "8a5132d7310291d8bf3c8b01e648d354229b0e188db70e58e69e62794fe57ced",
+    "fbfb001a5b9c3e49b01c16976153ef9530137d4db4a5972f0c75720bce3fe6e4",
+    "f26bea281ff4c747315d657d605b15bd932f680fb74841033e45fac70c98c398"
+   ]
+  },
+  "1028": {
+   "rawSha256": "8776c2e57d23fc99a4bf3cb9f237569c76e87240ce4e5285d0e775c6dc497320",
+   "originXY": [
+    86,
+    487
+   ],
+   "rectXYWH": [
+    76,
+    489,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32815,
+     "image": 47,
+     "sourceXY": [
+      441,
+      -117
+     ],
+     "registrationXY": [
+      451,
+      -119
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32814,
+     "image": 46,
+     "sourceXY": [
+      439,
+      -118
+     ],
+     "registrationXY": [
+      449,
+      -120
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32814,
+     "image": 46,
+     "sourceXY": [
+      439,
+      -118
+     ],
+     "registrationXY": [
+      449,
+      -120
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 2,
+     "sound": 1002,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "fbfb001a5b9c3e49b01c16976153ef9530137d4db4a5972f0c75720bce3fe6e4",
+    "8a5132d7310291d8bf3c8b01e648d354229b0e188db70e58e69e62794fe57ced",
+    "8a5132d7310291d8bf3c8b01e648d354229b0e188db70e58e69e62794fe57ced"
+   ]
+  },
+  "1029": {
+   "rawSha256": "fe55294ed78686e8f20d9347a9bcb7d45ff04965b8a8fe57e88a0f5d0b08a1ef",
+   "originXY": [
+    86,
+    487
+   ],
+   "rectXYWH": [
+    76,
+    489,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32817,
+     "image": 49,
+     "sourceXY": [
+      441,
+      -115
+     ],
+     "registrationXY": [
+      451,
+      -117
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32816,
+     "image": 48,
+     "sourceXY": [
+      441,
+      -118
+     ],
+     "registrationXY": [
+      451,
+      -120
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32818,
+     "image": 50,
+     "sourceXY": [
+      441,
+      -114
+     ],
+     "registrationXY": [
+      451,
+      -116
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    },
+    {
+     "tick": 3,
+     "rawImage": 32816,
+     "image": 48,
+     "sourceXY": [
+      441,
+      -118
+     ],
+     "registrationXY": [
+      451,
+      -120
+     ],
+     "boundsLTRB": [
+      76,
+      489,
+      132,
+      545
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 4,
+   "sounds": [],
+   "rgbaSha256": [
+    "d0d7192b0906807518926a0db8da8decb1f28d918605966a33c76306da0298cb",
+    "f26bea281ff4c747315d657d605b15bd932f680fb74841033e45fac70c98c398",
+    "01e567f2a0ba0e8f6eb08fca7defb8d5f5282a2c56e242e667d91bf1bc6cafd1",
+    "f26bea281ff4c747315d657d605b15bd932f680fb74841033e45fac70c98c398"
+   ]
+  },
+  "1024": {
+   "rawSha256": "9b71bc207e9132ffca55558265f7ddb3af8d32e5896104a007e536964249c45e",
+   "originXY": [
+    27,
+    484
+   ],
+   "rectXYWH": [
+    20,
+    489,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32809,
+     "image": 41,
+     "sourceXY": [
+      499,
+      -112
+     ],
+     "registrationXY": [
+      506,
+      -117
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32810,
+     "image": 42,
+     "sourceXY": [
+      499,
+      -112
+     ],
+     "registrationXY": [
+      506,
+      -117
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32811,
+     "image": 43,
+     "sourceXY": [
+      499,
+      -112
+     ],
+     "registrationXY": [
+      506,
+      -117
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 1,
+     "sound": 1001,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "1e76766e6e1eb61f0cee6ba44dbcd9ed402f94e1c794f4da3cf6c4250e0982d7",
+    "a392b2128ec1c78a8d4bc47acb47abdea5c621f9b90521d969af098af6cd6d6e",
+    "f7a0db504f79714d686505c956eb72acf757329e2f2564338830965a67273bb5"
+   ]
+  },
+  "1025": {
+   "rawSha256": "dcb120c02b1cc09882dd3ae3fe35e7024def4e30d314fe1aa307185082d6f642",
+   "originXY": [
+    27,
+    484
+   ],
+   "rectXYWH": [
+    20,
+    489,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32810,
+     "image": 42,
+     "sourceXY": [
+      499,
+      -112
+     ],
+     "registrationXY": [
+      506,
+      -117
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32809,
+     "image": 41,
+     "sourceXY": [
+      499,
+      -112
+     ],
+     "registrationXY": [
+      506,
+      -117
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32809,
+     "image": 41,
+     "sourceXY": [
+      499,
+      -112
+     ],
+     "registrationXY": [
+      506,
+      -117
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 2,
+     "sound": 1002,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "a392b2128ec1c78a8d4bc47acb47abdea5c621f9b90521d969af098af6cd6d6e",
+    "1e76766e6e1eb61f0cee6ba44dbcd9ed402f94e1c794f4da3cf6c4250e0982d7",
+    "1e76766e6e1eb61f0cee6ba44dbcd9ed402f94e1c794f4da3cf6c4250e0982d7"
+   ]
+  },
+  "1026": {
+   "rawSha256": "faa233f219956a6ff7f39c81a78dc9f42697c0ec91142a39570ef2fdf5e35115",
+   "originXY": [
+    27,
+    484
+   ],
+   "rectXYWH": [
+    20,
+    489,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32812,
+     "image": 44,
+     "sourceXY": [
+      499,
+      -114
+     ],
+     "registrationXY": [
+      506,
+      -119
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32811,
+     "image": 43,
+     "sourceXY": [
+      499,
+      -112
+     ],
+     "registrationXY": [
+      506,
+      -117
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32813,
+     "image": 45,
+     "sourceXY": [
+      499,
+      -110
+     ],
+     "registrationXY": [
+      506,
+      -115
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    },
+    {
+     "tick": 3,
+     "rawImage": 32811,
+     "image": 43,
+     "sourceXY": [
+      499,
+      -112
+     ],
+     "registrationXY": [
+      506,
+      -117
+     ],
+     "boundsLTRB": [
+      20,
+      489,
+      76,
+      545
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 4,
+   "sounds": [],
+   "rgbaSha256": [
+    "ab8699dca3c656233b3c1eb171658b0e7a64d640ac5844afa7ce45b5e66c0a8b",
+    "f7a0db504f79714d686505c956eb72acf757329e2f2564338830965a67273bb5",
+    "9cb25aa167fbb22a3c61a17cc571f55333360a68b8621bf8ee1edaf62c934a83",
+    "f7a0db504f79714d686505c956eb72acf757329e2f2564338830965a67273bb5"
+   ]
+  },
+  "1012": {
+   "rawSha256": "39238147bfb8dee4d59bfcf4064f2eda912aee2b19e039eb8bbcc16b756b7e5e",
+   "originXY": [
+    27,
+    358
+   ],
+   "rectXYWH": [
+    20,
+    365,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32789,
+     "image": 21,
+     "sourceXY": [
+      498,
+      23
+     ],
+     "registrationXY": [
+      505,
+      16
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32790,
+     "image": 22,
+     "sourceXY": [
+      498,
+      24
+     ],
+     "registrationXY": [
+      505,
+      17
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32791,
+     "image": 23,
+     "sourceXY": [
+      498,
+      26
+     ],
+     "registrationXY": [
+      505,
+      19
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 1,
+     "sound": 1001,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "cccd8defb4e6408f08111f9602c8a6923d94c81ab2859c9d7d0d1b896d04d3cc",
+    "2fb09819d065c4a8d0ffdc3648fe2def679c9a53df4776c06b959eb0e948af41",
+    "85e7a58e4dafa454d2ccc5ff867c7d99a68dd1f0a8cedc9ea015775839fbcb23"
+   ]
+  },
+  "1013": {
+   "rawSha256": "23bb3d82df1c35512ea13eadf47e4924343b670e701249c85ee18727edd2e8e3",
+   "originXY": [
+    27,
+    358
+   ],
+   "rectXYWH": [
+    20,
+    365,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32790,
+     "image": 22,
+     "sourceXY": [
+      498,
+      24
+     ],
+     "registrationXY": [
+      505,
+      17
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32789,
+     "image": 21,
+     "sourceXY": [
+      498,
+      23
+     ],
+     "registrationXY": [
+      505,
+      16
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32789,
+     "image": 21,
+     "sourceXY": [
+      498,
+      23
+     ],
+     "registrationXY": [
+      505,
+      16
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 2,
+     "sound": 1002,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "2fb09819d065c4a8d0ffdc3648fe2def679c9a53df4776c06b959eb0e948af41",
+    "cccd8defb4e6408f08111f9602c8a6923d94c81ab2859c9d7d0d1b896d04d3cc",
+    "cccd8defb4e6408f08111f9602c8a6923d94c81ab2859c9d7d0d1b896d04d3cc"
+   ]
+  },
+  "1014": {
+   "rawSha256": "9cd2089ca1d4c949c0c782c929bd1643ec5186255db67d51c92242c31c51082b",
+   "originXY": [
+    27,
+    358
+   ],
+   "rectXYWH": [
+    20,
+    365,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32792,
+     "image": 24,
+     "sourceXY": [
+      498,
+      28
+     ],
+     "registrationXY": [
+      505,
+      21
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32791,
+     "image": 23,
+     "sourceXY": [
+      498,
+      26
+     ],
+     "registrationXY": [
+      505,
+      19
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32793,
+     "image": 25,
+     "sourceXY": [
+      498,
+      24
+     ],
+     "registrationXY": [
+      505,
+      17
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    },
+    {
+     "tick": 3,
+     "rawImage": 32791,
+     "image": 23,
+     "sourceXY": [
+      498,
+      26
+     ],
+     "registrationXY": [
+      505,
+      19
+     ],
+     "boundsLTRB": [
+      20,
+      365,
+      76,
+      421
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 4,
+   "sounds": [],
+   "rgbaSha256": [
+    "0ebbea12ea0967a591dd0d3d573194ac07e73eb6fc428a5ef2aa838840ffa9bd",
+    "85e7a58e4dafa454d2ccc5ff867c7d99a68dd1f0a8cedc9ea015775839fbcb23",
+    "e686bdfff11ff7f848bbda0cb9098dcc26457cab6bbb6b480c150fa64571113f",
+    "85e7a58e4dafa454d2ccc5ff867c7d99a68dd1f0a8cedc9ea015775839fbcb23"
+   ]
+  },
+  "1015": {
+   "rawSha256": "7e718cbb65c9d0803708f354f3d38a02ff13f305bb8e6c749634b929c2385221",
+   "originXY": [
+    84,
+    356
+   ],
+   "rectXYWH": [
+    76,
+    365,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32794,
+     "image": 26,
+     "sourceXY": [
+      440,
+      20
+     ],
+     "registrationXY": [
+      448,
+      11
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32795,
+     "image": 27,
+     "sourceXY": [
+      441,
+      21
+     ],
+     "registrationXY": [
+      449,
+      12
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32796,
+     "image": 28,
+     "sourceXY": [
+      441,
+      23
+     ],
+     "registrationXY": [
+      449,
+      14
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 1,
+     "sound": 1001,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "8e34e46b3e29902a6b3cc3d4526ac2880d02ef2e84c763b8ff7982cc0f50df6d",
+    "bbef3830ced497a05304073502c02ab86ab49e64580824c021c097ae8f11eb59",
+    "e165e63b71c812d6443604f81a9de33e59afd9439dfb71c289b01b059d356e62"
+   ]
+  },
+  "1016": {
+   "rawSha256": "b2dc509a449c690b9b91c6b986be70305c348b2d5262183c1d389b00d5dfdbcd",
+   "originXY": [
+    84,
+    356
+   ],
+   "rectXYWH": [
+    76,
+    365,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32795,
+     "image": 27,
+     "sourceXY": [
+      441,
+      21
+     ],
+     "registrationXY": [
+      449,
+      12
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32794,
+     "image": 26,
+     "sourceXY": [
+      440,
+      20
+     ],
+     "registrationXY": [
+      448,
+      11
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32794,
+     "image": 26,
+     "sourceXY": [
+      440,
+      20
+     ],
+     "registrationXY": [
+      448,
+      11
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 2,
+     "sound": 1002,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "bbef3830ced497a05304073502c02ab86ab49e64580824c021c097ae8f11eb59",
+    "8e34e46b3e29902a6b3cc3d4526ac2880d02ef2e84c763b8ff7982cc0f50df6d",
+    "8e34e46b3e29902a6b3cc3d4526ac2880d02ef2e84c763b8ff7982cc0f50df6d"
+   ]
+  },
+  "1017": {
+   "rawSha256": "2a1ea024bebe81591b858f2682a60de9831788e6cacf08082817a284dd9cc2c5",
+   "originXY": [
+    84,
+    356
+   ],
+   "rectXYWH": [
+    76,
+    365,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32797,
+     "image": 29,
+     "sourceXY": [
+      442,
+      24
+     ],
+     "registrationXY": [
+      450,
+      15
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32796,
+     "image": 28,
+     "sourceXY": [
+      441,
+      23
+     ],
+     "registrationXY": [
+      449,
+      14
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32798,
+     "image": 30,
+     "sourceXY": [
+      442,
+      23
+     ],
+     "registrationXY": [
+      450,
+      14
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    },
+    {
+     "tick": 3,
+     "rawImage": 32796,
+     "image": 28,
+     "sourceXY": [
+      441,
+      23
+     ],
+     "registrationXY": [
+      449,
+      14
+     ],
+     "boundsLTRB": [
+      76,
+      365,
+      132,
+      421
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 4,
+   "sounds": [],
+   "rgbaSha256": [
+    "a6f8d0617774a0c505376f7e83b5f928fd870941f8be0a6d2e92562886cb2861",
+    "e165e63b71c812d6443604f81a9de33e59afd9439dfb71c289b01b059d356e62",
+    "1c5cd51f656b52bed5be05e74f4d7b398851b8d6d5235c31dd8973af52853c83",
+    "e165e63b71c812d6443604f81a9de33e59afd9439dfb71c289b01b059d356e62"
+   ]
+  },
+  "1018": {
+   "rawSha256": "df00cede3956b04a97b33d19604be8b9349c8623b61e12188d807b8825841709",
+   "originXY": [
+    27,
+    422
+   ],
+   "rectXYWH": [
+    19,
+    427,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32799,
+     "image": 31,
+     "sourceXY": [
+      492,
+      -47
+     ],
+     "registrationXY": [
+      500,
+      -52
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32800,
+     "image": 32,
+     "sourceXY": [
+      498,
+      -48
+     ],
+     "registrationXY": [
+      506,
+      -53
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32801,
+     "image": 33,
+     "sourceXY": [
+      498,
+      -47
+     ],
+     "registrationXY": [
+      506,
+      -52
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 1,
+     "sound": 1001,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "353ba51bc70dab8713656e0d68436280f6aae24811cbb370f281bdae157b7d89",
+    "2a9b7361a1a2364d3be313aa3dc6fe95ee41b31a9445d815e9a449e9b6bf4709",
+    "79e171174e8002b8882abbf71f823a05c2b2ea0afe9d1617bd1d78e7115ca110"
+   ]
+  },
+  "1019": {
+   "rawSha256": "4ef22fe62f2a108983afa59a75368e07d7847f99117d2867d12ee17b35c522c5",
+   "originXY": [
+    27,
+    422
+   ],
+   "rectXYWH": [
+    19,
+    427,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32800,
+     "image": 32,
+     "sourceXY": [
+      498,
+      -48
+     ],
+     "registrationXY": [
+      506,
+      -53
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32799,
+     "image": 31,
+     "sourceXY": [
+      492,
+      -47
+     ],
+     "registrationXY": [
+      500,
+      -52
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32799,
+     "image": 31,
+     "sourceXY": [
+      492,
+      -47
+     ],
+     "registrationXY": [
+      500,
+      -52
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 3,
+   "sounds": [
+    {
+     "tick": 0,
+     "index": 2,
+     "sound": 1002,
+     "channel": 1
+    }
+   ],
+   "rgbaSha256": [
+    "2a9b7361a1a2364d3be313aa3dc6fe95ee41b31a9445d815e9a449e9b6bf4709",
+    "353ba51bc70dab8713656e0d68436280f6aae24811cbb370f281bdae157b7d89",
+    "353ba51bc70dab8713656e0d68436280f6aae24811cbb370f281bdae157b7d89"
+   ]
+  },
+  "1020": {
+   "rawSha256": "25d34b5bb7ca59b8f197d474933380392d0973b58f93226b03b20e49e426469c",
+   "originXY": [
+    27,
+    422
+   ],
+   "rectXYWH": [
+    19,
+    427,
+    56,
+    56
+   ],
+   "groups": [
+    {
+     "tick": 0,
+     "rawImage": 32802,
+     "image": 34,
+     "sourceXY": [
+      498,
+      -47
+     ],
+     "registrationXY": [
+      506,
+      -52
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    },
+    {
+     "tick": 1,
+     "rawImage": 32801,
+     "image": 33,
+     "sourceXY": [
+      498,
+      -47
+     ],
+     "registrationXY": [
+      506,
+      -52
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    },
+    {
+     "tick": 2,
+     "rawImage": 32803,
+     "image": 35,
+     "sourceXY": [
+      498,
+      -47
+     ],
+     "registrationXY": [
+      506,
+      -52
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    },
+    {
+     "tick": 3,
+     "rawImage": 32801,
+     "image": 33,
+     "sourceXY": [
+      498,
+      -47
+     ],
+     "registrationXY": [
+      506,
+      -52
+     ],
+     "boundsLTRB": [
+      19,
+      427,
+      75,
+      483
+     ]
+    }
+   ],
+   "tickMs": 100,
+   "waitTicks": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "endCheckTick": 4,
+   "sounds": [],
+   "rgbaSha256": [
+    "0c408deb9e1cc1a8f7f7ea234cbc10f2a402e7c67dcd50343ebc7fa9d786e8d6",
+    "79e171174e8002b8882abbf71f823a05c2b2ea0afe9d1617bd1d78e7115ca110",
+    "2d8d7587caed2f847b7364c0070f049ae4cfe3abb7dae57de64fb9df304d4724",
+    "79e171174e8002b8882abbf71f823a05c2b2ea0afe9d1617bd1d78e7115ca110"
+   ]
+  }
+ }
+}

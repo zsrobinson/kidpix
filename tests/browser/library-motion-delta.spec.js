@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 test('visible Backgrounds tracking advances after its first source tick',async({page})=>{
-  if(process.env.LIBRARY_STATIC_BASELINE) await page.route('**/src/native-library-motion.js*',route=>route.fulfill({contentType:'application/javascript',body:'export function attachLibraryMotion(){return {names:[],ready:()=>false,ownsCue:()=>false}}'}));
+  if(process.env.LIBRARY_STATIC_BASELINE) await page.route('**/src/native-library-motion.js*',route=>route.fulfill({contentType:'application/javascript',body:readFileSync(new URL('../../src/native-library-motion.js',import.meta.url),'utf8').replace(/export function attachLibraryMotion[\s\S]*?\n}/, 'export function attachLibraryMotion(){return {names:[],ready:()=>false,ownsCue:()=>false,cancel(){},cancelGroup(){},dispose(){},updateSelection(){},completeActivation(){}}}')}));
   await page.clock.install();await page.goto('/');
   await expect(page.locator('#paint-chrome')).toHaveClass(/native/);
   await page.getByRole('button',{name:'Backgrounds',exact:true}).hover();

@@ -18,6 +18,7 @@ import { highlightLibraryItem, libraryCategories, showOriginalLibrary, trayKey }
 import { loadNativeUi, nativeButtonParts, nativeCursor, renderNativeDrawing, renderNativeSizes, setSprite } from './native-ui.js';
 import { commandButtons, libraryGroups, optionTitle, place, toolGroups, trayState } from './trays.js';
 import { createNativeAnimation } from './native-animation.js';
+import { attachToolTabMotion } from './native-tool-tab-motion.js';
 import { attachLibraryMotion } from './native-library-motion.js';
 import { attachNativeRollovers } from './native-rollovers.js';
 import { applyNativeControlRegions } from './native-control-regions.js';
@@ -752,6 +753,7 @@ function showTray() {
     selected: state.tools[state.tray], eraserShape: state.eraserShape, color: state.color, nativeUi });
   updateActionMotion();
   syncTool();
+  nativeToolTabMotion?.updateSelection(state.tray, { reason: 'liveSelection' });
 }
 
 function selectTray(group) {
@@ -1533,12 +1535,13 @@ const commands = {
 };
 
 let nativeLibraryMotion;
+let nativeToolTabMotion;
 
 async function activate(action) {
-  if (firehose?.busy) return;
+  if (firehose?.busy) { nativeToolTabMotion?.completeActivation(); return; }
   const [id, value] = action.split(':');
   const group = state.tray;
-  if (id === 'tray') { if (!nativeLibraryMotion?.ownsCue(action)) playUiSound(libKeys.has(value) && value !== 'stamp' ? 1000 : 1002); stopMicrophone(); selectTray(value); }
+  if (id === 'tray') { if (!nativeLibraryMotion?.ownsCue(action) && !nativeToolTabMotion?.ownsCue(action)) playUiSound(libKeys.has(value) && value !== 'stamp' ? 1000 : 1002); stopMicrophone(); selectTray(value); nativeToolTabMotion?.completeActivation(); }
   else if (id === 'tool') {
     if (value === 'spray') paint.resetNativeSpray();
     state.tools[group] = value;
@@ -1788,12 +1791,14 @@ loadNativeUi().then(manifest => {
   $('#native-buttons').replaceChildren(...[...nativeSprites].filter(([name]) => name !== 'swatch').map(([, image]) => image));
   if (manifest.undoAnimations) undoAnimation = createNativeAnimation($('#native-buttons'), nativeSprites.get('undo-face'), playAnimationSound);
   nativeLibraryMotion?.dispose();
+  nativeToolTabMotion?.dispose();
   nativeLibraryMotion = attachLibraryMotion(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { onGroup: (group, name) => nativeRollovers?.cancelGroup(group, name), onReady: name => nativeRollovers?.cancel(name) });
-  nativeRollovers = attachNativeRollovers(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { ...paperOptions, fallbackNames: nativeLibraryMotion.names, enabled: name => !nativeLibraryMotion.ready(name) });
+  nativeToolTabMotion = attachToolTabMotion(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { readSelection: () => state.tray, onGroup: (group, name) => nativeRollovers?.cancelGroup(group, name), onReady: name => nativeRollovers?.cancel(name) });
+  nativeRollovers = attachNativeRollovers(manifest, $('#hit-layer'), nativeSprites, $('#native-buttons'), { ...paperOptions, fallbackNames: [...nativeLibraryMotion.names, ...nativeToolTabMotion.names], enabled: name => !nativeLibraryMotion.ready(name) && !nativeToolTabMotion.ready(name) });
   const cancelLibraryRollover = nativeRollovers.cancel;
   const cancelLibraryGroup = nativeRollovers.cancelGroup;
-  nativeRollovers.cancel = name => { cancelLibraryRollover(name); nativeLibraryMotion.cancel(name); };
-  nativeRollovers.cancelGroup = (group, name) => { cancelLibraryGroup(group, name); nativeLibraryMotion.cancelGroup(group, name); };
+  nativeRollovers.cancel = name => { cancelLibraryRollover(name); nativeLibraryMotion.cancel(name); nativeToolTabMotion.cancel(name); };
+  nativeRollovers.cancelGroup = (group, name) => { cancelLibraryGroup(group, name); nativeLibraryMotion.cancelGroup(group, name); nativeToolTabMotion.cancelGroup(group, name); };
   if (manifest.paperAnimations) {
     nativePaperPicker = createNativePaperPicker({
       manifest: manifest.paperAnimations,

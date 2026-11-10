@@ -47,6 +47,7 @@ export function interactionOwner(document = globalThis.document) {
   for (const type of ['blur', 'pagehide']) window.addEventListener(type, interrupted);
   document.addEventListener('visibilitychange', () => { if (document.hidden) interrupted(); });
   const api = {
+    busy: () => Boolean(active),
     // Modal page operations reject a down through its eventual physical click,
     // even when the operation ends before that contact lifts.
     reject(event) {
@@ -61,7 +62,7 @@ export function interactionOwner(document = globalThis.document) {
     release(surface, pointerId) {
       if (active?.surface !== surface || active.pointerId !== pointerId) return;
       active = null; // Clear before synchronous capture-loss callbacks.
-      if (surface.hasPointerCapture?.(pointerId)) surface.releasePointerCapture(pointerId);
+      if (typeof pointerId === 'number' && surface.hasPointerCapture?.(pointerId)) surface.releasePointerCapture(pointerId);
     },
   };
   owners.set(document, api);

@@ -2,6 +2,12 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.21.0 — candidate
+
+- Animate New, Print and Help with their nine recovered programs and 29 source-verified frames. New and Print reset before their existing synchronous dispatch; Help follows its actual on/off state.
+- Preserve confirmation, printing, semantic command availability, shared contact ownership and silent artwork handoff. No new media is required.
+- Independent review, full release gates and public acceptance are pending. Native references remain 0/17; physical iPad/Pencil latency and audible feel remain unverified. The enlarged vacuum actor remains disabled.
+
 ## 0.20.0
 
 - Animate Save and the existing 3D Export button with their six recovered programs and twenty source-verified frames, including authored press, rest and hover playback.

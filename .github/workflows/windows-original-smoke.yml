@@ -1,0 +1,32 @@
+name: Bounded original Windows visual smoke
+'on':
+  push:
+    branches: ['t3/windows-startup-parity']
+    paths:
+      - '.github/workflows/windows-original-smoke.yml'
+      - 'scripts/windows-original-smoke/**'
+permissions:
+  contents: read
+jobs:
+  original-smoke:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - name: Checkout bounded helper sources
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/windows-original-smoke
+      - name: One bounded original application attempt
+        shell: powershell
+        run: '& ./scripts/windows-original-smoke/Run.ps1'
+      - name: Preserve allowlisted evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-original-smoke
+          path: |
+            ${{ runner.temp }}/kidpix-original-smoke-evidence/*.json
+            ${{ runner.temp }}/kidpix-original-smoke-evidence/window-*.png
+          retention-days: 3
+          if-no-files-found: warn

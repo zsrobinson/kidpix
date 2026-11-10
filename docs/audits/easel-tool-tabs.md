@@ -1,5 +1,7 @@
 # Easel tool-tab state motion
 
+Released with0.19.0, based on public0.18.0.
+
 The eight main tool tabs previously used static press/selected bindings and
 auxiliary hover animation. They now render the authored rest and tracking
 programs, with selection owned by the committed application tray. This is UI
@@ -78,7 +80,7 @@ activation. Library1000, secondary tools, stamp assets and text/audio routes are
 unchanged. Finite completed actors retain their terminal and stop requesting RAF.
 Canvas bounds, pressure, sampling and history code are unchanged.
 
-## Verification
+## Implementation verification
 
 Use existing dependencies/media, with private artifacts and strict4471/4472
 servers. Source-helper cases carry `@module` and are excluded from built-app
@@ -176,5 +178,30 @@ transient owner callbacks/compositing, later alias/virtual slot replacements,
 wall-clock timing, physical iPad/Pencil latency, audible behavior and foreground
 idle remain unproved. This supports the audited initial programs with explicit
 browser hydration/adoption and terminal-retention policies. Enlarged vacuum stays
-disabled. Clipboard work, release captures, baseline approval, public verification,
-versioning and deployment remain parent responsibilities. Version remains0.18.0.
+disabled. Publication validation is recorded separately below; the initial implementation
+checkpoint used version0.18.0.
+
+
+## 0.19 release validation
+
+Final independent matching-key review found no remaining objection within its
+scope:108 checks pass across Chromium/WebKit development and built apps. Earlier
+independent review verifies all80 tool-tab and40 library raw frame pins, real
+Stamp/Text/Grab authority paths, and the unchanged source/audio contracts.
+
+The clean full release runs pass594 Chromium development cases,514 Chromium
+built cases and361 pinned WebKit cases. Chromium has one explicit skip per lane;
+WebKit has three. Node262, assets, build and Worker dry run pass. The source-only
+archive passes241 checks with21 imported-asset skips, build and dry run; application
+source and release profiles remain byte-identical to that checked candidate.
+All684 bounded source compositions have zero differences. All17 static captures
+are pixel-identical to0.18 and match the accepted web baselines without a baseline
+change. The report has no comparison errors or web regressions. All116 required
+public media bodies match local hashes; no upload is required.
+
+Initial interrupted runs and test-fixture corrections remain recorded separately
+above and in `artifacts/t3/release-0190/`. They are not counted as successful full
+gates. Subsequent changes affect fixtures and documentation only; application
+source is unchanged from the independently reviewed candidate. Native references
+remain0/17. Physical Pencil latency, audible behavior and foreground animation
+loss remain unverified; the enlarged vacuum actor remains disabled.

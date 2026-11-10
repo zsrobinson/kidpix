@@ -2,12 +2,12 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.19.0 candidate
+## 0.19.0
 
 - Animate the eight tool tabs with their24 original rest, press, selected and hover programs, retaining80 source-verified frames, exact hit rectangles, sound gates and shared-script progress.
 - Load and adopt artwork silently, defer ownership during held fallback input, and follow committed tray selection for pointer, keyboard and programmatic changes. Play the outgoing rest cue only on a real transition; keep other idle tabs unchanged.
 - Keep a held fallback Space contact until its matching release, including when Shift is released while artwork finishes loading. Preserve once-only WebKit touch activation and the four existing library controls.
-- Independent review correction and focused validation are recorded; final review and full release gates remain pending. All116 required public media bodies match their local hashes, with no additions. Native references remain0/17; physical Pencil latency, foreground animation loss and audible feel remain unverified. The enlarged vacuum actor remains disabled.
+- Independent review found no remaining release objection. Verified262 Node checks,594 development cases,514 built cases and361 WebKit cases; browser skips are explicit. Source-only241 checks pass with21 imported-asset skips, build and deployment dry run. All120 Easel frame pins and684 bounded source compositions match. All17 static captures are pixel-identical to0.18, with zero web regression or comparison errors and no baseline changes. All116 required public media bodies match their local hashes, with no additions. Native references remain0/17; physical Pencil latency, foreground animation loss and audible feel remain unverified. The enlarged vacuum actor remains disabled.
 
 ## 0.18.0
 

@@ -73,11 +73,12 @@ Drawing styles, Painting modes, sizes, Mini Eraser shapes, Stamp controls, Text
 formatting/font/size/voice arrows, Read, character clipboard controls, and Grab
 clipboard/ordering actions. The secondary rows retain 164 complete programs and
 219 authored draw groups. Backgrounds, Stickers, Animations and Sounds & Movies
-also use their original rest, press, selected and hover programs. Source recovery
-runs on Linux using the supplied Mac DMG; see
+also use their original rest, press, selected and hover programs, as do all eight
+tool-tab buttons. Source recovery runs on Linux using the supplied Mac DMG; see
 [secondary control motion](docs/audits/secondary-control-motion.md),
-[Text Read](docs/audits/text-read.md), [Text clipboard](docs/audits/text-clipboard.md)
-and [library button motion](docs/library-button-motion.md).
+[Text Read](docs/audits/text-read.md), [Text clipboard](docs/audits/text-clipboard.md),
+[library button motion](docs/library-button-motion.md) and
+[tool-tab motion](docs/audits/easel-tool-tabs.md).
 Native popup interiors, additional font faces, rich-text clipboard behavior and
 remaining Grab navigation remain follow-up work. The Color Picker uses its seven
 authored opening and seven closing poses, source hit sampling and dropper artwork.

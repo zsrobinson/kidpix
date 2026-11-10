@@ -12,6 +12,8 @@ import { snapshotPNG, samePixels } from './shared-pen-pixels.mjs';
 import { idleOwnerTransform, assertOwnerWindow } from './shared-pen-idle-control.mjs';
 import { studioControlPlugin, stageState, overlayState, assertBlankOverlays, emptyObjectsState, assertEmptyObjects } from './shared-pen-studio-control.mjs';
 import { displayControlTransform, installStrokeAttribution } from './shared-pen-display-control.mjs';
+import { applyMinimization, timingDiagnostic } from './shared-pen-minimize.mjs';
+const minimize=process.env.MINIMIZE || '';
 const coalesceDisplay=process.env.COALESCE_DISPLAY==='1', strokeCounters=process.env.STROKE_COUNTERS==='1', strokeAttribution=process.env.STROKE_ATTRIBUTION==='1';
 const controlMode = process.env.CONTROL_MODE || 'full';
 if(process.env.MOTION_REVISION && process.env.IDLE_OWNERS && process.env.IDLE_OWNERS!=='off')throw Error('Do not combine source revision and idle suppression');
@@ -22,6 +24,7 @@ const presentation = process.env.PRESENTATION || 'default';
 if(controlMode==='minimal' && (process.env.SCENE && process.env.SCENE!=='blank' || process.env.UI_SCENARIO!=='quiescent'))throw Error('Minimal control requires blank/quiescent; it has no source UI actors');
 const uiScenario = process.env.UI_SCENARIO || 'legacy-undo';
 if (!['legacy-undo','quiescent','tool-selection','fixed-undo'].includes(uiScenario)) throw Error('Invalid UI_SCENARIO');
+if(minimize&&(uiScenario!=='quiescent'||(process.env.SCENE&&process.env.SCENE!=='blank')))throw Error('Minimization requires blank/quiescent');
 const undoScript = Number(process.env.UNDO_SCRIPT || 1095);
 const uiTrace = process.env.UI_TRACE === '1';
 const output = path.resolve(process.env.PERF_OUT || 'artifacts/t3/shared-pen-performance/run');
@@ -62,6 +65,7 @@ const server = await createServer({ configLoader: 'runner', cacheDir: `${output}
   }
   if (!id.endsWith('/src/paint.js')) return code;
   code=displayControlTransform(code,{coalesce:coalesceDisplay,counters:strokeCounters,attribution:strokeAttribution});
+  if(minimize==='no-display')code=code.replace('  function render() {', `  function render() { if(window.sharedPerf?.enabled && window.sharedMinEvent==='pointermove')return;`);
   const seam = 'makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))';
   if (!code.includes(seam)) throw Error('Seed seam changed');
   code=code.replace(seam, 'makeRandom(53)');
@@ -73,7 +77,7 @@ const server = await createServer({ configLoader: 'runner', cacheDir: `${output}
   return code;
  } }], server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: { ignored: ['**/*'] } } });
 let browser, page;
-const results = { helperHashes:Object.fromEntries(await Promise.all(['shared-pen-studio-control.mjs','shared-pen-pixels.mjs','shared-pen-idle-control.mjs','shared-pen-display-control.mjs'].map(async name=>[name,createHash('sha256').update(await readFile(new URL(name,import.meta.url))).digest('hex')]))), harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+const results = { minimize, helperHashes:Object.fromEntries(await Promise.all(['shared-pen-studio-control.mjs','shared-pen-pixels.mjs','shared-pen-idle-control.mjs','shared-pen-display-control.mjs','shared-pen-minimize.mjs'].map(async name=>[name,createHash('sha256').update(await readFile(new URL(name,import.meta.url))).digest('hex')]))), harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
  motionSourceHashes: Object.fromEntries([...motionSources].map(([name,source]) => [name,createHash('sha256').update(source).digest('hex')])), motionRevision: motionRevision || null, engine, coalesceDisplay, strokeCounters, strokeAttribution, controlMode, presentation, idleOwners, sourceActors:controlMode==='minimal'?'absent; actual paint history only':'production studio', instrument, uiScenario, undoScript:uiScenario==='legacy-undo'?null:undoScript, uiTrace, legacySyncCatchup:process.env.LEGACY_SYNC_CATCHUP==='1', profiled:!!process.env.PROFILE, traced:!!process.env.TRACE, scene:process.env.SCENE||'blank', displayAlpha:process.env.DISPLAY_ALPHA!=='0', displayReadFrequently:process.env.DISPLAY_READ_FREQUENTLY!=='0', cpu: Number(process.env.CPU || 1), seed: 53, samples: 240,
  limitations: 'Desktop headless engine; RAF callback and intended-deadline proxies, no compositor visibility or physical iPad latency.', baselines: [], rows: [] };
 const stats = values => { const a = values.filter(Number.isFinite).sort((a,b)=>a-b); return { n:a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],worst:a.at(-1) }; };
@@ -108,7 +112,7 @@ try {
    const event=make(points.at(-1));
    if(type==='pointermove')Object.defineProperty(event,'getCoalescedEvents',{value:()=>points.map(make)});
    if(type==='pointerup'||type==='pointercancel')m.beforeReleasePending=window.sharedDisplayState?.()||null;
-   const start=performance.now();canvas.dispatchEvent(event);
+   const start=performance.now();window.sharedMinEvent=type;canvas.dispatchEvent(event);window.sharedMinEvent=null;
    if(type==='pointerup'||type==='pointercancel')m.releasePending=window.sharedDisplayState?.()||null;
    if(type==='pointermove')m.delivery.push({start,due,end:performance.now(),samples:points.length});
   };
@@ -189,6 +193,10 @@ try {
   if(process.env.TRACE&&cdp)await cdp.send('Tracing.start',{categories:'devtools.timeline,v8.execute',transferMode:'ReturnAsStream'});
   if(process.env.PROFILE&&cdp){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');}
   const ownerBefore=idleOwners==='off'?null:await page.evaluate(parked=>{const owners=window.sharedIdleOwners?.filter(o=>o.state().active);if(owners?.length!==3)throw Error('Expected three owners: '+JSON.stringify(window.sharedIdleOwners?.map(o=>o.state())));return owners.map(o=>parked?o.park():o.state());},idleOwners==='parked');
+  const minimization=minimize?await applyMinimization(page,minimize):null;
+  const stageDuring=minimize?await page.evaluate(stageState):null;
+  if(stageDuring&&JSON.stringify(stageDuring.chain.map(({tag,id,rect,geometry})=>({tag,id,rect,geometry})))!==JSON.stringify(stage.chain.map(({tag,id,rect,geometry})=>({tag,id,rect,geometry}))))throw Error('Minimization changed paper ancestry geometry');
+  const timing=minimize?await timingDiagnostic(page):null;
   await page.evaluate(()=>window.startSharedPerf());
   const wallStart=performance.now();
   if(driver==='inpage')await page.evaluate(async({points,hz,batch,legacy})=>{
@@ -225,6 +233,8 @@ try {
    await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}.trace.json`,trace);
   }
   const pixels=await page.locator('#paper-canvas').evaluate(async canvas=>{const afterRelease=canvas.toDataURL();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const ctx=canvas.getContext('2d');const rgba=ctx.getImageData(0,0,canvas.width,canvas.height).data;let nonOpaque=0;for(let i=3;i<rgba.length;i+=4)if(rgba[i]!==255)nonOpaque++;return{afterRelease,stable:afterRelease===canvas.toDataURL(),contextAttributes:ctx.getContextAttributes?.()||null,nonOpaque};});
+  if(minimize)await page.screenshot({path:`${output}/${tool}-${driver}-${hz}x${batch}-${trial}-TREATMENT-INCOMPLETE-UI.png`});
+  let minRestored=minimize?await page.evaluate(()=>window.sharedMinRestore()):null;
   const overlaysAfter=controlMode==='full'?await page.evaluate(overlayState):null;
   if(overlaysAfter&&(process.env.SCENE!=='layered'||presentation.endsWith('-hidden')))assertBlankOverlays(overlaysAfter,presentation);
   const objectsAfter=controlMode==='full'?await page.evaluate(emptyObjectsState):null;
@@ -234,7 +244,7 @@ try {
   await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}-studio.png`,studioPNG);
   const callbackGaps=m.callbackTimes.slice(1).map((t,i)=>t-m.callbackTimes[i]);
   const leadingGap=(m.callbackTimes[0]??m.ended)-m.started,trailingGap=m.ended-(m.callbackTimes.at(-1)??m.started);
-  const row={trial,tool,driver,objectsBefore,objectsAfter,overlaysBefore,overlaysAfter,chromeState,studioPixels,ownerBefore,ownerEnd:m.ownerEnd,ownerResumed,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
+  const row={stageDuring,minimization,minRestored,timing,trial,tool,driver,objectsBefore,objectsAfter,overlaysBefore,overlaysAfter,chromeState,studioPixels,ownerBefore,ownerEnd:m.ownerEnd,ownerResumed,stage,points,uiBefore,uiAfter,box,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
    actualEvents:instrument?m.events.length:null,actualSamples:instrument?m.events.reduce((n,e)=>n+e.samples,0):null,trusted:instrument?m.events.filter(e=>e.trusted).length:null,
    callbackFrame:stats(callbackGaps),callbackCount:m.callbackTimes.length,callbackHz:m.callbackTimes.length*1000/(m.ended-m.started),leadingGap,trailingGap,maxObservedOrCensoredGap:Math.max(leadingGap,trailingGap,...callbackGaps),
    syntheticDeliveredEvents:m.delivery.length,syntheticDeliveredSamples:m.delivery.reduce((n,e)=>n+e.samples,0),

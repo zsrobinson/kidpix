@@ -1,0 +1,155 @@
+// Real-clock shared-path experiment. Synthetic in-page replay is NOT trusted pen input.
+// Same 240 chronological points/pressure/seed for every delivery pattern. Duration
+// varies with event rate and coalescing; both are explicit in each result.
+import { chromium, webkit } from '@playwright/test';
+import { createServer } from 'vite';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { cpus } from 'node:os';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+const output = path.resolve(process.env.PERF_OUT || 'artifacts/t3/shared-pen-performance/run');
+await mkdir(output, { recursive: true });
+const port = Number(process.env.PORT || 4251);
+const engine = process.env.ENGINE || 'chromium';
+const instrument = process.env.INSTRUMENT !== '0';
+const server = await createServer({ configLoader: 'runner', cacheDir: `${output}/cache`,
+ plugins: [{ name: 'fixed-stroke-seed', enforce: 'pre', transform(code, id) {
+  if (!id.endsWith('/src/paint.js')) return;
+  const seam = 'makeRandom(Math.floor(point.x * 14399 + point.y * 131 + performance.now()))';
+  if (!code.includes(seam)) throw Error('Seed seam changed');
+  code=code.replace(seam, 'makeRandom(53)');
+  if(process.env.DISPLAY_READ_FREQUENTLY==='0'){const displaySeam="const display = canvas.getContext('2d', { willReadFrequently: true })";if(!code.includes(displaySeam))throw Error('Display seam changed');code=code.replace(displaySeam,"const display = canvas.getContext('2d')");}
+  return code;
+ } }], server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: { ignored: ['**/*'] } } });
+let browser;
+const results = { harnessSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'), node:process.version, platform:process.platform, arch:process.arch, cpuModel:cpus()[0]?.model, revision: process.env.REVISION || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+ engine, instrument, legacySyncCatchup:process.env.LEGACY_SYNC_CATCHUP==='1', profiled:!!process.env.PROFILE, traced:!!process.env.TRACE, scene:process.env.SCENE||'blank', displayReadFrequently:process.env.DISPLAY_READ_FREQUENTLY!=='0', cpu: Number(process.env.CPU || 1), seed: 53, samples: 240,
+ limitations: 'Desktop headless engine; RAF callback and intended-deadline proxies, no compositor visibility or physical iPad latency.', baselines: [], rows: [] };
+const stats = values => { const a = values.filter(Number.isFinite).sort((a,b)=>a-b); return { n:a.length,p50:a[Math.floor(a.length*.5)],p95:a[Math.floor(a.length*.95)],worst:a.at(-1) }; };
+try {
+ await server.listen();
+ browser = await ({chromium,webkit}[engine]).launch(); results.browser = browser.version();
+ const page = await browser.newPage({ viewport: { width:1366,height:1024 }, deviceScaleFactor:2, hasTouch:true });
+ const errors=[]; page.on('pageerror',e=>errors.push(String(e)));
+ await page.addInitScript(({instrument})=>{
+  window.sharedPerf={enabled:false,events:[],canvas:{},frames:[],callbackTimes:[],nextRAF:[],delivery:[]};
+  const m=window.sharedPerf;
+  // Off control installs neither canvas wrappers nor event timing listeners.
+  if(instrument){
+   for(const name of ['getImageData','putImageData','drawImage','clearRect','fillRect']){
+    const original=CanvasRenderingContext2D.prototype[name];
+    CanvasRenderingContext2D.prototype[name]=function(...args){if(!m.enabled)return original.apply(this,args);const start=performance.now();const value=original.apply(this,args);const row=m.canvas[name]??={count:0,ms:0};row.count++;row.ms+=performance.now()-start;return value;};
+   }
+   document.addEventListener('pointermove',e=>{if(!m.enabled||e.target.id!=='paper-canvas')return;const row={start:performance.now(),stampAge:performance.now()-e.timeStamp,trusted:e.isTrusted,samples:e.getCoalescedEvents?.().length||1};m.events.push(row);e.__sharedPerf=row;requestAnimationFrame(()=>m.nextRAF.push(performance.now()-row.start));},true);
+   document.addEventListener('pointermove',e=>{if(e.__sharedPerf)e.__sharedPerf.ms=performance.now()-e.__sharedPerf.start;});
+  }
+  window.startSharedPerf=()=>{Object.assign(m,{enabled:true,started:performance.now(),events:[],canvas:{},frames:[],callbackTimes:[],nextRAF:[],delivery:[]});};
+  let previous;function frame(now){if(m.enabled){m.callbackTimes.push(performance.now());if(previous>=m.started)m.frames.push(now-previous);}previous=now;requestAnimationFrame(frame);}requestAnimationFrame(frame);
+  window.dispatchSharedPen=({type,points,due})=>{
+   const canvas=document.querySelector('#paper-canvas');
+   const make=p=>new PointerEvent(type,{pointerId:77,pointerType:'pen',clientX:p.x,clientY:p.y,pressure:type==='pointerup'?0:p.pressure,buttons:type==='pointerup'?0:1,button:0,bubbles:true});
+   const event=make(points.at(-1));
+   if(type==='pointermove')Object.defineProperty(event,'getCoalescedEvents',{value:()=>points.map(make)});
+   const start=performance.now();canvas.dispatchEvent(event);
+   if(type==='pointermove')m.delivery.push({start,due,end:performance.now(),samples:points.length});
+  };
+ },{instrument});
+ const cdp=engine==='chromium'?await page.context().newCDPSession(page):null;
+ if(cdp)await cdp.send('Emulation.setCPUThrottlingRate',{rate:results.cpu});
+ const measureIdle=async(label)=>{await page.evaluate(()=>window.startSharedPerf());await page.waitForTimeout(2000);const m=await page.evaluate(()=>{window.sharedPerf.enabled=false;return window.sharedPerf;});results.baselines.push({label,frame:stats(m.frames),canvas:m.canvas});};
+ await page.goto('about:blank');await page.waitForTimeout(300);await measureIdle('blank-page');
+ await page.goto(`http://127.0.0.1:${port}/`);
+ await page.waitForSelector('[data-native-tool-motion="draw"]');
+ await page.waitForSelector('#paper-canvas[data-paint-ready="ready"]');
+ if(process.env.SCENE==='layered'){
+  const picture=await page.evaluate(()=>{
+   const image=(kind)=>{const c=document.createElement('canvas');c.width=720;c.height=542;const x=c.getContext('2d');if(kind==='background'){x.fillStyle='#ddeeff';x.fillRect(0,0,720,542);}if(kind==='foreground'){x.fillStyle='#37a65b';x.fillRect(300,120,80,140);}return c.toDataURL();};
+   return{version:1,format:'kidpix-web',title:'Shared composition probe',paint:{version:1,art:image('blank'),background:image('background'),foreground:image('foreground'),paper:null},objects:[]};
+  });
+  await page.locator('#picture-file').setInputFiles({name:'shared-perf.kidpix-web',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(picture))});
+  await page.waitForFunction(()=>document.querySelector('#paper-canvas').getContext('2d').getImageData(0,0,1,1).data[0]===221);
+ }
+ await page.evaluate(async()=>Promise.all([...document.images].filter(i=>i.src).map(i=>i.decode().catch(()=>{}))));
+ await page.waitForTimeout(1500);await measureIdle('warm-app-idle');
+ const patterns=(process.env.PATTERNS||'60x1,120x1,240x1,60x2,60x4').split(',').map(p=>{const [hz,batch]=p.split('x').map(Number);if(![60,120,240].includes(hz)||![1,2,4].includes(batch))throw Error('Invalid pattern');return{hz,batch};});
+ for(let trial=0;trial<Number(process.env.TRIALS||3);trial++)for(const tool of (process.env.TOOLS||'pencil,chalk,crayon,marker').split(','))for(const driver of (process.env.DRIVERS||'inpage,protocol,cdp').split(','))for(const {hz,batch} of patterns){
+  if(driver==='cdp'&&(!cdp||batch!==1))continue;
+  await page.locator(`#tray-buttons [data-action="tool:${tool}"]`).evaluate(el=>el.click());
+  await page.locator('#tray-buttons [data-action="size:16"]').evaluate(el=>el.click());
+  await page.waitForSelector('#paper-canvas[data-paint-ready="ready"]');await page.waitForTimeout(200);
+  await page.evaluate(trusted=>{const c=document.querySelector('#paper-canvas');c.__capture??=[c.setPointerCapture,c.releasePointerCapture];[c.setPointerCapture,c.releasePointerCapture]=trusted?c.__capture:[()=>{},()=>{}];},driver==='cdp');
+  const box=await page.locator('#paper-canvas').boundingBox();
+  const points=Array.from({length:241},(_,i)=>({x:box.x+(60+Math.abs(((i*10)%1200)-600))*box.width/720,y:box.y+(160+60*Math.sin(i/28.8))*box.height/542,pressure:.5+.35*Math.sin(i/40.8)}));
+  const send=async(type,pts,due)=>{
+   if(driver==='cdp')return cdp.send('Input.dispatchMouseEvent',{type:{pointerdown:'mousePressed',pointermove:'mouseMoved',pointerup:'mouseReleased'}[type],x:pts.at(-1).x,y:pts.at(-1).y,button:'left',buttons:type==='pointerup'?0:1,clickCount:type==='pointermove'?0:1,pointerType:'pen',force:type==='pointerup'?0:pts.at(-1).pressure});
+   return page.evaluate(payload=>window.dispatchSharedPen(payload),{type,points:pts,due});
+  };
+  await send('pointerdown',[points[0]]);await send('pointermove',[points[1]]);await send('pointerup',[points[1]]);
+  await page.locator('[data-action="undo"]').first().evaluate(el=>el.click());await page.waitForTimeout(150);
+  if(process.env.TRACE&&cdp)await cdp.send('Tracing.start',{categories:'devtools.timeline,v8.execute',transferMode:'ReturnAsStream'});
+  if(process.env.PROFILE&&cdp){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');}
+  await page.evaluate(()=>window.startSharedPerf());
+  const wallStart=performance.now();
+  if(driver==='inpage')await page.evaluate(async({points,hz,batch,legacy})=>{
+   const channel=new MessageChannel();let continuation;channel.port1.onmessage=()=>continuation();
+   const yieldTask=()=>new Promise(resolve=>{continuation=resolve;channel.port2.postMessage(null);});
+   const dispatch=window.dispatchSharedPen;dispatch({type:'pointerdown',points:[points[0]]});const start=performance.now();
+   for(let i=1;i<=240/batch;i++){
+    const due=start+i*1000/hz;
+    // Recheck real clock: early timers cannot advance the delivery deadline.
+    while(performance.now()<due)await new Promise(r=>setTimeout(r,Math.max(0,due-performance.now())));
+    // Every event gets its own task even when late; never catch up in one JS job.
+    if(!legacy)await yieldTask();
+    dispatch({type:'pointermove',points:points.slice(1+(i-1)*batch,1+i*batch),due});
+   }
+   dispatch({type:'pointerup',points:[points.at(-1)]});channel.port1.close();channel.port2.close();
+  },{points,hz,batch,legacy:process.env.LEGACY_SYNC_CATCHUP==='1'});
+  else{
+   await send('pointerdown',[points[0]]);const start=performance.now();
+   for(let i=1;i<=240/batch;i++){
+    const due=start+i*1000/hz;while(performance.now()<due)await new Promise(r=>setTimeout(r,Math.max(0,due-performance.now())));
+    await send('pointermove',points.slice(1+(i-1)*batch,1+i*batch));
+   }
+   await send('pointerup',[points.at(-1)]);
+  }
+  const elapsed=performance.now()-wallStart;
+  const m=await page.evaluate(async()=>{window.sharedPerf.enabled=false;window.sharedPerf.ended=performance.now();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return window.sharedPerf;});
+  if(process.env.PROFILE&&cdp){const {profile}=await cdp.send('Profiler.stop');await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}.cpuprofile`,JSON.stringify(profile));}
+  if(process.env.TRACE&&cdp){
+   const done=new Promise(resolve=>cdp.once('Tracing.tracingComplete',resolve));await cdp.send('Tracing.end');const {stream}=await done;let trace='';
+   for(;;){const chunk=await cdp.send('IO.read',{handle:stream});trace+=chunk.data;if(chunk.eof)break;}await cdp.send('IO.close',{handle:stream});
+   await writeFile(`${output}/${tool}-${driver}-${hz}x${batch}-${trial}.trace.json`,trace);
+  }
+  const pixels=await page.locator('#paper-canvas').evaluate(async canvas=>{const afterRelease=canvas.toDataURL();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return{afterRelease,stable:afterRelease===canvas.toDataURL()};});
+  const callbackGaps=m.callbackTimes.slice(1).map((t,i)=>t-m.callbackTimes[i]);
+  const leadingGap=(m.callbackTimes[0]??m.ended)-m.started,trailingGap=m.ended-(m.callbackTimes.at(-1)??m.started);
+  const row={trial,tool,driver,eventHz:hz,batch,expectedEvents:240/batch,expectedSamples:240,elapsed,
+   actualEvents:instrument?m.events.length:null,actualSamples:instrument?m.events.reduce((n,e)=>n+e.samples,0):null,trusted:instrument?m.events.filter(e=>e.trusted).length:null,
+   callbackFrame:stats(callbackGaps),callbackCount:m.callbackTimes.length,callbackHz:m.callbackTimes.length*1000/(m.ended-m.started),leadingGap,trailingGap,maxObservedOrCensoredGap:Math.max(leadingGap,trailingGap,...callbackGaps),
+   handler:stats(m.events.map(e=>e.ms)),frame:stats(m.frames),nextRAF:stats(m.nextRAF),eventStampAge:stats(m.events.map(e=>e.stampAge)),
+   deadlineAge:stats(m.delivery.filter(e=>Number.isFinite(e.due)).map(e=>e.start-e.due)),
+   deliveryInterval:stats((m.delivery.length?m.delivery:m.events).slice(1).map((e,i)=>e.start-(m.delivery.length?m.delivery:m.events)[i].start)),
+   achievedEventHz:(m.delivery.length?m.delivery:m.events).length>1?((m.delivery.length?m.delivery:m.events).length-1)*1000/((m.delivery.length?m.delivery:m.events).at(-1).start-(m.delivery.length?m.delivery:m.events)[0].start):null,
+   oldestSampleDeadlineAge:stats(m.delivery.filter(e=>Number.isFinite(e.due)).map(e=>e.start-e.due+(batch-1)*1000/(hz*batch))),
+   canvas:m.canvas,pixelHash:createHash('sha256').update(pixels.afterRelease).digest('hex'),stableAfterRelease:pixels.stable,raw:m};
+  results.rows.push(row);console.log(JSON.stringify({...row,raw:undefined}));
+  if(instrument&&(row.actualEvents!==row.expectedEvents||row.actualSamples!==240))throw Error('Delivered event/sample count mismatch');
+  if(driver!=='cdp'&&m.delivery.reduce((n,e)=>n+e.samples,0)!==240)throw Error('Synthetic replay dropped samples');
+  if(!pixels.stable)throw Error('Ink changed between post-release captures');
+  await page.locator('[data-action="undo"]').first().evaluate(el=>el.click());
+ }
+ results.syntheticPixelMismatches=results.rows.filter(r=>r.driver!=='cdp'&&r.pixelHash!==results.rows.find(p=>p.tool===r.tool&&p.driver!=='cdp').pixelHash).map(({tool,driver,eventHz,batch,trial})=>({tool,driver,eventHz,batch,trial}));
+ if(results.syntheticPixelMismatches.length)throw Error('Synthetic replay pixels differ across patterns');
+ results.errors=errors;if(errors.length)throw Error(errors.join('\n'));
+ results.budgetFailures=results.rows.flatMap(r=>{
+  const failures=[];const key=`${r.tool}/${r.driver}/${r.eventHz}x${r.batch}/${r.trial}`;
+  if(process.env.MIN_CALLBACK_HZ&&r.callbackHz<Number(process.env.MIN_CALLBACK_HZ))failures.push({key,metric:'callbackHz',value:r.callbackHz,min:Number(process.env.MIN_CALLBACK_HZ)});
+  if(process.env.MIN_DELIVERY_HZ&&r.achievedEventHz<Number(process.env.MIN_DELIVERY_HZ))failures.push({key,metric:'achievedEventHz',value:r.achievedEventHz,min:Number(process.env.MIN_DELIVERY_HZ)});
+  if(process.env.MAX_FRAME_P95&&(r.frame.p95>Number(process.env.MAX_FRAME_P95)||r.maxObservedOrCensoredGap>Number(process.env.MAX_FRAME_P95)))failures.push({key,metric:'frameP95OrGap',value:Math.max(r.frame.p95||0,r.maxObservedOrCensoredGap||0),max:Number(process.env.MAX_FRAME_P95)});
+  return failures;
+ });
+ if(results.budgetFailures.length){console.error(JSON.stringify({budgetFailures:results.budgetFailures}));process.exitCode=1;}
+} finally {
+ await writeFile(`${output}/results.json`,JSON.stringify(results,null,2));await browser?.close();await server.close();
+}

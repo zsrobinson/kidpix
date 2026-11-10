@@ -91,18 +91,30 @@ test('@module browser completion waits for owned source cue; pointer-close stops
     const audio = await context.decodeAudioData(bytes);
     await context.close();
     f.makeSound = cue => {
-      const sound = Object.assign(new EventTarget(), { cue, ended: false, pause() { this.paused = true; } });
+      const sound = Object.assign(new EventTarget(), { cue, ended: false, pauseCalls: 0, pause() { this.pauseCalls++; } });
       sounds.push(sound); return sound;
     };
     await f.picker.open(); for (let i = 0; i < 20; i++) f.advance(30);
     const held = f.picker.state;
-    sounds[0].dispatchEvent(new Event('ended')); f.advance(30);
+    sounds[0].ended = true; sounds[0].dispatchEvent(new Event('ended')); f.advance(30);
     const ready = f.ready[0]; f.picker.close();
-    const reopened = await f.picker.open(); const stopped = sounds[0].paused;
-    return { duration: audio.duration, sampleRate: audio.sampleRate, held, ready, reopened, stopped,
-      closingCue: sounds[1].cue.sound };
+    const reopened = await f.picker.open(); const completedPauseCalls = sounds[0].pauseCalls;
+    const closingCue = sounds[1].cue.sound;
+    for (let i = 0; i < 7; i++) f.advance(100);
+    sounds[0].dispatchEvent(new Event('error')); f.advance(100);
+    const closingStillGated = f.picker.state;
+    sounds[1].ended = true; sounds[1].dispatchEvent(new Event('ended')); f.advance(100);
+    await f.picker.open(); f.advance(30);
+    f.picker.close(); const interruptedPauseCalls = sounds[2].pauseCalls;
+    const blockedDuringClosing = await f.picker.open();
+    f.picker.dispose(); const disposedPauseCalls = sounds[3].pauseCalls;
+    return { duration: audio.duration, length: audio.length, sampleRate: audio.sampleRate, held, ready, reopened,
+      completedPauseCalls, closingCue, closingStillGated, interruptedPauseCalls, blockedDuringClosing, disposedPauseCalls };
   });
-  expect(Math.abs(result.duration - 13433 / 22050)).toBeLessThanOrEqual(1 / result.sampleRate);
+  // Compare decoded frame counts: subtracting durations can round an exact one-sample boundary above one.
+  expect(Math.abs(result.length - 13433 * result.sampleRate / 22050)).toBeLessThanOrEqual(1);
   expect(result.held).toBe('opening'); expect(result.ready).toBe(630);
-  expect(result.reopened).toBe(false); expect(result.stopped).toBe(true); expect(result.closingCue).toBe(1500);
+  expect(result.reopened).toBe(false); expect(result.completedPauseCalls).toBe(0); expect(result.closingCue).toBe(1500);
+  expect(result.closingStillGated).toBe('closing'); expect(result.interruptedPauseCalls).toBe(1);
+  expect(result.blockedDuringClosing).toBe(false); expect(result.disposedPauseCalls).toBe(1);
 });

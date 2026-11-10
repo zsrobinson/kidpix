@@ -8,10 +8,12 @@ const click = (page, action) => control(page, action).evaluate(button => button.
 test.beforeEach(async ({ page }) => {
   page.motionErrors = [];
   page.on('pageerror', error => page.motionErrors.push(error.message));
+  // Install before app RAF registration; existing native callbacks cannot be clock-driven.
+  await page.clock.install();
   await page.addInitScript(() => {
     window.secondarySounds = [];
     window.Audio = class extends EventTarget {
-      constructor(src) { super(); this.src = String(src); this.ended = true; window.secondarySounds.push(this); }
+      constructor(src) { super(); this.src = String(src); this.ended = !window.holdSecondaryCue || !this.src.includes(window.holdSecondaryCue); window.secondarySounds.push(this); }
       play() { return Promise.resolve(); }
       pause() { this.paused = true; }
     };
@@ -20,7 +22,6 @@ test.beforeEach(async ({ page }) => {
   await expect(actor(page, 'draw:18400')).toBeVisible();
   await expect(actor(page, 'draw:18200')).toBeVisible();
   await expect(actor(page, 'draw')).toBeVisible();
-  await page.clock.install();
   await page.clock.pauseAt(new Date(Date.now() + 60000));
 });
 
@@ -213,17 +214,17 @@ test('exact source bounds, capture transfer, drag out/reentry and lost capture d
 
 test('source tracking cue plays once, gates terminal completion and stops on window deactivation', async ({ page }) => {
   await page.clock.runFor(256);
-  await page.evaluate(() => { window.secondarySounds = []; });
+  const cue = sourceManifest.sounds[18061].src;
+  await page.evaluate(cue => { window.secondarySounds = []; window.holdSecondaryCue = cue; }, cue);
   await control(page, 'style:line').focus();
   await page.keyboard.down('Space');
   await page.clock.runFor(120);
   expect((await snap(page, 'draw:18400'))[0]).toMatchObject({ state: 1, frameIndex: 1 });
-  const cue = sourceManifest.sounds[18061].src;
   expect(await page.evaluate(cue => window.secondarySounds.filter(audio => audio.src.includes(cue)).length, cue)).toBe(1);
-  await page.evaluate(cue => { window.secondarySounds.filter(audio => audio.src.includes(cue)).forEach(audio => { audio.ended = false; }); }, cue);
+  expect(await page.evaluate(cue => window.secondarySounds.filter(audio => audio.src.includes(cue)).every(audio => !audio.ended), cue)).toBe(true);
   await page.clock.runFor(120);
   expect((await snap(page, 'draw:18400'))[0]).toMatchObject({ finished: false, frameIndex: 1 });
-  await page.evaluate(cue => { window.secondarySounds.filter(audio => audio.src.includes(cue)).forEach(audio => { audio.ended = true; }); }, cue);
+  await page.evaluate(cue => { window.secondarySounds.filter(audio => audio.src.includes(cue)).forEach(audio => { audio.ended = true; audio.dispatchEvent(new Event('ended')); }); }, cue);
   await page.clock.runFor(120);
   expect((await snap(page, 'draw:18400'))[0]).toMatchObject({ finished: true, frameIndex: 1 });
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));

@@ -94,8 +94,8 @@ test('held source cue gates opening and closing, interruption cancels its owner'
   await page.evaluate(()=>{
     window.pickerSounds=[];
     window.Audio=class extends EventTarget {
-      constructor(src){super();this.src=src;this.ended=false;window.pickerSounds.push(this);}
-      play(){return Promise.resolve();} pause(){this.paused=true;} removeAttribute(){} load(){}
+      constructor(src){super();this.src=src;this.ended=false;this.pauseCalls=0;window.pickerSounds.push(this);}
+      play(){return Promise.resolve();} pause(){this.pauseCalls++;} removeAttribute(){} load(){}
     };
   });
   await page.locator('#color-button').dispatchEvent('click',{detail:0});
@@ -105,10 +105,20 @@ test('held source cue gates opening and closing, interruption cancels its owner'
   await page.evaluate(()=>window.pickerSounds.find(s=>s.src.includes('color-picker-motion/big-1501.wav')).dispatchEvent(new Event('ended')));
   await expect(phase(page)).toHaveAttribute('data-phase','open');
   await page.keyboard.press('Escape');
-  expect(await page.evaluate(()=>window.pickerSounds.find(s=>s.src.includes('color-picker-motion/big-1501.wav')).paused)).toBe(true);
+  expect(await page.evaluate(()=>window.pickerSounds.find(s=>s.src.includes('color-picker-motion/big-1501.wav')).pauseCalls)).toBe(0);
   await page.waitForTimeout(800);
   await expect(phase(page)).toHaveAttribute('data-phase','closing');
   await page.evaluate(()=>window.pickerSounds.find(s=>s.src.includes('color-picker-motion/big-1500.wav')).dispatchEvent(new Event('error')));
+  await expect(phase(page)).toHaveAttribute('data-phase','closed');
+  // Completed cues are released; interrupting a fresh still-owned cue must stop it.
+  await page.locator('#color-button').dispatchEvent('click',{detail:0});
+  await expect(phase(page)).toHaveAttribute('data-phase','opening');
+  await page.keyboard.press('Escape');
+  expect(await page.evaluate(()=>window.pickerSounds.filter(s=>s.src.includes('color-picker-motion/big-1501.wav')).at(-1).pauseCalls)).toBe(1);
+  await page.evaluate(()=>window.pickerSounds[0].dispatchEvent(new Event('ended')));
+  await page.waitForTimeout(800);
+  await expect(phase(page)).toHaveAttribute('data-phase','closing');
+  await page.evaluate(()=>window.pickerSounds.filter(s=>s.src.includes('color-picker-motion/big-1500.wav')).at(-1).dispatchEvent(new Event('error')));
   await expect(phase(page)).toHaveAttribute('data-phase','closed');
 });
 

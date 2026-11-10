@@ -6,7 +6,7 @@ The current public build identifies its version, source revision and build time 
 
 - Preserve held tray controls and keyboard focus when optional tool artwork finishes loading. Artwork readiness updates presentation in place; tray and option changes retain their structural rendering.
 - Keep fallback pointer and Space gestures under shared ownership through artwork handoff. Validate the original control and target at release, reject incidental contacts and stale targets, and consume compatibility clicks once.
-- Release validation is pending. Native references remain 0/17; physical iPad latency and foreground-idle causation remain unverified.
+- Independent review found no remaining source release objections. Verified 262 Node checks, 613 development cases, 533 built cases and 380 WebKit cases; browser skips are explicit. Source-only 241 checks pass with 21 imported-asset skips, build and deployment dry run. All 17 static captures are pixel-identical to 0.19, with no baseline changes. No media or source-program changes are included. Native references remain 0/17; physical iPad latency and foreground-idle causation remain unverified.
 
 ## 0.19.0
 

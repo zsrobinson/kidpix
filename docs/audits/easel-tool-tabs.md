@@ -139,6 +139,36 @@ unselected, and no tray activation occurs until Space-up. That release selects
 Paint exactly once, silently adopts the terminal art, and permits a fresh Grab
 press. No source program, cue, deadline, geometry or shared-audio helper changed.
 
+## Exact pixel assertion batching
+
+The initial full Chromium runs hit the unchanged30-second test budget in the
+Backgrounds rest/hover pixel case. Retained traces contain47,672 test events,
+with every pose and pixel assertion passing before the timeout was reported.
+Individual pixel assertions generated most of those events. The runs were
+interrupted to correct this test overhead; they are not completed release gates.
+
+The library and tool-tab checks now compare every opaque source RGB byte in one
+pure helper and assert its mismatch count once per frame. They retain zero RGB
+tolerance, the opaque-source mask, the original actual-alpha policy, independent
+source hashes, exact dimensions/placement, frame/deadline checks and the same
+minimum pixel count. Neither test timeouts nor product code changed. First
+mismatch coordinates and RGB values remain available on failure.
+
+Across all120 source frames,840 old/new oracle comparisons agree, including480
+one-byte RGB corruptions, actual-alpha changes and changes under transparent
+source pixels. A browser negative control corrupting one actual screenshot byte
+fails at the pixel assertion. Diagnostic scripts and retained initial traces live
+under `artifacts/t3/release-0190/`. Final full gates are recorded separately.
+
+The focused Chromium run also exposed a cancellation-fixture assumption: after
+capture release, a pointer still over Grab can deliver a new hover entry. A
+controlled held-pointer move reproduced that sequence twice; logs show the
+cancelled base reaching its silent terminal before the later auxiliary starts.
+The fixture now explicitly processes capture, asserts the terminal immediately
+after blur, then releases and leaves before checking the restored backing image.
+It still checks no extra cue and unchanged authoritative Paint selection. Fresh
+silent hover is checked separately from cancellation; no runtime change is made.
+
 ## Limits
 
 Native references remain0/17. First-display native sound suppression/order,

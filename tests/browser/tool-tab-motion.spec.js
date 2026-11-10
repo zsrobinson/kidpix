@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
+import { compareOpaqueSourcePixels } from './opaque-source-pixels.js';
 const oracle=JSON.parse(readFileSync(new URL('../fixtures/tool-tab-motion-source.json',import.meta.url)));
 const cases = oracle.buttons.map(b=>[b.name,b.name,b.rawWords[0],oracle.scripts[b.rawWords[0]].rectXYWH]);
 const controlFor = (page,name) => page.locator(`[data-action="tray:${name==='fill'?'bucket':name}"]`);
@@ -32,11 +33,9 @@ async function sourcePixels(page, name, script, frame, rect, auxiliary = false) 
   const response=await page.request.get(`/original/ui/button-animations/${script}-${frame}.png`);
   const expected=PNG.sync.read(await response.body());
   expect(createHash('sha256').update(expected.data).digest('hex')).toBe(oracle.scripts[script].rgbaSha256[frame]);
-  let pixels=0;
-  for(let i=0;i<expected.data.length;i+=4) if(expected.data[i+3]===255) {
-    expect(actual.data.subarray(i,i+3).equals(expected.data.subarray(i,i+3))).toBe(true); pixels++;
-  }
-  expect(pixels).toBeGreaterThan(100);
+  const pixels=compareOpaqueSourcePixels(actual,expected);
+  expect(pixels.mismatched,JSON.stringify(pixels.firstMismatch)).toBe(0);
+  expect(pixels.compared).toBeGreaterThan(100);
 }
 for(const [name,label,rest,rect] of cases) test(`${name} visible tracking frames and same-script release/audio gate`,async({page})=>{
   const control=controlFor(page,name);
@@ -78,8 +77,16 @@ test('silent hydration, exact outgoing/incoming cues, redundant selection and ca
   await controlFor(page,'paint').evaluate(b=>b.click());
   expect(await page.evaluate(()=>cues.filter(a=>/easel-1002\.wav/.test(a.src)).length)).toBe(1);
   await controlFor(page,'grab').hover();await page.mouse.down();
+  // Process the capture transition while the pointer is still held.
+  await page.mouse.move(49,579);
   const count=await page.evaluate(()=>cues.length);
-  await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await page.mouse.up();
+  await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+  await expect(actor(page,'grab')).toHaveAttribute('data-state','0');
+  await expect(actor(page,'grab')).toHaveAttribute('data-finished','true');
+  await page.mouse.up();
+  // Capture release can deliver fresh hover over Grab; inspect its restored
+  // backing terminal after leaving, independently of that silent auxiliary.
+  await page.mouse.move(500,400);
   expect(await page.evaluate(()=>cues.length)).toBe(count);
   await expect(actor(page,'grab')).toHaveAttribute('data-finished','true');
   await expect(controlFor(page,'paint')).toHaveAttribute('aria-pressed','true');

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
+import { compareOpaqueSourcePixels } from './opaque-source-pixels.js';
 const oracle=JSON.parse(readFileSync(new URL('../fixtures/library-motion-source.json',import.meta.url)));
 const cases = [ ['backgrounds','Backgrounds',1000,[27,15,105,61]], ['stickers','Stickers',1003,[36,85,91,55]], ['animations','Animations',1006,[38,148,106,70]], ['media','Sounds & Movies',1009,[14,222,103,67]] ];
 const actor = (page,name) => page.locator(`[data-native-library-motion="${name}"]`);
@@ -31,11 +32,9 @@ async function sourcePixels(page, name, script, frame, rect, auxiliary = false) 
   const response=await page.request.get(`/original/ui/button-animations/${script}-${frame}.png`);
   const expected=PNG.sync.read(await response.body());
   expect(createHash('sha256').update(expected.data).digest('hex')).toBe(oracle.scripts[script].rgbaSha256[frame]);
-  let pixels=0;
-  for(let i=0;i<expected.data.length;i+=4) if(expected.data[i+3]===255) {
-    expect(actual.data.subarray(i,i+3).equals(expected.data.subarray(i,i+3))).toBe(true); pixels++;
-  }
-  expect(pixels).toBeGreaterThan(100);
+  const pixels=compareOpaqueSourcePixels(actual,expected);
+  expect(pixels.mismatched,JSON.stringify(pixels.firstMismatch)).toBe(0);
+  expect(pixels.compared).toBeGreaterThan(100);
 }
 for(const [name,label,rest,rect] of cases) test(`${name} visible tracking frames and same-script release/audio gate`,async({page})=>{
   const control=page.getByRole('button',{name:label,exact:true});

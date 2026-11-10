@@ -1,0 +1,30 @@
+name: QuickTime prerequisite diagnostic
+
+on:
+  push:
+    branches: [t3/diagnose-windows-quicktime]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/windows-quicktime-diagnostic
+          sparse-checkout-cone-mode: true
+      - name: Install official prerequisite and run fixed isolated probe matrix
+        shell: powershell
+        run: '& ./scripts/windows-quicktime-diagnostic/Run.ps1'
+      - name: Upload allowlisted diagnostic JSON
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: quicktime-diagnostic-evidence
+          path: ${{ runner.temp }}/quicktime-diagnostic-evidence/*.json
+          retention-days: 3
+          if-no-files-found: error

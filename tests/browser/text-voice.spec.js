@@ -8,7 +8,21 @@ const manifest = JSON.parse(readFileSync('public/original/ui/secondary-motion/ma
 const control = (page, direction) => page.locator(`[data-action="voice-step:${direction}"]`);
 const select = page => page.locator('#text-voice');
 const canvas = page => page.locator('[data-native-action-motion]');
-const click = (page, action) => page.locator(`[data-action="${action}"]`).last().evaluate(b=>b.click());
+const unavailableArt = new WeakMap();
+const manifestAsset = /\/secondary-motion\/manifest\.json(?:\?|$)/;
+const voiceMaskAsset = /\/secondary-motion\/sprites\/18000-451\.argb(?:\?|$)/;
+async function rejectArt(page, matcher = manifestAsset) {
+  const observed = { count: 0 };
+  unavailableArt.set(page, observed);
+  await page.route(matcher, route => { observed.count++; return route.abort(); });
+}
+const click = async (page, action) => {
+  await page.locator(`[data-action="${action}"]`).last().evaluate(b=>b.click());
+  if (action === 'tray:text' && unavailableArt.has(page)) {
+    await expect.poll(() => unavailableArt.get(page).count,
+      { message: 'Failure fixture intercepted an actual versioned art request' }).toBeGreaterThan(0);
+  }
+};
 async function model(page, initial = ['a','b','c']) {
   await page.addInitScript(uris => {
     // Keep native platform wrappers strongly reachable for all asynchronous events.
@@ -50,7 +64,7 @@ test('catalog notification retains native select DOM, focus and menu options unt
   await select(page).press('Tab'); await expect(select(page).locator('option')).toHaveCount(5);
 });
 for (const art of [true,false]) for (const input of ['pointer','Space']) test(`held ${input} cancelled by generation before RAF, art ${art}`,async({page})=>{
-  if(!art) await page.route('**/secondary-motion/manifest.json',route=>route.abort());
+  if(!art) await rejectArt(page);
   if(art) await object(page); else {await model(page);await page.goto('/');await click(page,'tray:text');}
   await select(page).selectOption('b');
   if(input==='pointer'){await control(page,1).hover();await page.mouse.down();}
@@ -150,10 +164,10 @@ for(const input of ['pointer','Space']) test(`target change cancels held ${input
   await expect(select(page)).toHaveValue('a');await page.locator('.object-text').last().focus();await expect(select(page)).toHaveValue('b');
 });
 test('voice art failure remains static and usable, retries on tray reentry',async({page})=>{
-  await page.route('**/secondary-motion/sprites/18000-451.argb',route=>route.abort());
+  await rejectArt(page, voiceMaskAsset);
   await model(page);await page.goto('/');await click(page,'tray:text');await select(page).selectOption('b');
   await expect(canvas(page)).not.toBeVisible();await control(page,1).click();await expect(select(page)).toHaveValue('c');
-  await page.unroute('**/secondary-motion/sprites/18000-451.argb');await click(page,'tray:draw');await click(page,'tray:text');await expect(canvas(page)).toBeVisible();
+  await page.unroute(voiceMaskAsset);await click(page,'tray:draw');await click(page,'tray:text');await expect(canvas(page)).toBeVisible();
 });
 test('missing restored URI returns without mutation or history; direct select retains backward range',async({page})=>{
   await start(page,[]);
@@ -169,7 +183,7 @@ test('missing restored URI returns without mutation or history; direct select re
   await page.keyboard.type('Z');await expect(page.locator('.object-text')).toHaveText('SZd');
 });
 for(const art of [true,false])test(`first pointer owns held voice action, art ${art}`,async({page})=>{
-  if(!art)await page.route('**/secondary-motion/manifest.json',route=>route.abort());
+  if(!art)await rejectArt(page);
   await model(page);await page.goto('/');await click(page,'tray:text');if(art)await expect(canvas(page)).toBeVisible();
   await select(page).selectOption('b');await control(page,1).hover();await page.mouse.down();
   await control(page,-1).dispatchEvent('pointerdown',{pointerId:99,button:0,isPrimary:false});
@@ -178,7 +192,7 @@ for(const art of [true,false])test(`first pointer owns held voice action, art ${
   await expect(select(page)).toHaveValue('b');await page.mouse.up();await expect(select(page)).toHaveValue('c');
 });
 test('static fallback selection and history synchronize without an animation RAF owner',async({page})=>{
-  await page.route('**/secondary-motion/manifest.json',route=>route.abort());await model(page);await page.goto('/');await click(page,'tray:text');
+  await rejectArt(page);await model(page);await page.goto('/');await click(page,'tray:text');
   await page.locator('#paper-canvas').click({position:{x:150,y:140}});await page.locator('.object-text').fill('First');await select(page).selectOption('a');
   await page.locator('#paper-canvas').click({position:{x:420,y:320}});await page.locator('.object-text').last().fill('Other');await select(page).selectOption('b');
   await click(page,'undo');await expect(select(page)).toHaveValue('a');await click(page,'redo');await expect(select(page)).toHaveValue('b');
@@ -186,7 +200,7 @@ test('static fallback selection and history synchronize without an animation RAF
 });
 
 for (const art of [true, false]) for (const action of ['bold', 'font-size-step:1', 'edit:cut']) test(`catalog refresh preserves held ${action}, art ${art}`, async ({ page }) => {
-  if (!art) await page.route('**/secondary-motion/manifest.json', route => route.abort());
+  if (!art) await rejectArt(page);
   await model(page); await page.goto('/'); await click(page, 'tray:text');
   if (art) await expect(canvas(page)).toBeVisible();
   await page.locator('#paper-canvas').click({ position: { x: 150, y: 140 } });

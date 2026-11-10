@@ -161,3 +161,12 @@ Text Read, voice and stepper pixel helpers also reconstruct the canonical frame;
 reading their old fixed offsets directly from a cropped PNG could yield undefined
 channels rather than a valid comparison. The source geometry, placement assertions,
 expected pixels and tolerances remain unchanged.
+
+
+The first combined full WebKit run passed165 cases and skipped3, but exposed an
+old voice fallback fixture that used a query-less URL glob. Its trace shows
+18000-451.argb?v=0.15.0-dev completed200; no failure was injected. Query-aware
+matchers and a positive interception gate make the intended unavailable-art
+condition explicit. All25 voice cases pass in the staged WebKit correction;
+Chromium development/built confirmation and a clean full WebKit rerun follow.
+No application behavior or pixel tolerance changes in that fixture correction.

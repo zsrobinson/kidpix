@@ -1,5 +1,26 @@
 import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
+const requiredSlotCases=[
+ ...['save','backgrounds'].flatMap(name=>[0,1].map(slot=>({name,slot,truncated:false}))),
+ {name:'save',slot:1,truncated:true},
+];
+for(const {name,slot,truncated} of requiredSlotCases)test(`missing required ${name} slot ${slot}${truncated?' (truncated)':''} preserves static command and artwork`,async({page})=>{
+ const action=name==='save'?'save':'tray:backgrounds',attribute=name==='save'?'native-command-motion':'native-library-motion';
+ const errors=[];page.on('pageerror',error=>errors.push(String(error)));
+ await page.route('**/ui/ui.json*',async route=>{
+  const response=await route.fetch(),manifest=await response.json();
+  const record=manifest.buttonAnimations.buttons.find(button=>button.name===name);
+  if(truncated)record.stateScripts.length=slot;else record.stateScripts[slot]=0;
+  await route.fulfill({response,json:manifest});
+ });
+ await page.goto('/');await expect(page.locator('[data-native-tool-tab-motion="draw"]')).toBeVisible();
+ await expect(page.locator(`[data-${attribute}="${name}"]`)).toHaveCount(0);
+ await expect(page.locator(`[data-native-part="${name}"]`)).toBeVisible();
+ await page.locator(`#hit-layer [data-action="${action}"]`).click();
+ if(name==='save')await expect(page.locator('dialog')).toBeVisible();
+ else await expect(page.locator(`[data-action="${action}"]`)).toHaveAttribute('aria-pressed','true');
+ expect(errors).toEqual([]);
+});
 for(const reason of ['cancel','dispose','modal'])test(`pending command decode cannot resurrect after ${reason} @module`,async({page})=>{
  await page.route('**/command-fixture',r=>r.fulfill({contentType:'text/html',body:'<div id="root"><button data-action="save">Save</button><button data-action="stereo">Export</button></div><div id="layer"></div><dialog></dialog>'}));
  await page.route('**/src/*.js',r=>{const name=new URL(r.request().url()).pathname.split('/').at(-1);return r.fulfill({contentType:'application/javascript',body:readFileSync(new URL(`../../src/${name}`,import.meta.url),'utf8').replaceAll('import.meta.env.BASE_URL',"'/'")});});

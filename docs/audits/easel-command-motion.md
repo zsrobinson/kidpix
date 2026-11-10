@@ -55,3 +55,9 @@ Validation results:
 - Initial test harness failures:private webServer working directory was missing; dialog Save Picture locator was ambiguous; decode-retry test inspected the hidden base while its auxiliary was visible; WebKit normalizes download spaces to underscores. Corrected the harness/assertions and retained initial logs. No baseline changes or command-handler fixes were used to resolve these.
 
 Final command browser counts and limitations are recorded in the integration handoff alongside the logs. No baseline acceptance, full release suites, version bump, install/download, push, deployment or original software execution occurred. Native reference acceptance remains0/17. Actual iPad/Pencil latency, foreground-idle behavior and audible feel remain unverified. Enlarged vacuum stays disabled; Clipboard80a0661, parent SERVER_HANDOFF, original media/history and other worktrees are outside scope. Parent review and full release/publication gates remain required.
+
+## Required-slot validation correction
+
+Review of the integrated mode-0 extension found that filtering all falsy state slots also admitted missing required rest/tracking programs, including existing mode-1 library records. Four actual-app malformed-record cases fail on that implementation. A follow-up truncated Save record separately reproduces a missing tracking slot when slicing a shortened array. The corrected validator explicitly requires both mode-0 slot indices, preserves the former complete mode-1 state validation, and permits only mode-0's intentionally unused selected slots. Five actual-app cases require rejected actors, visible usable static controls, the canonical Save/library action and no page errors. Red/green logs are retained under `artifacts/t3/release-0200/`.
+
+All 29 required public response bodies were fetched and match their pinned hashes; no media upload is required. The final independent review and full release/publication gates remain pending.

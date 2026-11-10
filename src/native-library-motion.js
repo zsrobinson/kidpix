@@ -174,7 +174,7 @@ export function attachMode1Motion(manifest, root, sprites, layer, {
     const control = root.querySelector(`[data-action="${action}"]`), idle = sprites.get(name);
     if (!record || !control || !idle || (momentary ? record.stateScripts[2] || record.stateScripts[3] : !record.stateScripts[2])
       || record.hotspotRegion?.status !== 'exact'
-      || [...record.stateScripts.filter(Boolean), record.rolloverScript].some(id => !data.scripts[id]?.frames?.length || !(data.scripts[id].tickMs > 0) || data.unsupportedScripts?.[id])) continue;
+      || [...(momentary ? [record.stateScripts[0], record.stateScripts[1]] : record.stateScripts), record.rolloverScript].some(id => !data.scripts[id]?.frames?.length || !(data.scripts[id].tickMs > 0) || data.unsupportedScripts?.[id])) continue;
     const image = doc.createElement('img'), hover = doc.createElement('img');
     for (const img of [image, hover]) { img.className = 'native-sprite'; img.alt = ''; img.draggable = false; img.hidden = true; layer.append(img); }
     image.dataset[actorAttribute] = name; hover.dataset.nativeRollover = name;

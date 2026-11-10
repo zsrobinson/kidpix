@@ -1,7 +1,7 @@
 # Easel library button motion
 
 The four main library controls now bind their existing rest/tracking programs as
-well as their separate auxiliary rollovers. Version remains 0.17. This is static
+well as their separate auxiliary rollovers in version 0.18. This is a
 source-backed browser implementation, with no native execution or wall-clock
 comparison. Physical iPad/Pencil latency and foreground idle remain unproved;
 native evidence remains 0/17. The enlarged vacuum actor remains disabled.
@@ -80,7 +80,9 @@ art, and explicitly inspect the original static sprite while disabled. Their
 existing timing, repeat, suppression, group cleanup and retained-Firehose intent
 and thresholds are unchanged. The new pixel tests pin full registered bounds,
 hash source PNG RGBA against independent Mac pins, and compare opaque source
-pixels in actual studio screenshots for all 40 frames. No baseline was accepted.
+pixels in actual studio screenshots for all 40 frames. No baseline was accepted
+during the initial implementation; the later release capture review is recorded
+below.
 The static-binding delta test fails because the held Backgrounds screenshot does
 not advance; the candidate passes the same assertion.
 
@@ -297,3 +299,29 @@ The WebKit commands use the same configs with `MOTION_ENGINE=webkit` inside
 read-only, and only this slice's artifact folder mounted writable. Dev WebKit
 omits the Chromium-CDP-only iPad tests; source primary pixel failure is recorded
 separately above. No browser panels or release ports are used.
+
+
+### 0.18 release validation
+
+Final independent touch review found no remaining objection. Actual WebKit touch
+produces one application activation in development and private built apps, while
+fresh mouse presses and semantic clicks remain usable. Both readiness timings
+and cancelled-key recovery pass in all four engine/build lanes. These are browser
+checks; they do not establish physical iPad input or audible behavior.
+
+Full release gates pass:253 Node checks,536 Chromium development cases,475
+Chromium built-app cases and303 pinned WebKit cases. Chromium has one explicit
+skip per lane; WebKit has three. The source-only archive passes240 checks with13
+imported-asset skips, build and Worker dry run. All684 bounded source compositions
+match, and the independent Mac verifier matches all40 library frames. All59
+required public media bodies match their hashes, with no new media.
+
+The final17 captures match the accepted web baselines with zero comparison errors
+or regressions. Sixteen are pixel-identical to0.17. Backgrounds changes only its
+selected artwork: source state2 script1001 ends on bitmap2, while the previous
+static selected bitmap5 belongs to auxiliary1002. Only that reviewed baseline
+was updated; every other baseline file is byte-identical. Prior images and the
+acceptance receipt remain in `artifacts/t3/release-0180/`. Native references remain
+0/17; original-runtime timing, Pencil latency and foreground-idle causation remain
+unproved. Runtime is unchanged from the independently reviewed candidate;
+subsequent edits correct capture/hit-region fixtures and documentation only.

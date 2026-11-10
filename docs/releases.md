@@ -2,11 +2,11 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.18.0 candidate
+## 0.18.0
 
 - Play the original rest, press and selected sequences for Backgrounds, Stickers, Animations and Sounds & Movies, alongside their separate hover programs. Preserve shared-script progress through release and selection, group cleanup and exact registered artwork.
 - Keep one activation and one cue across slow artwork handoff, cancelled keyboard input and WebKit touch compatibility clicks. Static fallback and retries remain usable. No media upload is needed; all59 existing response bodies match their source hashes.
-- Independent Mac checks verify all40 authored frames. Focused Chromium/WebKit development and built checks pass, including real touchscreen once-only activation and later mouse/semantic input. Final touch recheck, full release suites and screenshot review remain pending.
+- Independent Mac checks verify all40 authored frames. Verified253 Node checks,536 development cases,475 built cases and303 WebKit cases; browser skips are explicit. Source-only240 checks pass with13 imported-asset skips, build and deployment dry run. Independent review found no remaining release objections, including actual touchscreen once-only activation and later mouse/semantic input. All684 bounded source compositions match. All17 captures match the accepted web baselines:16 are pixel-identical to0.17, and only Backgrounds received a reviewed baseline update for its authored selected pose.
 - Native references remain0/17. Physical iPad/Pencil latency, foreground-idle causation and audible feel remain unverified; the enlarged vacuum actor remains disabled.
 
 ## 0.17.0

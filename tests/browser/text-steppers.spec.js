@@ -1,3 +1,4 @@
+import { canonicalMotionFrame } from './canonical-motion-frame.js';
 import { test, expect } from '@playwright/test';
 const actor = page => page.locator('[data-native-action-motion]');
 const snap = page => actor(page).evaluate(c => JSON.parse(c.dataset.motionSnapshot));
@@ -105,7 +106,7 @@ async function expectSourcePixels(page, owner, view) {
     }, layers);
     expected = PNG.sync.read(Buffer.from(reference.split(',')[1], 'base64'));
   }
-  const actual = PNG.sync.read(Buffer.from((await actor(page, owner).evaluate(canvas => canvas.toDataURL())).split(',')[1], 'base64'));
+  const actual = PNG.sync.read(Buffer.from((await canonicalMotionFrame(actor(page, owner))).split(',')[1], 'base64'));
   const studio = PNG.sync.read(await page.locator('#studio').screenshot());
   expect([studio.width, studio.height]).toEqual([1024, 768]);
   let canvasBad = 0, visibleBad = 0;

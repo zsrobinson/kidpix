@@ -1,3 +1,4 @@
+import { canonicalMotionFrame } from './canonical-motion-frame.js';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -84,7 +85,7 @@ test('absent speech API retains an operable explicit fallback and missing saved 
 async function pixels(page) {
   const states = await canvas(page).evaluate(c=>JSON.parse(c.dataset.motionSnapshot).filter(s=>s.name.startsWith('voice-step:')));
   const expected = PNG.sync.read(readFileSync(`public/original/ui/${manifest.backdrops.text.pages[0].image}`));
-  const actual = PNG.sync.read(Buffer.from((await canvas(page).evaluate(c=>c.toDataURL())).split(',')[1],'base64'));
+  const actual = PNG.sync.read(Buffer.from((await canonicalMotionFrame(canvas(page))).split(',')[1],'base64'));
   const studio=PNG.sync.read(await page.locator('#studio').screenshot());
   const backdrop=[113,608,817,168]; // independently audited retained Text backdrop
   let out=Buffer.alloc(43*62*4);

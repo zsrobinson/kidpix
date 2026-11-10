@@ -90,7 +90,7 @@ export async function loadDrawingMotionAssets(manifest, {
   return new Map(entries);
 }
 
-/** Paint one source callback into a native1024x768 canvas, after the owner has
+/** Paint one source callback in native1024x768 coordinates, after the owner has
  * restored the tray/backdrop. Caller owns clearing, clipping and layer order.
  * Coordinates and bitmap registrations are already resolved by the extractor.
  * A bounded target translates its context by -origin; raw pixel copies ignore

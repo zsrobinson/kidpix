@@ -145,3 +145,19 @@ export/history, source audio gates, hit regions or frame scheduler is changed.
 No actual iPad/Safari presentation or foreground-animation-loss reproduction is
 available. Native reference acceptance remains0/17. Parent review/integration and
 physical-device validation remain separate from this lab-supported candidate.
+
+
+## Combined confirmation
+
+A separate probes-off three-trial source/candidate pair on the combined branch
+retains all240 samples per stroke and matching per-tool hashes. At60 single-sample
+move events/s, Pencil RAF p95 medians are54 to39ms, Marker54 to40ms; callback
+coverage medians are27.00 to32.86/s and26.44 to33.23/s. Four-sample batches give
+Pencil43 to42ms and Marker43 to40ms, with some maximum callback gaps worsening.
+These are additional desktop trials, not a physical-device result or a uniform
+presentation gain. Raw combined receipts are under artifacts/t3/bounded-parent-confirmation/.
+
+Text Read, voice and stepper pixel helpers also reconstruct the canonical frame;
+reading their old fixed offsets directly from a cropped PNG could yield undefined
+channels rather than a valid comparison. The source geometry, placement assertions,
+expected pixels and tolerances remain unchanged.

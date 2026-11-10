@@ -1,3 +1,4 @@
+import { canonicalMotionFrame } from './canonical-motion-frame.js';
 import { test, expect } from '@playwright/test';
 const click = (page,action)=>page.locator(`[data-action="${action}"]`).last().evaluate(b=>b.click());
 const read=page=>page.locator('[data-action="speak"]');
@@ -81,7 +82,7 @@ async function readPixels(page,script,frameIndex=0){
   }, layers);
   expected=PNG.sync.read(Buffer.from(data.split(',')[1],'base64')).data;
  }
- const images=[PNG.sync.read(Buffer.from((await actor(page).evaluate(c=>c.toDataURL())).split(',')[1],'base64')),PNG.sync.read(await page.locator('#studio').screenshot())];
+ const images=[PNG.sync.read(Buffer.from((await canonicalMotionFrame(actor(page))).split(',')[1],'base64')),PNG.sync.read(await page.locator('#studio').screenshot())];
  for(const image of images){let bad=0;for(let y=0;y<86;y++)for(let x=0;x<61;x++)for(let c=0;c<4;c++)if(Math.abs(image.data[((y+647)*1024+x+493)*4+c]-expected[(y*61+x)*4+c])>1)bad++;expect(bad).toBe(0);}
 }
 test('independent Read source registration, all programs/cues/pixels; rest hover tracking running stop completion',async({page})=>{

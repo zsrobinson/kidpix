@@ -2,6 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.15.0 (candidate)
+
+- Bounded tool-animation backing stores to every source pose and restoration region, with a transparent sampling fringe. Drawing's three motion canvases use 272,628 nominal RGBA bytes instead of 9,437,184; this estimate excludes engine copies, images and other canvases.
+- Preserved native coordinates, mode9 color arithmetic, source clipping and hit regions while keeping large transparent animation surfaces off the drawing area. Stroke sampling, pressure, randomness and history remain unchanged.
+- Repeated desktop WebKit controls show improved callback coverage across Pencil, Chalk, Crayon and Marker; gains vary by input pattern and do not establish a 60 Hz or physical iPad latency fix. See [bounded-canvas measurements](audits/bounded-ui-canvas.md).
+- Canonical pixel checks verify backing dimensions and CSS placement against independently recovered geometry. Full and bounded WebKit targets match across 660 source frames, and the existing wrong-origin and old-hover-clipping negatives still fail. Native references remain 0/17; the reported foreground idle failure remains unproved.
+
 ## 0.14.0
 
 - Restored the full Crayon and Marker hover artwork by removing an excess clip from the tinted source copy. Ordinary base clipping and hit regions remain unchanged; every hover pose and restoration passes at four desktop/tablet viewport sizes in Chromium and WebKit.

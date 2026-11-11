@@ -2,11 +2,11 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.29.0 (candidate)
+## 0.29.0
 
 - Restore Add Picture to Slide Show's authored three-pose, silent hover loop at 100 ms per source update. Clip playback to its original 79×95 control rectangle and restore the clean backing before each frame; preserve the existing Add Picture action and sound.
-- Accept only the exact source-identified 1128 resource through an explicit decoder opt-in. Preserve its unreachable trailing bytes as metadata; keep unknown tails and Play program 1039 rejected. Reuse existing artwork and clean backing, with no media upload or baseline changes planned.
-- Retire ready or pending hover playback on leave, press, cancellation, lost capture, inactivity or disposal. Independent review found no actionable issues: 92 scoped browser checks and 20 Python checks passed. Full local and public release validation remains pending.
+- Accept only the exact source-identified 1128 resource through an explicit decoder opt-in. Preserve its unreachable trailing bytes as metadata; keep unknown tails and Play program 1039 rejected. Reuse existing artwork and clean backing, without adding media or changing baselines.
+- Retire ready or pending hover playback on leave, press, cancellation, lost capture, inactivity or disposal. Independent review found no actionable issues: 92 scoped browser checks and 20 Python checks passed. All 372 Node checks, source-only 344 checks with 28 existing imported-asset skips, asset verification, build and Worker dry run pass. Full suites pass 886 development, 798 built and 662 WebKit cases with existing skips. All 17 static captures are RGBA-identical to accepted 0.28.1. Public acceptance is recorded separately against the exact published revision.
 - Native references remain 0/17. Physical iPad latency, foreground idle, audible behavior and IME remain unverified; enlarged vacuum stays disabled and Pencil preview defaults off.
 
 ## 0.28.1

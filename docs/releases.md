@@ -2,6 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.23.0 (release validation)
+
+- Add Make Sticker for fresh rectangular and freehand Scissors selections, with its three recovered motion programs and four source-verified poses.
+- Keep the original drawing and all clipboards; preserve the exact masked selection size and position. Select Grab Hand after conversion, with one browser Undo/Redo step and atomic rollback on failure.
+- Keep moved, pasted and other selection styles unavailable. Native Undo, error and cancellation behavior remain unverified; the coordinated transaction is an explicit browser policy.
+- Independent review found no candidate-specific release objection. Full release validation is pending. Native references remain 0/17; the enlarged vacuum is disabled and physical Pencil performance remains unverified.
+
 ## 0.22.0
 
 - Add an explicit “Pencil preview (experimental)” switch in the Paint Zone menu, off by default. A browser preference remembers explicit choices without changing saved projects or document history.

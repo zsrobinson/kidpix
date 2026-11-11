@@ -125,7 +125,9 @@ async function expectSourcePixels(page, owner, view) {
   let expected = new PNG({ width: 1024, height: 768 });
   const layers = [];
   const overlay = (src, x, y, clip = [left, top, right - left, bottom - top]) => {
-    layers.push({png: PNG.sync.write(src).toString('base64'), x, y, clip});
+    // Only WebKit consumes these encoded layers. Chromium compares the
+    // independent integer composition below without serializing source PNGs.
+    if (test.info().project.use.browserName === 'webkit') layers.push({png: PNG.sync.write(src).toString('base64'), x, y, clip});
     for (let sy = 0; sy < src.height; sy++) for (let sx = 0; sx < src.width; sx++) {
       const dx = x + sx, dy = y + sy;
       if (dx < clip[0] || dy < clip[1] || dx >= clip[0] + clip[2] || dy >= clip[1] + clip[3] || dy >= 768) continue;

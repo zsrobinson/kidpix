@@ -2,6 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.25.0 (release validation)
+
+- Animate Grab Hand's Next Object and Previous Object controls with six original programs and eight source-verified draw groups. Retain Scissors' separate Make Sticker owner and source sound/cancellation behavior.
+- Follow current saved scene order, wrap both directions and preserve content, empty text, media/editor nodes, clipboards and selection-only history. Reconcile stale input after edits and restore; keep singleton controls available as a no-op.
+- Require pending typing to belong to its originating live editor, selected object and document epoch. Independent review and the ownership recheck found no remaining objections; full release validation is pending.
+- Browser ordering and immediate reconciliation are explicit adaptations. Native observer/filter/handoff/Undo behavior, hardware IME safety and physical iPad feel remain unverified. Native references stay 0/17; the enlarged vacuum stays disabled and Pencil preview stays off by default.
+
 ## 0.24.0
 
 - Enable Make Sticker for fresh completed ellipse and polygon Scissors selections, retaining exact browser masks, source pixels and clipboards through the existing single-step Undo/Redo transaction.

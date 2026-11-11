@@ -35,7 +35,10 @@ complete 2462-byte 206 responses with the pinned SHA-256. Parent integration
 passes all 371 Node cases and repeats both WAV failure-stage checks.
 
 The 0.28.1 maintenance release retains the existing compatibility date, API
-contracts and application rendering. Release packaging, scoped media-heavy
-built-browser checks and selected public acceptance remain pending. This is
-fault-class recovery evidence, not provider fault reproduction or a claim that
-the historical 503's cause has been identified.
+contracts and application rendering. Parent packaging, deployment dry run and
+43 media-heavy built-browser cases pass; all 17 captures are identical to
+accepted 0.28. Drawing/UI source, media and baselines are unchanged, so the
+unchanged full frontend populations are not repeated for this backend patch.
+Selected public browser acceptance and live HTTP/payload validation remain
+pending. This is fault-class recovery evidence, not provider fault reproduction
+or a claim that the historical 503's cause has been identified.

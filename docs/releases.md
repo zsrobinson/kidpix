@@ -8,6 +8,7 @@ The current public build identifies its version, source revision and build time 
 - Add the original operation sound 14006 independently of button tracking cues. Preserve existing images and sounds; metadata gains only the erase contract and that sound reference.
 - Cancel safely on Escape, inactivity, resize, close or owner teardown. Guard history and ordinary controls during erase, preserve actual Cancel activation, and quarantine rejected contacts through their released compatibility click.
 - Independent correction review found no remaining objection within correction/shared-input scope. Full release validation is pending. The pixel-center oval mask, browser scaling, transparent final storage and interruption policy are explicit browser adaptations; exact native edges/runtime, physical iPad feel, audible timing and IME behavior remain unverified. Native references stay 0/17; enlarged vacuum stays disabled and Pencil preview defaults off.
+- Retain the first full-run media-receipt failures. Recognize a full-file HTTP 206 response from native Audio alongside HTTP 200 while preserving exact payload count, size, RIFF and hash checks; all twelve actual Range-delivery composition checks pass.
 
 ## 0.26.0
 

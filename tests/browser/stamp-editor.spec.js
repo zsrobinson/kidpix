@@ -570,7 +570,13 @@ for (const transparent of [false,true,'mixed']) test(`NORMAL browser erase tempo
   const before=await eraseState(dialog);
   await freezeEraseClock(page);
   const responses=[];
-  page.on('response',response=>{if(response.status()===200&&response.url().includes('sound-14006.wav'))responses.push(response);});
+  page.on('response',response=>{
+    if(!response.url().includes('sound-14006.wav'))return;
+    // Native Audio may request the entire file using Range: bytes=0-.
+    // Count only complete entity payloads; provisional/partial responses do not qualify.
+    const complete=response.status()===200||response.status()===206&&response.headers()['content-range']==='bytes 0-59535/59536';
+    if(complete)responses.push(response);
+  });
   await command(dialog,'Eraser').click();
   await expect(dialog).toHaveAttribute('data-erasing','true');
   const expectedPixels=Buffer.from(PNG.sync.read(Buffer.from(before.committed.split(',')[1],'base64')).data);
@@ -592,6 +598,7 @@ for (const transparent of [false,true,'mixed']) test(`NORMAL browser erase tempo
   expect(await sample()).toEqual({white:[255,255,255,255],outside:transparent?[0,0,0,0]:[224,16,48,255],backing:'rgb(255, 255, 255)'});
   await expect.poll(()=>responses.length).toBe(1);
   const loadedWav = await responses[0].body();
+  expect(loadedWav.length).toBe(59536);
   // Every delivered callback paints exactly one cumulative rectangle.
   for(let i=1;i<7;i++) {
     await page.evaluate(()=>window.deliverErase());

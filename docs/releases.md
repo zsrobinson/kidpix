@@ -2,11 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.25.0 (release validation)
+## 0.25.0
 
 - Animate Grab Hand's Next Object and Previous Object controls with six original programs and eight source-verified draw groups. Retain Scissors' separate Make Sticker owner and source sound/cancellation behavior.
 - Follow current saved scene order, wrap both directions and preserve content, empty text, media/editor nodes, clipboards and selection-only history. Reconcile stale input after edits and restore; keep singleton controls available as a no-op.
-- Require pending typing to belong to its originating live editor, selected object and document epoch. Independent review and the ownership recheck found no remaining objections; full release validation is pending.
+- Require pending typing to belong to its originating live editor, selected object and document epoch. Independent review and the ownership recheck found no remaining objections. Verified 313 Node checks, 787 development cases, 702 built cases and 553 WebKit cases, with existing explicit skips; source-only checks, build and deployment dry run pass. All 15 required media bodies match existing source hashes; no upload is needed.
+- All 17 captures match the independently reviewed source composition. Fifteen remain identical to 0.24; the two Grab captures each differ by 272 pixels with a maximum channel difference of one, entirely inside the navigation artwork. Raw backing, registrations and alpha composition reconstruct both exactly, with five corruption controls rejected. Baselines and tolerances are unchanged.
+- Preserve the initial full-run failures: two touch checks lacked a touch-enabled test context, and the exhaustive frame total omitted eight new navigation frames. Enable touch only for the new shipped navigation spec and assert exact fixture-derived coverage for all 692 frames; the complete rerun passes without application changes.
 - Browser ordering and immediate reconciliation are explicit adaptations. Native observer/filter/handoff/Undo behavior, hardware IME safety and physical iPad feel remain unverified. Native references stay 0/17; the enlarged vacuum stays disabled and Pencil preview stays off by default.
 
 ## 0.24.0

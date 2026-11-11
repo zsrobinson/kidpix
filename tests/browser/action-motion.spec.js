@@ -47,12 +47,12 @@ test('native Grab keeps path actions in the menu without floating over the studi
   await expect(page.locator('#status')).toContainText('Select an animation or movie first.');
 });
 
-test('Grab animation restoration leaves unbound object-navigation artwork visible', async ({ page }) => {
+test('Grab navigation owns exactly the source-authorized column', async ({ page }) => {
   await textObject(page); await start(page, 'grab'); await clock(page);
   const canvas = PNG.sync.read(Buffer.from((await canonicalMotionFrame(actor(page))).split(',')[1], 'base64'));
   let covered = 0;
   for (let y = 648; y < 731; y++) for (let x = 491; x < 531; x++) covered += canvas.data[(y * 1024 + x) * 4 + 3] !== 0;
-  expect(covered, 'unbound navigation column must remain transparent').toBe(0);
+  expect(covered, 'navigation restoration must cover the two source rows').toBe(40 * 83);
   const image = PNG.sync.read(await page.locator('#studio').screenshot());
   for (const row of [5, 10]) {
     const button = sourceManifest.tables[926].buttons.find(button => button.index === row);
@@ -115,7 +115,7 @@ test('formatting preserves a backward text selection and its active end', async 
 async function expectSourcePixels(page, owner, view) {
   const states = (await snap(page, owner)).filter(state => state.name !== 'speak');
   const scripts = states.map(state => sourceManifest.scripts[state.script]);
-  const allParts = Object.values(sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11] : [2,3,4,6,7,8,9]).includes(b.index)))
+  const allParts = Object.values(sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11] : [2,3,4,5,6,7,8,9,10]).includes(b.index)))
     .flatMap(button => [...button.stateScripts, button.rolloverScript].filter(Boolean))
     .flatMap(id => sourceManifest.scripts[id].frames.flatMap(frame => frame.parts.map(part => ({ ...part, collection: sourceManifest.scripts[id].collection }))));
   const left = Math.min(...allParts.map(part => part.x));
@@ -144,7 +144,7 @@ async function expectSourcePixels(page, owner, view) {
   overlay(png(backdrop.pages[0].image), backdrop.rect[0], backdrop.rect[1]);
   for (let index = 0; index < states.length; index++) {
     const state = states[index], script = scripts[index];
-    const button = sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11] : [2,3,4,6,7,8,9]).includes(b.index)).find(button => button.stateScripts.includes(state.script) || button.rolloverScript === state.script);
+    const button = sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11] : [2,3,4,5,6,7,8,9,10]).includes(b.index)).find(button => button.stateScripts.includes(state.script) || button.rolloverScript === state.script);
     for (const part of script.frames[state.frameIndex].parts) overlay(png(sourceManifest.sprites[`${script.collection}:${part.sprite}`].image), part.x, part.y,
       state.auxiliary ? button.auxiliaryClipRect : [0, 0, 1024, 768]);
   }
@@ -171,8 +171,8 @@ async function expectSourcePixels(page, owner, view) {
   let canvasBad = 0, visibleBad = 0; const firstBad = [];
   for (let y = top; y < Math.min(bottom, 768); y++) for (let x = left; x < right; x++) {
     const offset = (y * 1024 + x) * 4;
-    // Independent source footprints, excluding the unbound navigation column.
-    const owned = (view === 'text' ? [[257,643,43,62],[334,643,43,62],[160,714,194,33]] : [[409,647,82,86],[542,651,324,82]])
+    // Independent source footprints, including the two authorized navigation rows.
+    const owned = (view === 'text' ? [[257,643,43,62],[334,643,43,62],[160,714,194,33]] : [[409,647,82,86],[542,651,324,82],[491,648,40,83]])
       .some(([left, top, width, height]) => x >= left && x < left + width && y >= top && y < top + height);
     if (!owned) expected.data.fill(0, offset, offset + 4);
     for (let c = 0; c < 4; c++) {
@@ -192,42 +192,48 @@ import { PNG } from 'pngjs';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 const sourceManifest = JSON.parse(readFileSync('public/original/ui/secondary-motion/manifest.json'));
+// Navigation expectations come from the independently checked raw Tp fixture.
+const navigationSource = JSON.parse(readFileSync('tests/fixtures/hand-navigation-source.json'));
+Object.assign(sourceManifest.scripts, navigationSource.programs);
+Object.assign(sourceManifest.sprites, navigationSource.sprites);
+for (const row of navigationSource.rows) sourceManifest.tables[926].buttons[sourceManifest.tables[926].buttons.findIndex(button => button.index === row.index)] = row;
 const png = path => PNG.sync.read(readFileSync(`public/original/ui/${path}`));
 const hash = value => createHash('sha256').update(value).digest('hex');
 
 
-for (const tray of ['text', 'grab']) test(`${tray}: every source rest, hover, tracking and active pose in studio`, async ({ page }) => {
+for (const tray of ['text', 'grab', 'navigation']) test(`${tray}: every source rest, hover, tracking and active pose in studio`, async ({ page }) => {
+  const view = tray === 'navigation' ? 'grab' : tray;
   await textObject(page);
-  if (tray === 'grab') await start(page, 'grab');
+  if (view === 'grab') await start(page, 'grab');
   await clock(page);
   const actions = tray === 'text' ? ['align:left','align:right','align:center','bold','italic','underline']
-    : ['edit:cut','edit:copy','edit:paste','edit:front','edit:back','edit:forward','edit:backward'];
+    : tray === 'navigation' ? ['navigate:1','navigate:-1'] : ['edit:cut','edit:copy','edit:paste','edit:front','edit:back','edit:forward','edit:backward'];
   if (tray === 'grab') await click(page, 'edit:copy');
   for (const action of actions) {
     if (tray === 'text' && action.startsWith('align:')) await click(page, action === 'align:left' ? 'align:right' : 'align:left');
     if (tray === 'grab' && action === 'edit:copy') await page.locator('.object-text').first().click();
     if (tray === 'grab' && action === 'edit:cut') { await click(page,'edit:paste'); }
-    await expectSourcePixels(page, '', tray);
+    await expectSourcePixels(page, '', view);
     await page.clock.runFor(120);
-    await expectSourcePixels(page, '', tray);
+    await expectSourcePixels(page, '', view);
     await control(page, action).hover();
-    await expectSourcePixels(page, '', tray);
+    await expectSourcePixels(page, '', view);
     await page.mouse.down();
     expect((await snap(page)).find(s=>s.name===action).state).toBe(1);
-    await expectSourcePixels(page, '', tray);
+    await expectSourcePixels(page, '', view);
     await page.clock.runFor(120);
-    await expectSourcePixels(page, '', tray);
+    await expectSourcePixels(page, '', view);
     await page.mouse.up();
-    await expectSourcePixels(page, '', tray);
+    await expectSourcePixels(page, '', view);
     await page.clock.runFor(120);
-    await expectSourcePixels(page, '', tray);
+    await expectSourcePixels(page, '', view);
     await page.mouse.move(900, 600);
     if (['bold','italic','underline'].includes(action)) {
       await control(page, action).hover(); await page.mouse.down();
-      await expectSourcePixels(page, '', tray); await page.clock.runFor(120);
-      await expectSourcePixels(page, '', tray); await page.mouse.up();
-      await expectSourcePixels(page, '', tray); await page.clock.runFor(120);
-      await expectSourcePixels(page, '', tray);
+      await expectSourcePixels(page, '', view); await page.clock.runFor(120);
+      await expectSourcePixels(page, '', view); await page.mouse.up();
+      await expectSourcePixels(page, '', view); await page.clock.runFor(120);
+      await expectSourcePixels(page, '', view);
     }
   }
 });
@@ -378,7 +384,7 @@ test('departed view invalidates delayed action decoding', async ({ page }) => {
   await click(page,'tray:text'); await expect(control(page,'bold')).toBeVisible();
   await click(page,'bold'); await click(page,'tray:grab');
   finish(); await expect(actor(page)).toBeVisible();
-  expect((await snap(page)).every(s=>s.name.startsWith('edit:'))).toBe(true);
+  expect((await snap(page)).every(s=>s.name.startsWith('edit:') || s.name.startsWith('navigate:'))).toBe(true);
   await start(page,'text'); expect((await snap(page)).find(s=>s.name==='bold').state).toBe(2);
 });
 

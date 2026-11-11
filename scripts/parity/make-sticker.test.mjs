@@ -6,10 +6,10 @@ import { prepareStickerRaster, stickerRaster } from '../../src/sticker-raster.js
 const pin=JSON.parse(fs.readFileSync('tests/fixtures/make-sticker-source.json'));
 function source(){return {tables:{926:{buttons:[structuredClone(pin.row)]}},scripts:structuredClone(pin.programs),sprites:structuredClone(pin.sprites),sounds:{}}}
 const profile={table:926,rows:[11]};
-test('row11 owns exactly its source footprint and is Scissors-only; navigation stays absent',()=>{
+test('row11 owns exactly its source footprint and is Scissors-only; Hand excludes row11',()=>{
  const m=actionManifest(source(),profile);assert.deepEqual(m.restorationRects,[[493,647,61,86]]);
  assert.equal(m.buttons[0].action,'make-sticker');assert.deepEqual(actionProfile({tray:'grab',selected:'scissors'}).rows,[2,3,4,11]);
- assert.ok(!actionProfile({tray:'grab',selected:'grab'}).rows.some(n=>[5,10,11].includes(n)));
+ assert.deepEqual(actionProfile({tray:'grab',selected:'grab'}).rows,[2,3,4,5,6,7,8,9,10]);
  assert.deepEqual(actionStates(m,{stickerAvailable:false}),[{active:false,disabled:true}]);
  assert.equal(actionTarget({stickerIdentity:'selection:revision'},'make-sticker'),'selection:revision');
 });

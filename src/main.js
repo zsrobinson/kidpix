@@ -523,7 +523,7 @@ const textFallbackActions = new Set([...TEXT_STEPPERS, ...VOICE_STEPPERS].map(st
 const traySelectorActions = new Set(['tool', 'style', 'size', 'mode', 'effect', 'page', 'cookie', 'eraser-shape']);
 guardStepperInput($('#tray-buttons'), {
   actions: action => textFallbackActions.has(action) || traySelectorActions.has(action.split(':')[0])
-    || state.tray === 'grab' && (action.startsWith('edit:') || action === 'make-sticker'),
+    || state.tray === 'grab' && (action.startsWith('edit:') || action.startsWith('navigate:') || action === 'make-sticker'),
   getTarget: action => traySelectorActions.has(action.split(':')[0])
     ? JSON.stringify([state.tray, trayState(state).art, state.page]) : actionTarget(actionMotionState(), action),
   activate: action => activate(action),
@@ -558,7 +558,7 @@ function readText() {
   const payload = readPayload();
   speech.submit('TextRead', [{ ...payload, signature: JSON.stringify(payload) }]);
 }
-$('#objects').addEventListener('scenechange', () => { if (state.tray === 'text') updateActionMotion(); });
+$('#objects').addEventListener('scenechange', () => { if (['text', 'grab'].includes(state.tray)) updateActionMotion(); });
 document.addEventListener('selectionchange', () => { if (state.tray === 'text') updateActionMotion(); });
 for (const type of ['pagehide', 'blur']) window.addEventListener(type, () => speech.retire('TextRead'));
 document.addEventListener('visibilitychange', () => { if (document.hidden) speech.retire('TextRead'); });
@@ -590,7 +590,16 @@ function syncTextValues() {
   }
   if (size && document.activeElement !== size) size.value = state.textSize;
 }
+function navigationState() {
+  const navigation = scene.navigation;
+  return { navigationIdentity: navigation.identity,
+    navigationAvailable: navigation.available && state.tray === 'grab' && state.tools.grab === 'grab'
+      && !state.playing && !loadingProject && !firehose?.busy && !stickerRequest
+      && !document.querySelector('dialog[open]') && $('#playback').hidden };
+}
 function actionMotionState() {
+  const navigation = navigationState();
+  for (const control of $('#tray-buttons').querySelectorAll('[data-action^="navigate:"]')) control.disabled = !navigation.navigationAvailable;
   const stickerAvailable = state.tray === 'grab' && state.tools.grab === 'scissors' && !state.playing && !loadingProject && !firehose?.busy && Boolean(paint.stickerIdentity);
   for (const control of app.querySelectorAll('[data-action="make-sticker"]')) control.disabled = !stickerAvailable;
   const capabilities = state.tray === 'grab' && state.tools.grab === 'scissors' ? paint.actionState : scene.actionState;
@@ -607,7 +616,7 @@ function actionMotionState() {
     const control = $('#tray-buttons').querySelector(`[data-action="text-clipboard:${action}"]`);
     if (control) control.disabled = state.tray !== 'text' || !textCapabilities[action];
   }
-  return { textCapabilities, textIdentity: JSON.stringify(textTarget), textClipboardGeneration: scene.textClipboard.generation, ...readState(), voice: state.voice, voiceCatalog: voiceCatalog.voices, voiceGeneration: voiceCatalog.generation, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, stickerAvailable, stickerIdentity: paint.stickerIdentity, target: capabilities.target };
+  return { ...navigation, textCapabilities, textIdentity: JSON.stringify(textTarget), textClipboardGeneration: scene.textClipboard.generation, ...readState(), voice: state.voice, voiceCatalog: voiceCatalog.voices, voiceGeneration: voiceCatalog.generation, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, stickerAvailable, stickerIdentity: paint.stickerIdentity, target: capabilities.target };
 }
 const nativeActionMotion = createNativeActionMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
@@ -800,6 +809,7 @@ function showTray() {
       $('#font').value = state.font;
       syncVoiceSelect();
     }
+    if (state.tray === 'grab' && state.tools.grab === 'grab') layer.innerHTML += button('navigate:1', 'Next Object', 491, 648, 40, 41) + button('navigate:-1', 'Previous Object', 491, 690, 40, 41);
     if (state.tray === 'grab' && state.tools.grab === 'scissors') layer.innerHTML += button('make-sticker', 'Make Sticker', 493, 647, 61, 86);
     if (state.tray === 'grab' && state.tools.grab === 'grab' && !(nativeUi && nativeTray)) {
       layer.innerHTML += '<div class="path-controls"><button class="pill" data-action="path">Path</button><button class="pill" data-action="loop-path">Loop Path</button><button class="pill" data-action="preview-object">Play Object</button></div>';
@@ -1669,6 +1679,11 @@ async function makeSticker() {
 }
 
 async function activate(action) {
+  if (action.startsWith('navigate:')) {
+    const navigation = navigationState();
+    if (navigation.navigationAvailable) scene.stepSelection(Number(action.split(':')[1]), navigation.navigationIdentity);
+    return;
+  }
   if (action === 'make-sticker') return makeSticker();
   retireSticker();
   if (firehose?.busy) { nativeToolTabMotion?.completeActivation(); nativeCommandMotion?.cancel(); return; }

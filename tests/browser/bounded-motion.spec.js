@@ -20,7 +20,7 @@ test('bounded backing stores preserve every source frame against full native tar
       for(const eraserShape of tray === 'eraser' ? ['round','square'] : ['round'])
         for(const profile of secondaryProfiles({tray,selected,eraserShape})) manifests.push(secondaryManifest(secondary,profile));
     for(const profile of [{table:9383,rows:[2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18]},
-      {table:926,rows:[2,3,4]}, {table:926,rows:[2,3,4,6,7,8,9]},
+      {table:926,rows:[2,3,4]}, {table:926,rows:[2,3,4,5,6,7,8,9,10]},
       {table:18700,rows:[1,2]}, {table:18700,rows:[3]}, {table:18202,rows:[0,1,2]}]) manifests.push(actionManifest(secondary,profile));
     const chrome = new Image(); chrome.src=resolve('paint-empty.png');await chrome.decode();
     let frames=0;const failures=[];const seen=new Set();const clipboardCoverage=[];

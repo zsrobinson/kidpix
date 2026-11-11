@@ -1,0 +1,20 @@
+{
+  "newMedia": 0,
+  "requiredExistingMedia": {
+    "ui/secondary-motion/sprites/18000-771.png": "8f50136735b147641af17ad54007465a08f1c1e13f15c170c1059152040b7cd3",
+    "ui/secondary-motion/sprites/18000-771.argb": "41ada1e3be413fa480a7133ea2231a428bd1094a867bb38bbbf4e4a4065c53c9",
+    "ui/secondary-motion/sprites/18000-772.png": "fbe8e2a619f354746900c19ab6c724216319e9be02b26f1124e1109388520a4d",
+    "ui/secondary-motion/sprites/18000-772.argb": "04db7fd767deeb9e9ce7ee88c7fad7207630dd6caf62b820c17d9b5074323db7",
+    "ui/secondary-motion/sprites/18000-773.png": "422ca7f779eca2d384b52c5bc46abcb8982d5ac15ec1087d046f9e9fc2148f73",
+    "ui/secondary-motion/sprites/18000-773.argb": "9d34d6321bf0dd9df62b5fe74f21ea3dba39cccca862fa9560e737f127e87cf9",
+    "ui/secondary-motion/sprites/18000-786.png": "25b63a0d5d261cb2bb357bad79a56777c39250f2cacff8e0e463b6af02d3e20d",
+    "ui/secondary-motion/sprites/18000-786.argb": "3a1791b98f6c532b2e24057cef085aaf44077fd5595b8bf2f7dd65119977af68",
+    "ui/secondary-motion/sprites/18000-787.png": "327a28f83594a0a321da27d07d1a08a236397fd2a450ef34038fe9014b68fb2d",
+    "ui/secondary-motion/sprites/18000-787.argb": "83b33504c914710d38ee83cfd4e284140873d15211666926c08e6f90af1cd72d",
+    "ui/secondary-motion/sprites/18000-788.png": "cd6e08fed68c7234a378d65eee0446abdcbd6eaabe7fda0488b4f3336a860214",
+    "ui/secondary-motion/sprites/18000-788.argb": "8b725d5f6a6a99d743f7e522159079554953893ddd055568013d3808b7a11562",
+    "ui/secondary-motion/sounds/18072.wav": "e39ae77f7a95293618054d8c1af3db73d81bf20bbefd608e85dc2c252635e9d2",
+    "ui/secondary-motion/backdrops/grab-1.png": "c39fe7c696d8c4da8caccb35c5c59fafeac45891f03fa8142890a9dec372af74",
+    "ui/secondary-motion/manifest.json": "e26554039c331b88a32cf49f7a2faf2f42db718e69aee9fcc35c4d439a88b1da"
+  }
+}

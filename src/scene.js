@@ -42,7 +42,7 @@ export function createScene(root, surface, onChange) {
   let objects = [];
   let selected = null;
   let clipboard = null;
-  let before = null;
+  let before = null, typingPending = false;
   let documentEpoch = 0, textRevision = 0, disposed = false;
   let beforeRange = null;
   let mode = 'paint';
@@ -50,7 +50,7 @@ export function createScene(root, surface, onChange) {
   let animation;
   let suspended = false;
   const suspendedVideos = new Set();
-  let sceneRevision = 0;
+  let sceneRevision = 0, navigationRevision = 0, navigationCache;
   const preparedStickers = new WeakMap();
   let drag = null;
   let path = null;
@@ -61,7 +61,12 @@ export function createScene(root, surface, onChange) {
 
   const current = () => objects.find(object => object.id === selected);
   const snapshot = () => structuredClone(objects);
-  const changed = (prior, ranges) => onChange(prior, snapshot(), ranges);
+  const changed = (prior, ranges) => {
+    navigationRevision++;
+    const identity = navigationIdentity();
+    onChange(prior, snapshot(), ranges);
+    return identity;
+  };
   const editorFor = id => [...root.children].find(node => node.dataset.object === id)?.querySelector('.object-text');
   function selectionAt(id, range, focus = true) {
     const editor = editorFor(id);
@@ -75,10 +80,10 @@ export function createScene(root, surface, onChange) {
   }
   function flushText() {
     if (!before) return;
-    const prior = before; before = null;
-    if (JSON.stringify(prior) !== JSON.stringify(objects)) changed(prior, {
-      before: beforeRange, after: textClipboard.target() });
-    beforeRange = null;
+    const prior = before, range = beforeRange;
+    before = null; beforeRange = null; typingPending = false;
+    if (JSON.stringify(prior) !== JSON.stringify(objects)) return changed(prior, {
+      before: range, after: textClipboard.target() });
   }
   const textClipboard = createTextClipboard({ epoch: () => documentEpoch,
     current: () => ({ id: current()?.id, editor: editorFor(current()?.id), revision: textRevision,
@@ -100,12 +105,12 @@ export function createScene(root, surface, onChange) {
         if (!ownsEdit()) return false;
         object.text = oldText; editor.replaceChildren(...nodes); textRevision++;
         try { selectionAt(object.id, token); } catch { /* Retain the original editor on selection failure. */ }
-        before = null; beforeRange = null;
+        before = null; beforeRange = null; typingPending = false;
         notify();
         return false;
       }
       // Focus callbacks can establish a new blur baseline; replace it after commit.
-      before = null; beforeRange = null;
+      before = null; beforeRange = null; typingPending = false;
       changed(prior, { before: token, after: { ...next, objectId: object.id } });
       notify();
       return true;
@@ -118,6 +123,65 @@ export function createScene(root, surface, onChange) {
       y: clamp((event.clientY - bounds.top) * sceneHeight / bounds.height, 0, sceneHeight),
     };
   };
+
+  // Browser navigation follows the current serialized array, not a native
+  // bitmap admission filter. Presentation renders never advance this identity.
+  const navigationKey = {};
+  function navigationIdentity() {
+    if (navigationKey.epoch !== documentEpoch || navigationKey.revision !== navigationRevision
+      || navigationKey.selected !== selected || navigationKey.mode !== mode || navigationKey.playing !== playing
+      || navigationKey.suspended !== suspended || navigationKey.drag !== Boolean(drag) || navigationKey.path !== Boolean(path)) {
+      Object.assign(navigationKey, { epoch: documentEpoch, revision: navigationRevision, selected, mode, playing,
+        suspended, drag: Boolean(drag), path: Boolean(path),
+        identity: `${documentEpoch}:${navigationRevision}:${selected}:${mode}:${playing}:${suspended}:${Boolean(drag)}:${Boolean(path)}` });
+    }
+    return navigationKey.identity;
+  }
+  function navigationAvailable() {
+    return !disposed && mode === 'grab' && !playing && !suspended && !drag && !path
+      && renderable(current());
+  }
+  function renderable(object) {
+    if (!object || typeof object.id !== 'string' || !object.id
+      || !Number.isFinite(object.x) || !Number.isFinite(object.y)
+      || !Number.isFinite(object.width) || !Number.isFinite(object.height)
+      || object.width <= 0 || object.height <= 0
+      || !(object.kind === 'text' ? typeof object.text === 'string'
+        : (object.kind === 'image' || object.kind === 'video') && typeof object.src === 'string' && object.src)) return false;
+    let matches = 0;
+    for (const item of objects) if (item.id === object.id) matches++;
+    if (matches !== 1) return false;
+    for (const node of root.children) if (node.dataset.object === object.id) return true;
+    return false;
+  }
+  function stepSelection(direction, expectedIdentity) {
+    if (![1, -1].includes(direction) || !navigationAvailable() || expectedIdentity !== navigationIdentity()) return false;
+    const owner = current();
+    if (!renderable(owner)) return false;
+    if (objects.length < 2) return true;
+    const destination = objects[(objects.indexOf(owner) + direction + objects.length) % objects.length];
+    if (!renderable(destination)) return false;
+    // Only the text owner may publish pending ordinary typing. Its callbacks
+    // can replace/reorder the document; never continue into that replacement.
+    if (before && JSON.stringify(before) !== JSON.stringify(objects)
+      && (owner.kind !== 'text' || !typingPending)) return false;
+    const afterTyping = flushText() ?? expectedIdentity;
+    if (afterTyping !== navigationIdentity() || !navigationAvailable()
+      || current() !== owner || !renderable(destination)) return false;
+    selected = destination.id; navigationRevision++;
+    textRevision++;
+    for (const node of root.children) {
+      const active = node.dataset.object === selected;
+      node.classList.toggle('is-selected', active);
+      node.querySelector('.resize-object')?.remove();
+      if (active) {
+        const handle = root.ownerDocument.createElement('div');
+        handle.className = 'resize-object'; node.append(handle);
+      }
+    }
+    notify();
+    return true;
+  }
 
   function render() {
     textRevision++;
@@ -148,7 +212,7 @@ export function createScene(root, surface, onChange) {
             before ??= snapshot();
             if (before.find(item => item.id === object.id)?.text === object.text) beforeRange = textClipboard.target();
           });
-          text.addEventListener('input', () => { before ??= snapshot(); object.text = editorText(text).text; textRevision++; notify(); });
+          text.addEventListener('input', () => { before ??= snapshot(); object.text = editorText(text).text; typingPending = true; textRevision++; navigationRevision++; notify(); });
           text.addEventListener('blur', () => {
             if (before) {
               const prior = before.find(item => item.id === object.id);
@@ -158,7 +222,7 @@ export function createScene(root, surface, onChange) {
                 node.remove();
               } else if (prior?.text !== object.text) flushText();
             }
-            before = null; beforeRange = null;
+            before = null; beforeRange = null; typingPending = false;
           });
         }
         node.append(text);
@@ -202,7 +266,7 @@ export function createScene(root, surface, onChange) {
     flushText();
     const prior = snapshot();
     object.id = makeId();
-    objects.push(object);
+    objects.push(object); navigationRevision++;
     selected = object.id;
     render();
     return prior;
@@ -216,6 +280,7 @@ export function createScene(root, surface, onChange) {
     event.preventDefault();
     const object = objects.find(item => item.id === node.dataset.object);
     selected = object.id;
+    navigationRevision++;
     drag = {
       pointer: event.pointerId, origin: coordinates(event), object,
       x: object.x, y: object.y, width: object.width, height: object.height,
@@ -245,7 +310,7 @@ export function createScene(root, surface, onChange) {
   function finishDrag(event) {
     if (drag?.pointer !== event.pointerId) return;
     const prior = drag.prior;
-    drag = null;
+    drag = null; navigationRevision++;
     inputOwner.release(root, event.pointerId);
     if (JSON.stringify(prior) !== JSON.stringify(objects)) changed(prior);
   }
@@ -270,18 +335,26 @@ export function createScene(root, surface, onChange) {
   }
 
   return {
-    textClipboard, flushText,
+    textClipboard, flushText, stepSelection,
+    get navigation() {
+      const identity = navigationIdentity();
+      if (navigationCache?.identity !== identity) {
+        const available = navigationAvailable();
+        navigationCache = Object.freeze({ available, identity, canStep: available && objects.length >= 2 });
+      }
+      return navigationCache;
+    },
     settle() {
       root.ownerDocument.activeElement?.blur();
       finishInactive();
     },
     suspend() {
       const prior = { objects: objects.slice(), selected, mode, sceneRevision, readRevision, previews: [...previews], nodes: [...root.childNodes] };
-      suspended = true;
+      suspended = true; navigationRevision++;
       const videos = [...root.querySelectorAll('video')].filter(video => !video.paused);
       const paused = [];
       function release() {
-        suspended = false;
+        suspended = false; navigationRevision++;
         for (const video of suspendedVideos) if (!video.isConnected) video.pause();
         suspendedVideos.clear();
         let failure;
@@ -340,6 +413,7 @@ export function createScene(root, surface, onChange) {
       return { before: prior, after: snapshot(), beforeSelected: priorSelected, afterSelected: selected };
     },
     selectSticker(id) {
+      navigationRevision++;
       selected = objects.some(object => object.id === id) ? id : null;
       render();
     },
@@ -370,7 +444,7 @@ export function createScene(root, surface, onChange) {
       const editor = root.querySelector(`[data-object="${selected}"] .object-text`);
       if (editor) {
         editor.focus();
-        before = prior;
+        before = prior; typingPending = false;
       }
     },
     setTextStyle(style) {
@@ -378,6 +452,7 @@ export function createScene(root, surface, onChange) {
       const object = current();
       if (object?.kind !== 'text') return;
       const prior = snapshot();
+      navigationRevision++;
       Object.assign(object, style);
       render();
       changed(prior);
@@ -386,6 +461,7 @@ export function createScene(root, surface, onChange) {
       flushText();
       const object = current();
       const prior = snapshot();
+      navigationRevision++;
       if (command === 'paste' && clipboard) {
         add({ ...clipboard, x: clipboard.x + 12, y: clipboard.y + 12 });
       } else if (object) {
@@ -408,6 +484,7 @@ export function createScene(root, surface, onChange) {
       const object = current();
       if (!object) return;
       const prior = snapshot();
+      navigationRevision++;
       object.x += x;
       object.y += y;
       render();
@@ -416,7 +493,7 @@ export function createScene(root, surface, onChange) {
     chooseMode(next) {
       if (mode !== next) {
         flushText();
-        mode = next;
+        mode = next; navigationRevision++;
         render();
       }
     },
@@ -442,6 +519,7 @@ export function createScene(root, surface, onChange) {
       const movie = current()?.kind === 'video' ? current() : objects.findLast(object => object.kind === 'video');
       if (!movie) return false;
       const prior = snapshot();
+      navigationRevision++;
       movie.frame = {
         src: asset.src, rightSrc: asset.rightSrc, animation: asset.animation, name: asset.name,
         width: asset.width || sceneWidth, height: asset.height || sceneHeight, opening: asset.opening,
@@ -455,6 +533,7 @@ export function createScene(root, surface, onChange) {
       const object = current();
       if (object?.kind !== 'video') return false;
       const prior = snapshot();
+      navigationRevision++;
       Object.assign(object, { x: 0, y: 0, width: sceneWidth, height: sceneHeight });
       objects.splice(objects.indexOf(object), 1);
       objects.unshift(object);
@@ -464,7 +543,7 @@ export function createScene(root, surface, onChange) {
     },
     beginPath() {
       if (!current()) return false;
-      mode = 'path';
+      mode = 'path'; navigationRevision++;
       render();
       return true;
     },
@@ -501,7 +580,7 @@ export function createScene(root, surface, onChange) {
     },
     cancelPath,
     setPlaying(next) {
-      playing = next;
+      playing = next; navigationRevision++;
       if (!next) previews.clear();
       cancelAnimationFrame(animation);
       render();
@@ -616,15 +695,15 @@ export function createScene(root, surface, onChange) {
     },
     snapshot,
     restore(state, { textTarget = null, textSelection = null, history = false } = {}) {
-      before = null; beforeRange = null;
+      before = null; beforeRange = null; typingPending = false;
       if (!history) { documentEpoch++; textClipboard.clear(); }
       readRevision++;
-      objects = structuredClone(state);
+      objects = structuredClone(state); navigationRevision++;
       previews.clear();
       selected = objects.find(object => object.id === (textSelection?.objectId ?? textTarget) && object.kind === 'text')?.id ?? null;
       render();
       selectionAt(selected, textSelection);
-      before = null; beforeRange = null;
+      before = null; beforeRange = null; typingPending = false;
     },
   };
 }

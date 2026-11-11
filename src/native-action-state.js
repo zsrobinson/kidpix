@@ -24,6 +24,7 @@ export function policyFor(table, row) {
     '9383:17': 'voice-step:-1', '9383:18': 'voice-step:1',
     '9383:0': '#font', '9383:1': '#font-size', '9383:16': '#text-voice',
     '926:2': 'edit:cut', '926:3': 'edit:copy', '926:4': 'edit:paste',
+    '926:5': 'navigate:1', '926:10': 'navigate:-1',
     '926:6': 'edit:front', '926:7': 'edit:back',
     '926:8': 'edit:forward', '926:9': 'edit:backward', '926:11': 'make-sticker',
   };

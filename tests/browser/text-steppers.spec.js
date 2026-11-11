@@ -59,7 +59,7 @@ test('asset failure leaves usable static arrows and retries on reentry',async ({
 async function expectSourcePixels(page, owner, view) {
   const states = await snap(page, owner);
   const scripts = states.map(state => sourceManifest.scripts[state.script]);
-  const allParts = Object.values(sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18] : [2,3,4,6,7,8,9]).includes(b.index)))
+  const allParts = Object.values(sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18] : [2,3,4,5,6,7,8,9,10]).includes(b.index)))
     .flatMap(button => [...button.stateScripts, button.rolloverScript].filter(Boolean))
     .flatMap(id => sourceManifest.scripts[id].frames.flatMap(frame => frame.parts.map(part => ({ ...part, collection: sourceManifest.scripts[id].collection }))));
   const left = Math.min(...allParts.map(part => part.x));
@@ -86,7 +86,7 @@ async function expectSourcePixels(page, owner, view) {
   overlay(png(backdrop.pages[0].image), backdrop.rect[0], backdrop.rect[1]);
   for (let index = 0; index < states.length; index++) {
     const state = states[index], script = scripts[index];
-    const button = sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18] : [2,3,4,6,7,8,9]).includes(b.index)).find(button => button.stateScripts.includes(state.script) || button.rolloverScript === state.script);
+    const button = sourceManifest.tables[view === 'text' ? 9383 : 926].buttons.filter(b => (view === 'text' ? [2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18] : [2,3,4,5,6,7,8,9,10]).includes(b.index)).find(button => button.stateScripts.includes(state.script) || button.rolloverScript === state.script);
     for (const part of script.frames[state.frameIndex].parts) overlay(png(sourceManifest.sprites[`${script.collection}:${part.sprite}`].image), part.x, part.y,
       state.auxiliary ? button.auxiliaryClipRect : [0, 0, 1024, 768]);
   }
@@ -113,8 +113,8 @@ async function expectSourcePixels(page, owner, view) {
   let canvasBad = 0, visibleBad = 0;
   for (let y = top; y < Math.min(bottom, 768); y++) for (let x = left; x < right; x++) {
     const offset = (y * 1024 + x) * 4;
-    // Independent source footprints, excluding the unbound navigation column.
-    const owned = (view === 'text' ? [[257,643,43,62],[334,643,43,62],[160,714,194,33],[409,647,82,86],[493,647,61,86],[731,659,43,62]] : [[409,647,82,86],[542,651,324,82]])
+    // Independent source footprints, including the authorized navigation column.
+    const owned = (view === 'text' ? [[257,643,43,62],[334,643,43,62],[160,714,194,33],[409,647,82,86],[493,647,61,86],[731,659,43,62]] : [[409,647,82,86],[542,651,324,82],[491,648,40,83]])
       .some(([left, top, width, height]) => x >= left && x < left + width && y >= top && y < top + height);
     if (!owned) expected.data.fill(0, offset, offset + 4);
     for (let c = 0; c < 4; c++) {

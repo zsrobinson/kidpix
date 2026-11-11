@@ -2,12 +2,14 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.23.0 (release validation)
+## 0.23.0
 
 - Add Make Sticker for fresh rectangular and freehand Scissors selections, with its three recovered motion programs and four source-verified poses.
 - Keep the original drawing and all clipboards; preserve the exact masked selection size and position. Select Grab Hand after conversion, with one browser Undo/Redo step and atomic rollback on failure.
 - Keep moved, pasted and other selection styles unavailable. Native Undo, error and cancellation behavior remain unverified; the coordinated transaction is an explicit browser policy.
-- Independent review found no candidate-specific release objection. Full release validation is pending. Native references remain 0/17; the enlarged vacuum is disabled and physical Pencil performance remains unverified.
+- Independent runtime and source-pixel reviews found no remaining release objection. Verified 309 Node checks, 777 development cases, 692 built cases and 544 WebKit cases, with explicit browser skips; source-only 281 checks pass with 28 imported-asset skips, build and deployment dry run. All 11 required public media bodies match their source hashes; no upload is needed.
+- Update only the Scissors web baseline after the full-frame source oracle matched all 786,432 pixels and rejected six corruptions. Its 3,839 changed pixels stay inside the recovered control; the other 16 captures are RGBA-identical. The initial comparison failure is retained; the 19-case capture/drawing repeat passes without tolerance changes.
+- The experimental Pencil option stays off by default. Native references remain 0/17; the enlarged vacuum is disabled and physical Pencil performance remains unverified.
 
 ## 0.22.0
 

@@ -70,11 +70,13 @@ async function capture(page, testInfo, id) {
     { message: 'Library state programs reached their delivered end check before a static capture', timeout: 10_000 }).toBe(true);
   }
   await readyImages(page);
-  if (['backgrounds-tray', 'sticker-placed'].includes(id)) {
+  if (id === 'backgrounds-tray') {
     const category = page.locator('[data-native-category-motion]');
     await expect(category, 'Category source artwork is ready before a static capture').toBeVisible();
-    await expect.poll(() => category.evaluate(canvas =>
-      JSON.parse(canvas.dataset.motionSnapshot || '[]').every(item => item.finished && !item.auxiliary)),
+    await expect.poll(() => category.evaluate(canvas => {
+      const states = JSON.parse(canvas.dataset.motionSnapshot || '[]');
+      return states.length === 2 && states.every(item => item.finished && !item.auxiliary);
+    }),
     { message: 'Category programs reached their end check before capture' }).toBe(true);
   }
   const path = testInfo.outputPath(`${id}.png`);

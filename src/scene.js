@@ -42,7 +42,7 @@ export function createScene(root, surface, onChange) {
   let objects = [];
   let selected = null;
   let clipboard = null;
-  let before = null, typingPending = false;
+  let before = null, typingOwner = null;
   let documentEpoch = 0, textRevision = 0, disposed = false;
   let beforeRange = null;
   let mode = 'paint';
@@ -81,7 +81,7 @@ export function createScene(root, surface, onChange) {
   function flushText() {
     if (!before) return;
     const prior = before, range = beforeRange;
-    before = null; beforeRange = null; typingPending = false;
+    before = null; beforeRange = null; typingOwner = null;
     if (JSON.stringify(prior) !== JSON.stringify(objects)) return changed(prior, {
       before: range, after: textClipboard.target() });
   }
@@ -105,12 +105,12 @@ export function createScene(root, surface, onChange) {
         if (!ownsEdit()) return false;
         object.text = oldText; editor.replaceChildren(...nodes); textRevision++;
         try { selectionAt(object.id, token); } catch { /* Retain the original editor on selection failure. */ }
-        before = null; beforeRange = null; typingPending = false;
+        before = null; beforeRange = null; typingOwner = null;
         notify();
         return false;
       }
       // Focus callbacks can establish a new blur baseline; replace it after commit.
-      before = null; beforeRange = null; typingPending = false;
+      before = null; beforeRange = null; typingOwner = null;
       changed(prior, { before: token, after: { ...next, objectId: object.id } });
       notify();
       return true;
@@ -163,8 +163,9 @@ export function createScene(root, surface, onChange) {
     if (!renderable(destination)) return false;
     // Only the text owner may publish pending ordinary typing. Its callbacks
     // can replace/reorder the document; never continue into that replacement.
-    if (before && JSON.stringify(before) !== JSON.stringify(objects)
-      && (owner.kind !== 'text' || !typingPending)) return false;
+    const ownsTyping = typingOwner?.object === owner && typingOwner.epoch === documentEpoch
+      && typingOwner.editor === editorFor(owner.id);
+    if (before && (typingOwner ? !ownsTyping : JSON.stringify(before) !== JSON.stringify(objects))) return false;
     const afterTyping = flushText() ?? expectedIdentity;
     if (afterTyping !== navigationIdentity() || !navigationAvailable()
       || current() !== owner || !renderable(destination)) return false;
@@ -196,6 +197,7 @@ export function createScene(root, surface, onChange) {
       const previewing = playing || previews.has(object.id);
       if (object.kind === 'text') {
         const text = document.createElement('div');
+        const editorEpoch = documentEpoch;
         text.className = 'object-text';
         text.style.cssText = `font-family:${object.font};font-size:${object.size}px;color:${object.color};font-weight:${object.bold ? 'bold' : 'normal'};font-style:${object.italic ? 'italic' : 'normal'};text-decoration:${object.underline ? 'underline' : 'none'};text-align:${object.align || 'left'}`;
         text.textContent = object.text;
@@ -212,7 +214,7 @@ export function createScene(root, surface, onChange) {
             before ??= snapshot();
             if (before.find(item => item.id === object.id)?.text === object.text) beforeRange = textClipboard.target();
           });
-          text.addEventListener('input', () => { before ??= snapshot(); object.text = editorText(text).text; typingPending = true; textRevision++; navigationRevision++; notify(); });
+          text.addEventListener('input', () => { before ??= snapshot(); object.text = editorText(text).text; typingOwner = { object, editor: text, epoch: editorEpoch }; textRevision++; navigationRevision++; notify(); });
           text.addEventListener('blur', () => {
             if (before) {
               const prior = before.find(item => item.id === object.id);
@@ -222,7 +224,7 @@ export function createScene(root, surface, onChange) {
                 node.remove();
               } else if (prior?.text !== object.text) flushText();
             }
-            before = null; beforeRange = null; typingPending = false;
+            before = null; beforeRange = null; typingOwner = null;
           });
         }
         node.append(text);
@@ -444,7 +446,7 @@ export function createScene(root, surface, onChange) {
       const editor = root.querySelector(`[data-object="${selected}"] .object-text`);
       if (editor) {
         editor.focus();
-        before = prior; typingPending = false;
+        before = prior; typingOwner = null;
       }
     },
     setTextStyle(style) {
@@ -695,7 +697,7 @@ export function createScene(root, surface, onChange) {
     },
     snapshot,
     restore(state, { textTarget = null, textSelection = null, history = false } = {}) {
-      before = null; beforeRange = null; typingPending = false;
+      before = null; beforeRange = null; typingOwner = null;
       if (!history) { documentEpoch++; textClipboard.clear(); }
       readRevision++;
       objects = structuredClone(state); navigationRevision++;
@@ -703,7 +705,7 @@ export function createScene(root, surface, onChange) {
       selected = objects.find(object => object.id === (textSelection?.objectId ?? textTarget) && object.kind === 'text')?.id ?? null;
       render();
       selectionAt(selected, textSelection);
-      before = null; beforeRange = null; typingPending = false;
+      before = null; beforeRange = null; typingOwner = null;
     },
   };
 }

@@ -147,3 +147,27 @@ test('uncommitted object creation cannot become navigation history without ordin
   return {accepted:t.scene.stepSelection(1,t.scene.navigation.identity),undo:undo===JSON.stringify(t.undo),content:before===JSON.stringify(t.scene.snapshot())};
  })).toEqual({accepted:false,undo:true,content:true});
 });
+
+for(const target of ['a','b'])test(`pending typing cannot be flushed from retired editor A under owner ${target}`,async({page})=>{
+ const result=await page.evaluate(async target=>{
+  const{navigationTest:t}=await import('/src/main.js');const root=document.createElement('div'),surface=document.createElement('canvas');surface.width=720;surface.height=542;document.body.append(root,surface);const changes=[];
+  const scene=t.createScene(root,surface,(before,after)=>changes.push({before,after}));
+  try{
+   scene.restore(['a','b','c'].map((id,i)=>({id,kind:'text',text:id,x:i*90,y:20,width:80,height:60})),{textTarget:'a'});scene.chooseMode('text');
+   const editor=root.querySelector('.object-text');editor.focus();scene.chooseMode('grab');scene.selectSticker(target);
+   // Explicit late-event fault model, not a hardware IME reachability claim.
+   editor.dispatchEvent(new InputEvent('beforeinput',{inputType:'insertText',data:'!'}));editor.textContent='a!';editor.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:'!'}));
+   const before=JSON.stringify(scene.snapshot()),n=changes.length,accepted=scene.stepSelection(1,scene.navigation.identity);
+   return{accepted,target:scene.actionState.target,extraChanges:changes.length-n,contentRetained:before===JSON.stringify(scene.snapshot())};
+  }finally{scene.destroy();root.remove();surface.remove()}
+ },target);
+ expect(result).toEqual({accepted:false,target,extraChanges:0,contentRetained:true});
+});
+test('live keyboard typing settles under its own text owner before Hand navigation',async({page})=>{
+ await page.evaluate(async()=>{
+  const{navigationTest:t}=await import('/src/main.js');const root=document.createElement('div'),surface=document.createElement('canvas');surface.width=720;surface.height=542;document.body.append(root,surface);const changes=[];
+  const scene=t.createScene(root,surface,(before,after)=>changes.push({before,after}));scene.restore(['a','b'].map((id,i)=>({id,kind:'text',text:id,x:i*90,y:20,width:80,height:60})),{textTarget:'a'});scene.chooseMode('text');const editor=root.querySelector('.object-text');editor.focus();window.navigationTypingFixture={scene,root,surface,changes};
+ });
+ await page.keyboard.press('End');await page.keyboard.type('!');
+ expect(await page.evaluate(()=>{const{scene,root,surface,changes}=window.navigationTypingFixture;try{scene.chooseMode('grab');const n=changes.length,accepted=scene.stepSelection(1,scene.navigation.identity);return{accepted,target:scene.actionState.target,text:scene.snapshot()[0].text,changes:n,extraChanges:changes.length-n}}finally{scene.destroy();root.remove();surface.remove();delete window.navigationTypingFixture}})).toEqual({accepted:true,target:'b',text:'a!',changes:1,extraChanges:0});
+});

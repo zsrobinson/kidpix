@@ -2,12 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.27.0 (release validation)
+## 0.27.0
 
 - Replace immediate Stamp Editor erase with the recovered seven-step normal progression: cumulative white ovals in a separate enlarged presentation, one delivered update per nominal 66 ms interval, then one final transparent browser clear and preview sync. Keep committed pixels and the small preview unchanged until completion, with one Undo checkpoint.
 - Add the original operation sound 14006 independently of button tracking cues. Preserve existing images and sounds; metadata gains only the erase contract and that sound reference.
 - Cancel safely on Escape, inactivity, resize, close or owner teardown. Guard history and ordinary controls during erase, preserve actual Cancel activation, and quarantine rejected contacts through their released compatibility click.
-- Independent correction review found no remaining objection within correction/shared-input scope. Full release validation is pending. The pixel-center oval mask, browser scaling, transparent final storage and interruption policy are explicit browser adaptations; exact native edges/runtime, physical iPad feel, audible timing and IME behavior remain unverified. Native references stay 0/17; enlarged vacuum stays disabled and Pencil preview defaults off.
+- Independent correction review found no remaining objection within correction/shared-input scope. Verified 348 Node checks, 830 development cases, 743 built cases and 595 WebKit cases, with existing explicit skips; source-only 320 checks pass with 28 imported-asset skips, build and deployment dry run. All 17 static captures are RGBA-identical to 0.26, without baseline or tolerance changes; all 37 required public media bodies match their pinned hashes.
+- The pixel-center oval mask, browser scaling, transparent final storage and interruption policy are explicit browser adaptations; exact native edges/runtime, physical iPad feel, audible timing and IME behavior remain unverified. Native references stay 0/17; enlarged vacuum stays disabled and Pencil preview defaults off.
 - Retain the first full-run media-receipt failures. Recognize a full-file HTTP 206 response from native Audio alongside HTTP 200 while preserving exact payload count, size, RIFF and hash checks; all twelve actual Range-delivery composition checks pass.
 
 ## 0.26.0

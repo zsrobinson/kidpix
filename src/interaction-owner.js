@@ -9,6 +9,10 @@ export function interactionOwner(document = globalThis.document) {
   // the physical sequence's disposition when that activation has no identity.
   let lastPhysicalClickRejected = false;
   const rejected = new Map();
+  // A modal may disappear on pointerup before WebKit's compatibility click.
+  // Retain one released sequence until its click or the next primary down;
+  // cancelled contacts that emit no click must not accumulate in the map.
+  let releasedClick = null;
   const window = document.defaultView;
   const block = event => { event.preventDefault(); event.stopImmediatePropagation(); };
   function guard(event) {
@@ -18,6 +22,14 @@ export function interactionOwner(document = globalThis.document) {
       // Release handlers retire the owner before the browser's physical click.
       // WebKit can remap a rejected touch's compatibility click to a mouse ID.
       if (active) { lastPhysicalClickRejected = true; block(event); return; }
+      if (!rejected.has(id) && releasedClick && (id === releasedClick.pointerId
+        || releasedClick.pointerType === 'touch' && event.pointerType === 'mouse'
+        || id === undefined)) {
+        releasedClick = null;
+        lastPhysicalClickRejected = true;
+        block(event);
+        return;
+      }
       lastPhysicalClickRejected = rejected.has(id)
         || Boolean(event.pointerType === 'touch' && active && id !== active.pointerId);
     }
@@ -29,10 +41,13 @@ export function interactionOwner(document = globalThis.document) {
         rejected.set(id, { down: true });
         lastPhysicalClickRejected = true;
         block(event);
-      } else lastPhysicalClickRejected = false;
+      } else {
+        lastPhysicalClickRejected = false;
+        if (event.isPrimary !== false && (event.button === undefined || event.button === 0)) releasedClick = null;
+      }
       return;
     }
-    if (rejected.has(id) && (!rejected.get(id).clickOnly || event.type === 'click' || event.type === 'dblclick')) {
+    if (rejected.has(id)) {
       if (event.type === 'pointerup' || event.type === 'pointercancel') rejected.get(id).down = false;
       block(event);
       return;
@@ -55,11 +70,12 @@ export function interactionOwner(document = globalThis.document) {
     // even when the operation ends before that contact lifts.
     // Released modal controls quarantine their click without suppressing hover.
     reject(event, { down = true, clickOnly = false } = {}) {
-      rejected.set(event.pointerId, { down, clickOnly });
+      if (clickOnly) releasedClick = { pointerId: event.pointerId, pointerType: event.pointerType };
+      else rejected.set(event.pointerId, { down });
       lastPhysicalClickRejected = true;
     },
     claim(event, surface) {
-      if (active || rejected.has(event.pointerId)) return false;
+      if (active || rejected.has(event.pointerId) || releasedClick?.pointerId === event.pointerId) return false;
       active = { pointerId: event.pointerId, pointerType: event.pointerType, surface };
       return true;
     },

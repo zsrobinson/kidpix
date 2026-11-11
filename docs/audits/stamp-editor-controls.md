@@ -35,8 +35,12 @@ outside this change.
   inactivity retention of delivered pixels and checkpoint remain intact.
 - `src/interaction-owner.js`: additive optional `reject(event, {down, clickOnly})`.
   Existing callers retain their defaults. Released controls use
-  `{down:false, clickOnly:true}` so a physical click remains quarantined through
-  dialog removal without suppressing subsequent hover or fresh pointer-ID reuse.
+  `{down:false, clickOnly:true}` with the originating pointer type. One pending
+  physical-sequence record quarantines its click through dialog removal, including
+  WebKit touch-to-mouse ID remapping, without suppressing hover. The click consumes
+  that record; a new accepted primary down also retires it. Cancelled sequences
+  without a click therefore retain at most one record. Held-contact rejections
+  remain separate and retain their existing lifecycle.
   This small shared seam is necessary because modal-local listeners disappear on
   close while late clicks can target the studio. No caller in `main.js` changes.
 - `docs/audits/stamp-editor-controls.md`: this handoff and validation receipt.
@@ -213,3 +217,12 @@ f99f9a4f432f274bccfab3c2ce16f92c6b8934773068034e84a12a3c7398d696  stamp-editor/s
 e9ea487293ea439a1167567f9fb100075a79153b642cb97456b31453d1789c53  stamp-editor/undo-rollover.png
 fc7d2543efecaff06bf5b7514db1bb4fbf010597160ae7e325e2a5979b7b78ad  stamp-editor/undo-tracking.png
 ```
+
+
+## Released-click review correction
+
+Independent review found that real WebKit Cancel taps could deliver their remapped mouse compatibility click to the exposed studio canvas after modal removal. The studio tool and pixels did not change in the reproduction; the finding concerns event containment. Chromium also retained each consumed accepted touch ID in the shared rejection map.
+
+Released control contacts now retain their pointer type in one pending physical-sequence record, separate from held-contact rejections. A matching click or WebKit touch-to-mouse remap is blocked and consumes the record. Semantic activation and hover do not consume it; the next accepted primary down retires a sequence that emitted no click. The independent double-click disposition remains available after consumption. No timer, broad future-mouse rejection or held-contact policy change is introduced.
+
+Two actual-modal tests fail before the fix in WebKit at 1024x768 and 640x480: the compatibility click reaches the studio after tapping Cancel. Both pass afterward, including twelve prior taps, unchanged studio data/tool, and clean reopen with a fresh activation. Five focused guard tests cover remapping, consumption over 1,000 touch identities, cancellation without clicks, fresh input, semantic/hover preservation, and independence from held rejected contacts. An old-source counterfactual preserves the expected assertion failures. Evidence is retained under artifacts/t3/release-0260; parent re-review and release gates remain separate.

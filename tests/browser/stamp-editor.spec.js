@@ -491,3 +491,30 @@ test('abort during tracking and pending artwork decode allows a clean reopen @mo
   await expect(dialog).toBeVisible();
   await command(dialog,'Cancel').click();
 });
+
+test.describe('closing touch containment', () => {
+  test.use({ hasTouch: true });
+  for (const viewport of [{width:1024,height:768},{width:640,height:480}]) {
+    test(`Cancel touch stays out of the studio at ${viewport.width}x${viewport.height}`, async ({page}) => {
+      await page.setViewportSize(viewport);
+      const dialog=await openEditor(page);
+      const before=await page.locator('#paper-canvas').evaluate(canvas=>({tool:canvas.dataset.tool,pixels:canvas.toDataURL()}));
+      await page.evaluate(()=>{
+        window.stampEscapedClicks=[];
+        document.addEventListener('click',event=>{
+          if(event.detail>0&&!event.target.closest('.native-stamp-editor')) window.stampEscapedClicks.push({target:event.target.id,pointerType:event.pointerType,pointerId:event.pointerId});
+        });
+      });
+      for(let i=0;i<12;i++) await command(dialog,i%2?'Pencil':'Fill Bucket').tap();
+      await command(dialog,'Cancel').tap();
+      await expect(dialog).toHaveCount(0);
+      expect(await page.evaluate(()=>window.stampEscapedClicks)).toEqual([]);
+      expect(await page.locator('#paper-canvas').evaluate(canvas=>({tool:canvas.dataset.tool,pixels:canvas.toDataURL()}))).toEqual(before);
+      const reopened=await openEditor(page);
+      await command(reopened,'Fill Bucket').tap();
+      await expect(command(reopened,'Fill Bucket')).toHaveAttribute('aria-pressed','true');
+      await command(reopened,'Cancel').click();
+      await expect(reopened).toHaveCount(0);
+    });
+  }
+});

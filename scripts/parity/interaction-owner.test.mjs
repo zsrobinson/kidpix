@@ -29,3 +29,58 @@ test('original mouse release still allows its own physical click after a rejecte
 test('unguarded ordinary physical clicks remain available',()=>{
  const {send}=fixture();assert.equal(send('pointerdown',1).blocked,undefined);assert.equal(send('pointerup',1).blocked,undefined);assert.equal(send('click',1,'mouse',1).blocked,undefined);
 });
+
+test('released touch quarantines its remapped mouse click, then permits a fresh down',()=>{
+ const {owner,surface,send}=fixture();
+ owner.reject({pointerId:2,pointerType:'touch'},{down:false,clickOnly:true});
+ assert.equal(send('click',1,'mouse',1).blocked,true);
+ assert.equal(send('dblclick',undefined,'mouse',2).blocked,true);
+ assert.equal(send('pointerdown',1).blocked,undefined);
+ assert.equal(owner.claim({pointerId:1,pointerType:'mouse'},surface),true);
+ owner.release(surface,1);
+ assert.equal(send('click',1,'mouse',1).blocked,undefined);
+});
+
+test('consumed released clicks retire their records for successive touch identities',()=>{
+ const {owner,surface,send}=fixture();
+ for(let id=2;id<1002;id++){
+  owner.reject({pointerId:id,pointerType:'touch'},{down:false,clickOnly:true});
+  assert.equal(send('click',id,'touch',1).blocked,true);
+  assert.equal(owner.claim({pointerId:id,pointerType:'touch'},surface),true);
+  owner.release(surface,id);
+ }
+});
+
+test('released quarantine preserves hover and semantic clicks and expires on a fresh sequence',()=>{
+ const {owner,send}=fixture();
+ owner.reject({pointerId:2,pointerType:'touch'},{down:false,clickOnly:true});
+ assert.equal(send('pointermove',2,'touch').blocked,undefined);
+ assert.equal(send('click',undefined,'',0).blocked,undefined);
+ assert.equal(send('pointerdown',4,'touch').blocked,undefined);
+ assert.equal(send('click',4,'touch',1).blocked,undefined);
+ assert.equal(send('click',1,'mouse',1).blocked,undefined);
+});
+
+test('released quarantine does not consume another rejected contact or change held rejection',()=>{
+ const {owner,send}=fixture();
+ owner.reject({pointerId:9,pointerType:'touch'});
+ owner.reject({pointerId:2,pointerType:'touch'},{down:false,clickOnly:true});
+ assert.equal(send('click',9,'touch',1).blocked,true);
+ assert.equal(send('pointerdown',9,'touch').blocked,true);
+ assert.equal(send('click',1,'mouse',1).blocked,true);
+});
+
+test('cancelled sequences without clicks retire on fresh primary contact instead of retaining old identities',()=>{
+ const {owner,surface,send}=fixture();
+ for(let id=2;id<1002;id++){
+  send('pointerdown',id,'touch');
+  assert.equal(owner.claim({pointerId:id,pointerType:'touch'},surface),true);
+  owner.reject({pointerId:id,pointerType:'touch'},{down:false,clickOnly:true});
+  owner.release(surface,id);
+ }
+ send('pointerdown',2000,'touch');
+ for(let id=2;id<1002;id++){
+  assert.equal(owner.claim({pointerId:id,pointerType:'touch'},surface),true);
+  owner.release(surface,id);
+ }
+});

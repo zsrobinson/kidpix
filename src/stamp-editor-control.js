@@ -46,7 +46,7 @@ export function bindStampControl(control, { owner, signal, activate, render = ()
     if (previous) {
       // Keep the released physical click quarantined even if activation closes
       // the modal. A new down may reuse the ID; no held rejection is created.
-      if (!previous.key) owner.reject({ pointerId: previous.id }, { down: false, clickOnly: true });
+      if (!previous.key) owner.reject({ pointerId: previous.id, pointerType: previous.type }, { down: false, clickOnly: true });
       owner.release(control, previous.id);
       stop();
     }

@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import worker from './index.js';
+import { createHash } from 'node:crypto';
 
-function setup({ body = '0123456789', missing = false, metadata = {}, get } = {}) {
+function setup({ body = '0123456789', missing = false, metadata = {}, get, head } = {}) {
   const calls = [];
   const object = {
     key: 'original/movie.mp4', size: new TextEncoder().encode(body).length,
@@ -13,7 +14,7 @@ function setup({ body = '0123456789', missing = false, metadata = {}, get } = {}
   const env = {
     ASSETS: { fetch: async request => { calls.push(['assets', request.url]); return new Response('app'); } },
     MEDIA: {
-      head: async key => { calls.push(['head', key]); return missing ? null : object; },
+      head: async key => { calls.push(['head', key]); return head ? head(object, calls) : missing ? null : object; },
       get: async (key, options) => {
         calls.push(['get', key, options]);
         if (get) return get(object, calls);
@@ -244,4 +245,165 @@ test('caches small full GETs while conditional and ranged requests bypass cache'
     if (previous === undefined) delete globalThis.caches;
     else globalThis.caches = previous;
   }
+});
+
+// Injected binding rejections model a failure class, not the unknown production exception.
+const injectedReadFault = () => new Error('injected read rejection');
+const operations = calls => calls.map(call => call[0]);
+const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+
+for (const stage of ['head', 'get']) {
+  test(`recovers a fail-once ${stage} rejection for native Audio bytes=0- with complete pinned WAV`, async () => {
+    // Bounded synthetic PCM WAV keeps the unit suite independent of the imported library.
+    const bytes = Buffer.from('524946462800000057415645666d74201000000001000100401f0000803e00000200100064617461040000000000ff7f', 'hex');
+    let attempts = 0;
+    const { fetch, calls } = setup({ metadata: {
+      size: bytes.length, writeHttpMetadata(headers) { headers.set('Content-Type', 'audio/wav'); },
+    }, [stage]: object => {
+      if (++attempts === 1) return Promise.reject(injectedReadFault());
+      return stage === 'head' ? object : { ...object, body: new Blob([bytes]).stream() };
+    }, ...(stage === 'head' ? { get: object => ({ ...object, body: new Blob([bytes]).stream() }) } : {}) });
+    const response = await fetch('/original/ui/secondary-motion/sounds/18053.wav?v=0.28.0', { headers: { Range: 'bytes=0-' } });
+    assert.equal(response.status, 206);
+    assert.equal(response.headers.get('Content-Type'), 'audio/wav');
+    assert.equal(response.headers.get('ETag'), '"abc123"');
+    assert.equal(response.headers.get('Content-Length'), String(bytes.length));
+    assert.equal(response.headers.get('Content-Range'), `bytes 0-${bytes.length - 1}/${bytes.length}`);
+    assert.equal(sha(Buffer.from(await response.arrayBuffer())), sha(bytes));
+    assert.deepEqual(operations(calls), stage === 'head' ? ['head', 'head', 'get'] : ['head', 'get', 'head', 'get']);
+    assert.deepEqual(calls.at(-1)[2], { onlyIf: { etagMatches: 'abc123' }, range: { offset: 0, length: bytes.length } });
+  });
+}
+
+test('fresh metadata after get rejection rechecks Range, If-Range and If-Match', async () => {
+  for (const [headers, status, expected] of [
+    [{ Range: 'bytes=2-' }, 206, 'WXYZ'],
+    [{ Range: 'bytes=2-', 'If-Range': '"abc123"' }, 200, 'UVWXYZ'],
+    [{ Range: 'bytes=2-', 'If-Match': '"abc123"' }, 412, 'Precondition Failed'],
+    [{ Range: 'bytes=7-' }, 416, 'Range Not Satisfiable'],
+  ]) {
+    let heads = 0, gets = 0;
+    const { fetch, calls } = setup({
+      head: object => ++heads === 1 ? object : { ...object, size: 6, etag: 'new', httpEtag: '"new"' },
+      get: object => ++gets === 1 ? Promise.reject(injectedReadFault()) : {
+        ...object, body: new Blob([headers['If-Range'] ? 'UVWXYZ' : 'WXYZ']).stream(),
+      },
+    });
+    const response = await fetch(undefined, { headers });
+    assert.equal(response.status, status);
+    assert.equal(await response.text(), expected);
+    assert.deepEqual(operations(calls), status >= 400 ? ['head', 'get', 'head'] : ['head', 'get', 'head', 'get']);
+    if (status < 400) {
+      assert.equal(response.headers.get('ETag'), '"new"');
+      assert.equal(response.headers.get('Content-Length'), String(expected.length));
+      assert.deepEqual(calls.at(-1)[2], { onlyIf: { etagMatches: 'new' }, ...(status === 206 ? { range: { offset: 2, length: 4 } } : {}) });
+    }
+  }
+});
+
+test('persistent and mixed read failures share exactly two attempts and remain visible', async t => {
+  const logs = [];
+  t.mock.method(console, 'error', value => logs.push(JSON.parse(value)));
+  for (const sequence of [['head-error', 'head-error'], ['get-error', 'get-error'], ['race', 'get-error'], ['get-error', 'race'], ['null', 'head-error']]) {
+    let attempt = -1;
+    const { fetch, calls } = setup({
+      head: object => { attempt++; return sequence[attempt] === 'head-error' ? Promise.reject(injectedReadFault()) : object; },
+      get: object => sequence[attempt] === 'get-error' ? Promise.reject(injectedReadFault()) : sequence[attempt] === 'null' ? null : object,
+    });
+    const response = await fetch();
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.equal(response.headers.get('Retry-After'), sequence.at(-1) === 'race' ? '1' : null);
+    assert.equal(await response.text(), 'Media temporarily unavailable');
+    assert.equal(calls.filter(call => call[0] === 'head').length, 2);
+    assert.equal(calls.filter(call => call[0] === 'get').length, sequence.filter(step => step !== 'head-error').length);
+  }
+  assert.ok(logs.some(log => log.message === 'media_read_failed'));
+});
+
+test('healthy HEAD and conditional fast paths keep their counts; head rejection can recover without get', async () => {
+  for (const [options, status] of [[{ method: 'HEAD' }, 200], [{ headers: { 'If-None-Match': '*' } }, 304], [{ headers: { 'If-Match': '"other"' } }, 412]]) {
+    for (const failOnce of [false, true]) {
+      let heads = 0;
+      const { fetch, calls } = setup({ head: object => ++heads === 1 && failOnce ? Promise.reject(injectedReadFault()) : object });
+      assert.equal((await fetch(undefined, options)).status, status);
+      assert.deepEqual(operations(calls), failOnce ? ['head', 'head'] : ['head']);
+    }
+  }
+  for (const headers of [{}, { Range: 'bytes=0-' }]) {
+    const { fetch, calls } = setup();
+    await fetch(undefined, { headers });
+    assert.deepEqual(operations(calls), ['head', 'get']);
+  }
+});
+
+test('header errors and synchronous binding contract errors are not retried', async t => {
+  t.mock.method(console, 'error', () => {});
+  for (const kind of ['headers', 'head', 'get']) {
+    const { fetch, env, calls } = setup(kind === 'headers' ? { metadata: { writeHttpMetadata() { throw new Error('injected header bug'); } } } : {});
+    if (kind !== 'headers') env.MEDIA[kind] = () => { calls.push([kind]); throw new TypeError('injected contract bug'); };
+    assert.equal((await fetch()).status, 503);
+    assert.deepEqual(operations(calls), kind === 'get' ? ['head', 'get'] : ['head']);
+  }
+});
+
+test('interleaved requests keep independent budgets and metadata', async () => {
+  let release;
+  const barrier = new Promise(resolve => { release = resolve; });
+  const a = setup({ head: async (object, calls) => {
+    if (calls.length === 1) { await barrier; throw injectedReadFault(); }
+    return object;
+  } });
+  const b = setup({ body: 'different' });
+  const first = a.fetch();
+  const second = await b.fetch();
+  release();
+  assert.equal(await second.text(), 'different');
+  assert.equal(await (await first).text(), '0123456789');
+  assert.deepEqual(operations(a.calls), ['head', 'head', 'get']);
+  assert.deepEqual(operations(b.calls), ['head', 'get']);
+});
+
+test('a late body stream failure remains a stream failure without another read', async () => {
+  let controller;
+  const { fetch, calls } = setup({ get: object => ({ ...object, body: new ReadableStream({ start(value) { controller = value; } }) }) });
+  const response = await fetch(undefined, { headers: { Range: 'bytes=0-' } });
+  assert.equal(response.status, 206);
+  const reader = response.body.getReader();
+  controller.enqueue(new Uint8Array([0, 1]));
+  assert.deepEqual((await reader.read()).value, new Uint8Array([0, 1]));
+  controller.error(new Error('injected late stream fault'));
+  await assert.rejects(reader.read(), /injected late stream fault/);
+  assert.deepEqual(operations(calls), ['head', 'get']);
+});
+
+test('failed attempts never populate cache; successful recovery caches only fresh bytes', async t => {
+  t.mock.method(console, 'error', () => {});
+  const stored = new Map(), pending = [];
+  const previous = globalThis.caches;
+  t.after(() => { if (previous === undefined) delete globalThis.caches; else globalThis.caches = previous; });
+  globalThis.caches = { default: {
+    async match(request) { return stored.get(request.url)?.clone(); },
+    async put(request, response) { stored.set(request.url, new Response(await response.arrayBuffer(), response)); },
+  } };
+  let failing = true, heads = 0;
+  const { env, calls } = setup({
+    head: object => ({ ...object, etag: `v${++heads}`, httpEtag: `"v${heads}"`, size: 5 }),
+    get: object => failing || heads === 3 ? Promise.reject(injectedReadFault()) : { ...object, body: new Blob(['fresh']).stream() },
+  });
+  const request = new Request('https://kidpix.example/original/movie.mp4');
+  const ctx = { waitUntil(promise) { pending.push(promise); } };
+  assert.equal((await worker.fetch(request, env, ctx)).status, 503);
+  assert.equal(stored.size, 0);
+  assert.equal(pending.length, 0);
+  failing = false;
+  const response = await worker.fetch(request, env, ctx);
+  assert.equal(await response.text(), 'fresh');
+  assert.equal(response.headers.get('ETag'), '"v4"');
+  await Promise.all(pending);
+  assert.equal(stored.size, 1);
+  const cached = await worker.fetch(request, env, ctx);
+  assert.equal(await cached.text(), 'fresh');
+  assert.equal(cached.headers.get('ETag'), '"v4"');
+  assert.deepEqual(operations(calls), ['head', 'get', 'head', 'get', 'head', 'get', 'head', 'get']);
 });

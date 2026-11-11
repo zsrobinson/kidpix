@@ -76,7 +76,17 @@ function rangeFor(request, object) {
 async function readMedia(request, env, key) {
   // Pin the body read to the metadata version, so an upload cannot change its range or ETag mid-request.
   for (let attempt = 0; attempt < 2; attempt++) {
-    const metadata = await env.MEDIA.head(key);
+    // Invoke outside the catch: only asynchronous binding read rejections consume a retry.
+    // Header/condition/Response errors and synchronous binding contract errors still fail immediately.
+    const headRead = env.MEDIA.head(key);
+    let metadata;
+    try {
+      metadata = await headRead;
+    } catch (error) {
+      if (attempt === 1) throw error;
+      console.error(JSON.stringify({ message: 'media_read_retry', key, stage: 'head', attempt: attempt + 1, error: String(error) }));
+      continue;
+    }
     if (!metadata) return errorResponse(request.headers.has('If-Match') ? 412 : 404, request.method);
     const headers = headersFor(metadata, key);
     const condition = preconditionStatus(request, metadata);
@@ -87,9 +97,17 @@ async function readMedia(request, env, key) {
     headers.set('Content-Length', String(range ? range.length : metadata.size));
     if (range) headers.set('Content-Range', `bytes ${range.offset}-${range.offset + range.length - 1}/${metadata.size}`);
     if (request.method === 'HEAD') return new Response(null, { headers });
-    const object = await env.MEDIA.get(key, {
+    const bodyRead = env.MEDIA.get(key, {
       onlyIf: { etagMatches: metadata.etag }, ...(range ? { range } : {}),
     });
+    let object;
+    try {
+      object = await bodyRead;
+    } catch (error) {
+      if (attempt === 1) throw error;
+      console.error(JSON.stringify({ message: 'media_read_retry', key, stage: 'get', attempt: attempt + 1, error: String(error) }));
+      continue;
+    }
     if (!object) continue;
     if (!('body' in object)) continue;
     return new Response(object.body, { status: range ? 206 : 200, headers });

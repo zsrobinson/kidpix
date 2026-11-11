@@ -192,3 +192,12 @@ unchanged, all existing PNG/tracking-WAV bytes match root originals, and the
 manifest has only the two intended additions. Owned temporary dependency/media
 symlinks were removed after validation. Docker `--rm` lifetimes and private
 servers ended normally. No owned persistent process remains.
+
+
+## Ownership review correction
+
+Independent review found that Cancel's broad key exception could expose the modal Undo shortcut during erase after a real mouse press/drag-out/release left Cancel focused. The committed image, preview and history then changed while the temporary presentation was active. Cancel now admits only unmodified activation keys during erase, and the direct Undo handler also checks that no erase operation is active. Escape and genuine Cancel activation retain their explicit cancellation policies.
+
+A second conditional gap concerned operation-rejected touches after close: their numeric ID did not cover a remapped mouse or legacy MouseEvent click. The interaction owner now provides an opt-in quarantineClick rejection policy. It retains the contact while held, then moves its type and identity to the existing single released-click record at a terminal event or lifecycle interruption. Matching/remapped clicks consume that record; a fresh primary down retires a no-click sequence. Existing default rejection callers are unchanged. This fixes event-shape replays, not a demonstrated physical-device delivery sequence.
+
+Before the correction, three actual-app regression assertions fail in WebKit and five new guard assertions fail in Node. Afterward all 12 focused browser cases pass across Chromium/WebKit dev/built, with 39 focused helper checks, and npm run check passes 348 Node checks, asset verification, build and Worker dry run. The committed Undo regression freezes only the erase callback queue for deterministic observation; the independent review also reproduced the original defect with real mouse/keyboard and unmodified timers in all four lanes. The remapped-click probes remain explicitly synthetic. Prior failures, source pins and unchanged staged media receipts are preserved under artifacts/t3/release-0270. A fresh correction review and the full/public/upload gates remain pending.

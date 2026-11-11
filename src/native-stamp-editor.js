@@ -198,7 +198,7 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
   // after completion. Explicit Cancel remains available through the normal seam.
   dialog.addEventListener('pointerdown', event => {
     if (!eraseOperation || event.target.closest('[data-command="cancel"]')) return;
-    inputOwner.reject(event);
+    inputOwner.reject(event, { quarantineClick: true });
     event.preventDefault(); event.stopImmediatePropagation();
   }, { ...options, capture: true });
   dialog.addEventListener('click', event => {
@@ -208,7 +208,8 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
   dialog.addEventListener('keydown', event => {
     if (!eraseOperation) return;
     if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); cancelErase(); return; }
-    if (event.target.closest('[data-command="cancel"]')) return;
+    if (event.target.closest('[data-command="cancel"]') && !event.ctrlKey && !event.metaKey && !event.altKey
+      && (event.key === 'Enter' || event.key === ' ' || event.code === 'Space')) return;
     event.preventDefault(); event.stopImmediatePropagation();
   }, { ...options, capture: true });
   onInteractionInactive(dialog, cancelErase, listeners.signal);
@@ -365,7 +366,7 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
     event.stopPropagation();
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z' && !event.shiftKey) {
       event.preventDefault();
-      if (!inputOwner.busy()) undo();
+      if (!eraseOperation && !inputOwner.busy()) undo();
     } else if (event.key === 'Escape' || event.key === 'Enter') {
       event.preventDefault();
       if (!inputOwner.busy() && !event.repeat) run(event.key === 'Escape' ? 'cancel' : 'save');

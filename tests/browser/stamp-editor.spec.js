@@ -613,6 +613,31 @@ for (const transparent of [false,true,'mixed']) test(`NORMAL browser erase tempo
   expect((await metadata.json()).operations.erase).toMatchObject({sound:14006,geometry:'normal-32-v1',intervalMs:66});
 });
 
+test('NORMAL erase keeps history frozen after Cancel drag-out and modified keys',async({page})=>{
+ const dialog=await openEditor(page),original=await eraseState(dialog);
+ await clickPixel(page,dialog,10,10);const before=await eraseState(dialog);
+ await freezeEraseClock(page);await command(dialog,'Eraser').click();
+ await command(dialog,'Cancel').hover();await page.mouse.down();await page.mouse.move(900,700);await page.mouse.up();
+ await expect(command(dialog,'Cancel')).toBeFocused();await expect(dialog).toHaveAttribute('data-erasing','true');
+ await page.keyboard.press('ControlOrMeta+z');
+ const after=await eraseState(dialog);expect(after.committed).toBe(before.committed);expect(after.preview).toBe(before.preview);
+ await page.keyboard.press('Escape');await command(dialog,'Undo Guy').click();expect((await eraseState(dialog)).committed).toBe(original.committed);
+});
+for(const remap of ['mouse','MouseEvent'])test(`NORMAL rejected touch remap stays quarantined after close ${remap}`,async({page})=>{
+ const dialog=await openEditor(page);await freezeEraseClock(page);
+ await command(dialog,'Eraser').focus();await page.keyboard.press('Space');
+ await command(dialog,'Rotate').dispatchEvent('pointerdown',{pointerId:778,pointerType:'touch',isPrimary:true,button:0});
+ await page.keyboard.press('Escape');await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);
+ const studio=page.getByRole('button',{name:'Drawing Tools',exact:true});
+ await studio.dispatchEvent('pointerup',{pointerId:778,pointerType:'touch',isPrimary:true,button:0});
+ await expect(page.locator('#paper-canvas')).toHaveAttribute('data-tool','stamp');
+ await studio.evaluate((element,remap)=>element.dispatchEvent(remap==='mouse'
+  ? new PointerEvent('click',{bubbles:true,cancelable:true,detail:1,pointerId:99,pointerType:'mouse'})
+  : new MouseEvent('click',{bubbles:true,cancelable:true,detail:1})),remap);
+ await expect(page.locator('#paper-canvas')).toHaveAttribute('data-tool','stamp');
+ await studio.click();await expect(page.locator('#paper-canvas')).toHaveAttribute('data-tool','pencil');
+});
+
 test('NORMAL erase rejects reentry Save history palette and held contacts through late click',async({page})=>{
  const dialog=await openEditor(page);const before=await eraseState(dialog);await freezeEraseClock(page);
  await command(dialog,'Eraser').click();

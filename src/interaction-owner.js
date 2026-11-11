@@ -48,7 +48,14 @@ export function interactionOwner(document = globalThis.document) {
       return;
     }
     if (rejected.has(id)) {
-      if (event.type === 'pointerup' || event.type === 'pointercancel') rejected.get(id).down = false;
+      if (event.type === 'pointerup' || event.type === 'pointercancel') {
+        const contact = rejected.get(id);
+        contact.down = false;
+        if (contact.quarantineClick) {
+          rejected.delete(id);
+          releasedClick = { pointerId: id, pointerType: contact.pointerType };
+        }
+      }
       block(event);
       return;
     }
@@ -61,7 +68,15 @@ export function interactionOwner(document = globalThis.document) {
     'click', 'dblclick', 'contextmenu']) window.addEventListener(type, guard, { capture: true, passive: false });
   // An interrupted contact may never deliver its terminal event. Keep its click
   // tombstone, while allowing a genuinely new down to reuse the platform ID.
-  const interrupted = () => { for (const contact of rejected.values()) contact.down = false; };
+  const interrupted = () => {
+    for (const [id, contact] of rejected) {
+      contact.down = false;
+      if (contact.quarantineClick) {
+        rejected.delete(id);
+        releasedClick = { pointerId: id, pointerType: contact.pointerType };
+      }
+    }
+  };
   for (const type of ['blur', 'pagehide']) window.addEventListener(type, interrupted);
   document.addEventListener('visibilitychange', () => { if (document.hidden) interrupted(); });
   const api = {
@@ -69,9 +84,11 @@ export function interactionOwner(document = globalThis.document) {
     // Modal page operations reject a down through its eventual physical click,
     // even when the operation ends before that contact lifts.
     // Released modal controls quarantine their click without suppressing hover.
-    reject(event, { down = true, clickOnly = false } = {}) {
+    // Opt-in operation contacts move from held rejection to that same bounded
+    // click record on their terminal event or lifecycle interruption.
+    reject(event, { down = true, clickOnly = false, quarantineClick = false } = {}) {
       if (clickOnly) releasedClick = { pointerId: event.pointerId, pointerType: event.pointerType };
-      else rejected.set(event.pointerId, { down });
+      else rejected.set(event.pointerId, quarantineClick ? { down, quarantineClick, pointerType: event.pointerType } : { down });
       lastPhysicalClickRejected = true;
     },
     claim(event, surface) {

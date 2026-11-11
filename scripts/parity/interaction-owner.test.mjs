@@ -84,3 +84,45 @@ test('cancelled sequences without clicks retire on fresh primary contact instead
   owner.release(surface,id);
  }
 });
+
+test('operation-rejected touch retains its remapped click disposition through release',()=>{
+ const {owner,surface,send}=fixture();
+ owner.reject({pointerId:73,pointerType:'touch'},{quarantineClick:true});
+ assert.equal(send('pointerup',73,'touch').blocked,true);
+ assert.equal(send('click',1,'mouse',1).blocked,true);
+ assert.equal(send('dblclick',undefined,'mouse',2).blocked,true);
+ assert.equal(owner.claim({pointerId:73,pointerType:'touch'},surface),true);
+ owner.release(surface,73);
+});
+test('operation-rejected exact and legacy clicks consume their released record once',()=>{
+ for(const [id,type] of [[73,'touch'],[undefined,'mouse']]){
+  const {owner,send}=fixture();owner.reject({pointerId:73,pointerType:'touch'},{quarantineClick:true});
+  send('pointerup',73,'touch');assert.equal(send('click',id,type,1).blocked,true);
+  assert.equal(send('click',id,type,1).blocked,undefined);
+ }
+});
+test('interrupted operation contacts keep one released click while default rejections stay held',()=>{
+ const {owner,surface,send}=fixture();
+ owner.reject({pointerId:9,pointerType:'touch'});
+ owner.reject({pointerId:73,pointerType:'touch'},{quarantineClick:true});
+ send('blur');assert.equal(send('click',9,'touch',1).blocked,true);
+ assert.equal(send('click',1,'mouse',1).blocked,true);
+ assert.equal(owner.claim({pointerId:9},surface),false);
+ assert.equal(send('pointerdown',9,'touch').blocked,undefined);
+ assert.equal(owner.claim({pointerId:9,pointerType:'touch'},surface),true);owner.release(surface,9);
+});
+test('unrelated held rejected contacts do not consume a released operation click',()=>{
+ const {owner,send}=fixture();owner.reject({pointerId:73,pointerType:'touch'},{quarantineClick:true});send('pointerup',73,'touch');
+ owner.reject({pointerId:9,pointerType:'touch'});assert.equal(send('click',9,'touch',1).blocked,true);
+ assert.equal(send('click',1,'mouse',1).blocked,true);assert.equal(send('pointerdown',1).blocked,undefined);
+ assert.equal(send('click',1,'mouse',1).blocked,undefined);
+});
+test('cancelled operation contacts without clicks do not retain every ended identity',()=>{
+ const {owner,surface,send}=fixture();
+ for(let id=2;id<1002;id++){
+  send('pointerdown',id,'touch');owner.reject({pointerId:id,pointerType:'touch'},{quarantineClick:true});
+  assert.equal(send('pointercancel',id,'touch').blocked,true);
+ }
+ send('pointerdown',2000,'touch');
+ for(let id=2;id<1002;id++){assert.equal(owner.claim({pointerId:id,pointerType:'touch'},surface),true);owner.release(surface,id);}
+});

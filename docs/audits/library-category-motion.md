@@ -69,6 +69,16 @@ Retained local setup evidence: `build.log` records the first private Vite config
 
 Parent review must investigate the retained Stamp WebKit failures and run full/static/public release gates after integration. The category milestone is not an all-green release receipt. Upload and HTTP verification of these exact18 objects are deferred to the parent; private staging proves no remote availability. No reference/tolerance/deadline/population change. Native0/17; enlarged vacuum disabled, Pencil OFF. Physical iPad latency, foreground idle, audible behavior and IME remain unknown. Root originals, history, worktrees, imported ancestor, deferredClipboard80a0661, SERVER_HANDOFF.md dirt, RESUME_AFTER_SIGNOUT.md and parent failure evidence were not edited.
 
+## Independent review and matching-key correction
+
+Independent review reproduced the ten Stamp WebKit failures on accepted 0.27 source `c22c4e2471a6c357b29fbbd9488bf2cfaa726613` under the established WebKit settings. The same cases fail with the same 5/25/38 channel counts; outside pixels remain unchanged. The accepted 595-case WebKit population excludes `stamp-motion.spec.js` and includes `stamp-editor.spec.js`. These are pre-existing scoped pixel-oracle mismatches, not a demonstrated category regression or an all-green Stamp result. Their cause remains unresolved, with failed assertions and traces retained.
+
+The review found a concrete keyboard objection: Enter's native click could release a ready category arrow's held Space proposal. Two separate regressions distinguish browser-delivered Enter interference from an injected semantic click; both fail before the correction. The shared adapter now retains the accepted activation key, rejects competing activation keys, and lets only matching Space keyup or accepted Enter activation complete that gesture. Cancellation, reset and completion clear the key.
+
+Fallback input retains its accepted held key through artwork decoding and rejected semantic clicks. Space completion validates the current target and live enabled control, then invokes the existing action directly while preventing the browser's native duplicate. It does not fabricate a source program or cue before readiness. The first expanded run passed 78 Chromium cases and found one synthetic-interference/decode case where relying on the native click left the gesture incomplete. That failed run is preserved; direct matching-key completion resolves it.
+
+The corrected matrix passes 79 Chromium development, 78 Chromium built, 77 WebKit development and 76 WebKit built cases, with zero skips, errors or flaky results. This includes all category cases and existing library-readiness, library lifecycle, Text steppers and audio recovery checks. All 362 Node checks pass. No media, source poses, oracle, tolerance or established profile changed in the correction. A fresh independent correction recheck and parent full/static/media/public gates remain pending.
+
 ## Exact media receipt
 
 | Object key | Bytes | SHA256 |

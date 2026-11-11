@@ -92,6 +92,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   let pointerCaptureTarget;
   let soundActive = true;
   let keyboardIndex = null;
+  let keyboardKey = null;
   let cancelledKeyboardClick = false;
   let releaseIndex;
   let focusAction;
@@ -171,7 +172,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     view.cancelAnimationFrame(raf);
     owner?.controller.dispose(); owner?.canvas.remove(); owner = null;
     tracking = null; authoritative = []; targetIdentity = gestureIdentity = undefined;
-    if (pointerId !== null && pointerCaptureTarget?.hasPointerCapture(pointerId)) pointerCaptureTarget.releasePointerCapture(pointerId); pointerId = null; pointerCaptureTarget = null; keyboardIndex = null; releaseIndex = undefined;
+    if (pointerId !== null && pointerCaptureTarget?.hasPointerCapture(pointerId)) pointerCaptureTarget.releasePointerCapture(pointerId); pointerId = null; pointerCaptureTarget = null; keyboardIndex = null; keyboardKey = null; releaseIndex = undefined;
     soundActive = true; focusAction = null; cancelledKeyboardClick = false;
     layer.hidden = true;
   }
@@ -340,6 +341,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     soundActive = false;
     if (pointerId !== null && pointerCaptureTarget?.hasPointerCapture(pointerId)) pointerCaptureTarget.releasePointerCapture(pointerId);
     keyboardIndex = null;
+    keyboardKey = null;
     pointerId = null;
   }
 
@@ -411,6 +413,11 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   }, options);
   controls.addEventListener('keydown', event => {
     const hit = target(event), fallback = !hit && fallbackControl(event);
+    if (['Enter', ' '].includes(event.key) && (keyboardIndex !== null
+      || (fallbackInput?.kind === 'keyboard' && !fallbackInput.released))) {
+      // The first accepted key owns activation, including its native click.
+      event.preventDefault(); return;
+    }
     if (fallback && ['Enter', ' '].includes(event.key)) {
       if (event.repeat) { event.preventDefault(); return; }
       if (!interaction.claim({pointerId: keyboardContact, pointerType: 'keyboard'}, controls)) { event.preventDefault(); return; }
@@ -431,6 +438,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
         keyboardOwned = true;
       }
       keyboardIndex = hit.index;
+      keyboardKey = event.key;
       gestureIdentity = gestureTargetFor(current, owner.manifest.buttons[hit.index]);
     }
     if (event.key === 'Escape') cancel();
@@ -439,17 +447,23 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     if (fallbackInput?.kind === 'keyboard' && event.key === ' ') {
       refreshState(event);
       if (!fallbackInput || fallbackInput.identity !== targetFor(current)) { cancel(event); event.preventDefault(); return; }
-      fallbackInput.released = true; retireKeyboard();
-      return; // The native semantic click is validated below, even after bind.
+      const control = fallbackInput.control;
+      fallbackInput = null; retireKeyboard();
+      // Complete the accepted key directly, including after a rejected click
+      // changed the browser's native Space-click bookkeeping during decode.
+      event.preventDefault();
+      if (controls.contains(control) && !control.disabled) onActivate(control.dataset.action);
+      return;
     }
     if (event.key === ' ' && cancelledKeyboardClick && fallbackControl(event)) { event.preventDefault(); return; }
     if (owner) refreshState(event);
     const hit = target(event);
     if (event.key === ' ' && hit && cancelledKeyboardClick) { event.preventDefault(); return; }
-    if (event.key !== ' ' || keyboardIndex === null || hit?.index !== keyboardIndex) return;
+    if (event.key !== ' ' || keyboardKey !== event.key || keyboardIndex === null || hit?.index !== keyboardIndex) return;
     event.preventDefault();
     const index = keyboardIndex;
     keyboardIndex = null;
+    keyboardKey = null;
     retireKeyboard();
     activateProposal(normalizeProposal(owner.controller.release(true), index));
   }, options);
@@ -457,6 +471,9 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     let inherited = fallbackInput;
     if (inherited?.kind === 'pointer' && inherited.released && event.detail === 0) { fallbackInput = null; inherited = null; }
     if (inherited) {
+      if (inherited.kind === 'keyboard' && !inherited.released) {
+        event.preventDefault(); event.stopPropagation(); return;
+      }
       // A competing assistive/physical click cannot release another contact.
       if ((event.detail > 0) !== (inherited.kind === 'pointer')) { event.preventDefault(); event.stopPropagation(); return; }
       refreshState(event);
@@ -478,12 +495,13 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       soundActive = true;
       // Enter's native click releases its own accepted key press. A synthetic
       // click may start a new press, but can never release another held actor.
-      if (keyboardIndex === hit.index) index = normalizeProposal(owner.controller.release(true), hit.index);
+      if (keyboardIndex === hit.index && keyboardKey === 'Enter') index = normalizeProposal(owner.controller.release(true), hit.index);
       else if (tracking === null && keyboardIndex === null && owner.controller.press(hit.index)) index = normalizeProposal(owner.controller.release(true), hit.index);
       else index = null;
     }
     if (index !== null && index !== undefined) {
       keyboardIndex = null;
+      keyboardKey = null;
       retireKeyboard();
       activateProposal(index);
     }

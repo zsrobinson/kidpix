@@ -73,6 +73,37 @@ async function fixture(page,count=3,mockAudio=true) {
   await expect(actor(page)).toBeVisible();
 }
 const state=page=>snap(page,'arrows');
+for (const interference of ['Enter', 'synthetic semantic click']) test(`held category Space rejects ${interference} until matching release`,async({page})=>{
+  await fixture(page);await control(page,'category-step:1').focus();
+  await page.keyboard.down('Space');
+  try {
+    if(interference==='Enter')await page.keyboard.press('Enter');
+    else await control(page,'category-step:1').evaluate(button=>button.click());
+    await expect(page.locator('#category')).toHaveValue('0');
+    expect((await state(page))[1].state).toBe(1);
+  } finally {await page.keyboard.up('Space');}
+  await expect(page.locator('#category')).toHaveValue('1');
+  await control(page,'category-step:1').focus();await page.keyboard.press('Enter');
+  await expect(page.locator('#category')).toHaveValue('2');
+});
+for (const interference of ['Enter', 'synthetic semantic click']) test(`fallback held category Space rejects ${interference} across decode`,async({page})=>{
+  let release;const gate=new Promise(resolve=>release=resolve);
+  await page.route('**/secondary-motion/backdrops/library-category.png*',async route=>{
+    const response=await route.fetch();await gate;await route.fulfill({response});
+  });
+  const starting=fixture(page);
+  try {
+    await expect(page.locator('#category option')).toHaveCount(3);
+    await control(page,'category-step:1').focus();await page.keyboard.down('Space');
+    if(interference==='Enter')await page.keyboard.press('Enter');
+    else await control(page,'category-step:1').evaluate(button=>button.click());
+    await expect(page.locator('#category')).toHaveValue('0');
+    release();await starting;
+    await page.keyboard.up('Space');await expect(page.locator('#category')).toHaveValue('1');
+    await control(page,'category-step:1').focus();await page.keyboard.press('Enter');
+    await expect(page.locator('#category')).toHaveValue('2');
+  } finally {release();await page.keyboard.up('Space');await starting;}
+});
 for(const [count,index,scripts] of [[3,0,[18315,18293]],[3,1,[18290,18293]],[3,2,[18290,18316]],[1,0,[18315,18316]],[0,0,[18315,18316]]])test(`actual category boundary ${index}/${count}`,async({page})=>{
   await fixture(page,count);if(count)await page.locator('#category').selectOption(String(index));
   expect((await state(page)).map(s=>s.script)).toEqual(scripts);await pixels(page,'arrows');

@@ -4,8 +4,9 @@ The candidate correction changes tests only. Original source composition and
 browser presentation are separate checks: all 29 raw-source pins remain intact,
 while live controls are compared with independently presented original PNGs.
 No rendering, input, audio, asset, baseline or pixel-tolerance change is made.
-Independent correction review and standard WebKit population expansion remain
-pending.
+Independent correction review found no integration objections within this scope.
+The standard WebKit population now includes the Stamp suite; its expanded full
+run remains pending.
 
 ## Diagnosis
 
@@ -87,3 +88,24 @@ The application stays at accepted 0.28. This does not verify actual iPad
 latency, foreground-idle behavior, audible delivery or IME behavior. Native
 references remain 0/17; enlarged vacuum remains disabled and Pencil preview
 defaults off. The separately preserved sound-delivery 503 remains unexplained.
+
+## Independent review and standard coverage
+
+Independent review passed all 88 Stamp cases across the four entries, six added
+network/visible-corruption probes, 27 trace-retention repeats, eleven source and
+parity cases, and 47 source asset hashes. Both old-oracle WebKit controls still
+fail at 38 bad and 38 visible channels with zero outside. The review identified
+no actionable findings. Its initial request-corruption probe did not force a
+fresh image request; those setup failures were retained, and the corrected
+probe explicitly requires an intercepted request before accepting rejection.
+
+The live-snapshot-plus-manifest pattern establishes rendering for the reported
+pose; it cannot defeat coordinated falsification of both snapshot and output.
+Hardcoded boundary identities, state/input checks and complete live-group
+coverage supply separate controller evidence. This pre-existing limit is not
+replaced or obscured by the presentation helper.
+
+The standard WebKit configuration adds the 22 Stamp cases without removing any
+existing case or changing exclusions, timeouts, retries, profiles or tolerances.
+The expanded population lists 650 cases: 647 expected passes and the three
+existing explicit skips. Full-run acceptance is separate from the scoped review.

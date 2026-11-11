@@ -6,7 +6,7 @@ while live controls are compared with independently presented original PNGs.
 No rendering, input, audio, asset, baseline or pixel-tolerance change is made.
 Independent correction review found no integration objections within this scope.
 The standard WebKit population now includes the Stamp suite; its expanded full
-run remains pending.
+run passes all 647 cases with the three existing explicit skips.
 
 ## Diagnosis
 
@@ -107,5 +107,8 @@ replaced or obscured by the presentation helper.
 
 The standard WebKit configuration adds the 22 Stamp cases without removing any
 existing case or changing exclusions, timeouts, retries, profiles or tolerances.
-The expanded population lists 650 cases: 647 expected passes and the three
-existing explicit skips. Full-run acceptance is separate from the scoped review.
+The expanded population lists 650 cases. Its frozen full run at
+`62766065949af60d860fc95003ba2ba2a6bc15eb` passes 647 cases with the three
+existing explicit skips, zero unexpected/flaky results and zero runner errors.
+All 362 Node checks pass. This full acceptance is separate from the scoped
+review, and changes no application code or physical-device claim.

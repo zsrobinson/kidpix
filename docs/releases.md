@@ -2,6 +2,12 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.24.0 (release validation)
+
+- Enable Make Sticker for fresh completed ellipse and polygon Scissors selections, retaining exact browser masks, source pixels and clipboards through the existing single-step Undo/Redo transaction.
+- Keep pending, held, cancelled, empty and out-of-page selections unavailable. Preserve existing polygon editing behavior and the legacy thresholds for other tiny selections; keep cookie templates excluded according to the original availability rule.
+- Independent review found no release objection. Full validation is pending. Native contours, event/Undo behavior and physical iPad feel remain unverified; native references stay 0/17 and the enlarged vacuum stays disabled.
+
 ## 0.23.0
 
 - Add Make Sticker for fresh rectangular and freehand Scissors selections, with its three recovered motion programs and four source-verified poses.

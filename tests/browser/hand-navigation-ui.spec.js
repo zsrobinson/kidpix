@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { PNG } from 'pngjs';
+test.use({ hasTouch: true });
 const control=(page,d)=>page.locator(`#tray-buttons [data-action="navigate:${d}"]`);
 async function start(page,fallback=false){
  if(fallback) await page.route('**/secondary-motion/manifest.json*',r=>r.abort());

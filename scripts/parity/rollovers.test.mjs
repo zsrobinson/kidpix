@@ -57,3 +57,14 @@ test('multiple image commands without a wait render the last group at that tick'
   assert.equal(rolloverFrameAtTick(immediate, 0), 1);
   assert.equal(rolloverFrameAtTick(immediate, 2), 3);
 });
+
+test('clipped actors fail closed unless bounded restoration metadata is complete', async () => {
+  const { usableClippedRollover } = await import('../../src/native-rollovers.js');
+  const { readFileSync } = await import('node:fs');
+  const clip = JSON.parse(readFileSync(new URL('../../src/add-picture-rollover.json', import.meta.url)));
+  assert.equal(usableClippedRollover(clip), true);
+  for (const change of [{ restore: undefined }, { clipRect: [933,592,79,0] },
+    { clipRect: [933,580,79,95] }, { restore: { image:'paint-empty.png', size:[100,100] } }]) {
+    assert.equal(usableClippedRollover({ ...clip, ...change }), false);
+  }
+});

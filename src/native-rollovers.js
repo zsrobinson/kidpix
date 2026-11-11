@@ -57,6 +57,19 @@ function usableClip(clip) {
     && (clip.endCheckTick === undefined || Number.isInteger(clip.endCheckTick) && clip.endCheckTick >= 1);
 }
 
+export function usableClippedRollover(clip) {
+  const rect = clip?.clipRect;
+  const full = clip?.rect;
+  const size = clip?.restore?.size;
+  return usableClip(clip) && Array.isArray(rect) && rect.length === 4
+    && rect.every(Number.isInteger) && rect[2] > 0 && rect[3] > 0
+    && Array.isArray(size) && size.length === 2 && size.every(n => Number.isInteger(n) && n > 0)
+    && typeof clip.restore.image === 'string' && clip.restore.image.length > 0
+    && rect[0] >= 0 && rect[1] >= 0 && rect[0] + rect[2] <= size[0] && rect[1] + rect[3] <= size[1]
+    && rect[0] >= full[0] && rect[1] >= full[1]
+    && rect[0] + rect[2] <= full[0] + full[2] && rect[1] + rect[3] <= full[1] + full[3];
+}
+
 function findControl(root, name) {
   if (name === 'undo') return root.querySelector('[aria-label="Undo"]');
   const action = actions[name] ?? (trays.has(name) ? `tray:${name}` : name);
@@ -118,20 +131,38 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
     const idle = nativeSpritesMap?.get(button.name);
     const control = idle && findControl(hitRoot, button.name);
     if (!control || !usableClip(clip) || data.unsupportedScripts?.[String(button.rolloverScript)]) continue;
+    const clipped = clip.clipRect !== undefined || button.rolloverScript === 1128;
+    if (clipped && !usableClippedRollover(clip)) continue;
     const loops = button.rolloverLoops ?? Boolean(button.rolloverParameters?.[0] ?? button.rawWords?.[11]);
     const group = button.group ?? button.rawWords?.[14] ?? 0;
-    const image = document.createElement('img');
+    const image = document.createElement(clipped ? 'canvas' : 'img');
+    const context = clipped ? image.getContext('2d') : null;
+    if (clipped && !context) continue;
+    if (clipped) {
+      [image.width, image.height] = clip.clipRect.slice(2);
+    }
     image.className = 'native-sprite native-rollover';
     image.alt = '';
     image.draggable = false;
     image.hidden = true;
-    image.style.cssText = `${place(...clip.rect)};pointer-events:none;`;
+    // Above the later paper-canister canvas (z=4), only within the clip.
+    image.style.cssText = `${place(...(clipped ? clip.clipRect : clip.rect))};pointer-events:none;${clipped ? 'z-index:5;' : ''}`;
     image.dataset[fallbackNames.includes(button.name) ? 'nativeFallbackRollover' : 'nativeRollover'] = button.name;
     image.dataset.script = String(clip.script ?? button.rolloverScript);
     renderLayer.append(image);
     const observer = new view.MutationObserver(() => { if (unavailable()) stop(); });
     observer.observe(control, { attributes: true, attributeFilter: ['aria-pressed', 'aria-disabled', 'disabled', 'hidden'] });
-    const framesReady = Promise.all(clip.frames.map(frame => preload(frame.image)));
+    let decoded;
+    const framesReady = Promise.all([
+      ...clip.frames.map(frame => preload(frame.image)),
+      ...(clipped ? [preload(clip.restore.image)] : []),
+    ]).then(images => {
+      if (clipped && (images.slice(0, -1).some(frame => frame.naturalWidth !== clip.rect[2] || frame.naturalHeight !== clip.rect[3])
+          || images.at(-1).naturalWidth !== clip.restore.size[0] || images.at(-1).naturalHeight !== clip.restore.size[1])) {
+        throw new Error('Invalid clipped rollover image dimensions');
+      }
+      decoded = images;
+    });
     // Missing assets leave the existing static binding in charge.
     framesReady.catch(() => {});
     let suspensions = 0;
@@ -146,7 +177,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
     const audioCleanup = new Map();
 
     function unavailable() {
-      return !enabled(button.name) || suspensions > 0 || control.getAttribute('aria-pressed') === 'true'
+      return (clipped && document.hidden) || !enabled(button.name) || suspensions > 0 || control.getAttribute('aria-pressed') === 'true'
         || control.getAttribute('aria-disabled') === 'true'
         || control.matches(':disabled') || control.hidden;
     }
@@ -193,6 +224,16 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
       audioCleanup.set(audio, observeUiAudio(audio, finished));
     }
 
+    function drawFrame(frame) {
+      if (clipped) {
+        const [x, y, w, h] = clip.clipRect;
+        context.clearRect(0, 0, w, h);
+        context.drawImage(decoded.at(-1), x, y, w, h, 0, 0, w, h);
+        context.drawImage(decoded[frame], clip.rect[0] - x, clip.rect[1] - y);
+      } else image.src = assetUrl(clip.frames[frame].image);
+      image.dataset.frame = String(frame);
+    }
+
     async function start() {
       // Native setup destroys any surviving auxiliary handle on reentry.
       // Restore the backing actor first so its original visibility is retained.
@@ -202,9 +243,11 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
       // Ordinary leave/tracking may have relinquished hover without destroying
       // this actor. Only cleanup/replacement invalidates its pending decode.
       if (current !== generation || unavailable()) return;
-      idleWasHidden = idle.hidden;
-      hidingIdle = true;
-      idle.hidden = true;
+      if (!clipped) {
+        idleWasHidden = idle.hidden;
+        hidingIdle = true;
+        idle.hidden = true;
+      }
       image.hidden = false;
       let startTime = view.performance.now();
       let nextSound = 0;
@@ -228,8 +271,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
             // Owner-specific completion callbacks can restore a backing actor;
             // those callbacks are not encoded in the MBTN/tSCR manifest.
             const finalFrame = clip.frames.length - 1;
-            image.src = assetUrl(clip.frames[finalFrame].image);
-            image.dataset.frame = String(finalFrame);
+            drawFrame(finalFrame);
             return;
           }
           startTime = now;
@@ -240,8 +282,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
         while (nextSound < sounds.length && sounds[nextSound].tick <= tick) playSound(sounds[nextSound++]);
         const frame = rolloverFrameAtTick(clip, tick);
         if (frame !== lastFrame) {
-          image.src = assetUrl(clip.frames[frame].image);
-          image.dataset.frame = String(frame);
+          drawFrame(frame);
           lastFrame = frame;
         }
         lastTick = tick;
@@ -269,6 +310,7 @@ export function attachNativeRollovers(manifest, hitRoot, nativeSpritesMap, rende
       if (rolloverCleanupRequired(button, 1)) stop();
     };
     control.addEventListener('pointerdown', press, options);
+    if (clipped) control.addEventListener('lostpointercapture', () => { blockedUntilLeave = true; stop(); }, options);
     control.addEventListener('pointercancel', () => { blockedUntilLeave = true; stop(); }, options);
     disposers.push(() => { observer.disconnect(); stop(); image.remove(); });
   }

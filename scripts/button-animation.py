@@ -5,6 +5,7 @@ script in MBTN word 10 must not be mislabeled as a generic pressed/selected fram
 """
 
 import argparse
+import hashlib
 from importlib import import_module
 import json
 from pathlib import Path
@@ -170,7 +171,7 @@ def export_button_animations(archive, table_id, output, sprite, names=(), source
     ids = sorted({number for button in buttons for number in [*button["stateScripts"], button["rolloverScript"]] if number})
     for resource in ids:
         try:
-            parsed = decode(archive[b"tSCR", resource])
+            parsed = decode(archive[b"tSCR", resource], resource=(source, resource))
             collection = parsed["collection"]
             origin_x, origin_y = parsed["origin"]
             interval = None
@@ -213,12 +214,17 @@ def export_button_animations(archive, table_id, output, sprite, names=(), source
             bottom = max(y + image.height for group in groups for x, y, image in group["parts"])
             rect = [left, top, right - left, bottom - top]
             frames = []
+            clipped = resource == 1128 and "trailing" in parsed
             for index, group in enumerate(groups):
                 frame = Image.new("RGBA", tuple(rect[2:]))
                 for x, y, part in group["parts"]:
                     frame.alpha_composite(part, (x - left, y - top))
                 path = f"button-animations/{resource}-{index}.png"
-                frame.save(output / path)
+                if clipped:
+                    # Reuse existing source-identical media; no new 1128 PNGs.
+                    path = f"flipbook-{index}.png"
+                else:
+                    frame.save(output / path)
                 frames.append({"image": path, "ticks": group["ticks"]})
             scripts[str(resource)] = {
                 "script": resource, "rect": rect, "frames": frames, "sounds": sounds,
@@ -226,6 +232,13 @@ def export_button_animations(archive, table_id, output, sprite, names=(), source
                 "endCheckTick": tick + 1,
                 "endBehavior": "creation flags choose finite playback or restart; sound completion can delay end processing",
             }
+            if clipped:
+                scripts[str(resource)].update({
+                    "resourceSha256": hashlib.sha256(archive[b"tSCR", resource]).hexdigest(),
+                    "consumedBytes": parsed["consumedBytes"], "trailing": parsed["trailing"],
+                    "clipRect": [933, 592, 79, 95],
+                    "restore": {"image": "paint-empty.png", "size": [1024, 768]},
+                })
         except (KeyError, ValueError, struct.error) as error:
             unsupported[str(resource)] = str(error)
 

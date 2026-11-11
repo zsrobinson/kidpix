@@ -1,12 +1,23 @@
 import { original } from './library.js';
 import { place } from './trays.js';
+import addPicture from './add-picture-rollover.json';
 
 const source = name => original(`ui/${name}`);
 
 export async function loadNativeUi() {
   const response = await fetch(source('ui.json'));
   if (!response.ok) return null;
-  return response.json();
+  const manifest = await response.json();
+  const data = manifest.buttonAnimations;
+  const button = data?.buttons?.find(button => button.name === 'flipbook');
+  // Immutable source adapter for older published original manifests.
+  if (button?.rolloverScript === 1128 && button.command === 301
+      && button.stateScripts?.[0] === 1126 && button.stateScripts?.[1] === 1127) {
+    data.scripts = { ...data.scripts, '1128': structuredClone(addPicture) };
+    data.unsupportedScripts = { ...data.unsupportedScripts };
+    delete data.unsupportedScripts['1128'];
+  }
+  return manifest;
 }
 
 export function sprite(part, frame = 0) {
@@ -70,7 +81,8 @@ export function nativeButtonParts(manifest, root, { excludeNames = [] } = {}) {
     const image = sprite(part);
     image.dataset.nativePart = name;
     sprites.set(name, image);
-    if (control && !excludeNames.includes(name)) {
+    if (control && name === 'flipbook' && manifest.buttonAnimations?.scripts?.['1128']?.clipRect) control.classList.add('native-control');
+    if (control && !excludeNames.includes(name) && !(name === 'flipbook' && manifest.buttonAnimations?.scripts?.['1128']?.clipRect)) {
       bindSprite(control, image, part, control.classList.contains('side') ? 3 : undefined,
         name === 'undo' || name === 'redo' ? 3 : undefined);
     }

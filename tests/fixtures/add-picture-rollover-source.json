@@ -1,0 +1,273 @@
+{
+  "tailClassification": "opaque nonexecuted suffix; authoring purpose unknown; no alternate entry in this rollover path",
+  "row": {
+    "index": 23,
+    "name": "flipbook",
+    "stateScripts": [
+      1126,
+      1127,
+      0,
+      0
+    ],
+    "hotspotKind": 2,
+    "hotspotResource": 1082,
+    "command": 301,
+    "rolloverScript": 1128,
+    "rolloverParameters": [
+      1,
+      0,
+      0
+    ],
+    "rolloverLoops": true,
+    "rolloverCancelsOnLeave": true,
+    "group": 0,
+    "rawWords": [
+      1126,
+      1127,
+      0,
+      0,
+      2,
+      1082,
+      301,
+      1,
+      0,
+      0,
+      1128,
+      1,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "geometry": {
+    "type": "rectangle-union",
+    "status": "exact",
+    "boundsXYWH": [
+      933,
+      592,
+      79,
+      95
+    ],
+    "rectsLTRB": [
+      [
+        933,
+        592,
+        1012,
+        687
+      ]
+    ],
+    "rawWord12": 1,
+    "rectangleCount": 1
+  },
+  "resources": {
+    "MRGN/1082": {
+      "offset": 1276,
+      "length": 24,
+      "sha256": "0ce3ce25acc55df35f16a1071985e679274491f72248312bc8ed6148b4fd8e69",
+      "hex": "52474e2003a5025003f402af0001000103a5025003f402af"
+    },
+    "tSCR/1126": {
+      "offset": 4407484,
+      "length": 42,
+      "sha256": "9fae8886132df23139a95a8872ab8584349fc3de20262ccd4641116dcda177a0",
+      "hex": "003e03e800ee0020000000200000000103a5024603f402f00000040400641001806d0000000001020002"
+    },
+    "tSCR/1127": {
+      "offset": 4407526,
+      "length": 88,
+      "sha256": "5cc8c677aab2d69a58a714129e50a3e2869addfc38e9f231f81a0cec596e27ef",
+      "hex": "003e03e800ee0020000000200000000103a5024603f402f00000040400640306002000011001806d000000000102100180c0000000000102100180cb000000000102100180c00000000001021001806d0000000001020002"
+    },
+    "tSCR/1128": {
+      "offset": 4407614,
+      "length": 72,
+      "sha256": "cc8822ca3f4b2723aa4182bbf743e2dd7458369dfa87aacfcfb87c2f9f53754b",
+      "hex": "003e03e800ee0020000000200000000103a5024603f402f00000040400641001806d000000000102100180d3000000000102100180710000000001020002800801ec011801020002"
+    },
+    "tSCR/1039": {
+      "hex": "003e03e800ee00200000002000000001039c000e03e4005a00000404006410018067fe52024c010203060003000210018068fe52024800021001806cfe51024d01021001806afe51024a01021001806bfe57024d010210018069fe50024801020002",
+      "length": 98,
+      "sha256": "6625d670d233773e96373a1d5e13f285109797904036c0cddf0abe551d00d186"
+    }
+  },
+  "inventory": {
+    "flipbook-*.png": [
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/flipbook-0.png",
+        "sha256": "0bc4198f422537647ad07126dbb037aa00d9e0ee7f9a87ad63e19c235009bf6f",
+        "length": 15174
+      },
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/flipbook-1.png",
+        "sha256": "d1945a0b739146131aeb8b3e42a45da325f6df83cd7e52f4032ca38e5009fee1",
+        "length": 14566
+      },
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/flipbook-2.png",
+        "sha256": "b9a2afe311b9060f2512ac95e2dfd29594fde3cfade333a9f552a8b574d77aa8",
+        "length": 13819
+      }
+    ],
+    "button-animations/1126-*.png": [
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/button-animations/1126-0.png",
+        "sha256": "0bc4198f422537647ad07126dbb037aa00d9e0ee7f9a87ad63e19c235009bf6f",
+        "length": 15174
+      }
+    ],
+    "button-animations/1127-*.png": [
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/button-animations/1127-0.png",
+        "sha256": "0bc4198f422537647ad07126dbb037aa00d9e0ee7f9a87ad63e19c235009bf6f",
+        "length": 15174
+      },
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/button-animations/1127-1.png",
+        "sha256": "5af235c3785c7d582db4fa60f23e570e4bc1a585481574c1c3127e47bc9fed2c",
+        "length": 12627
+      },
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/button-animations/1127-2.png",
+        "sha256": "45d68ea5758102e100c815b30766e45fb207ba1e7fd08b4a5a5d5df21f6a31e2",
+        "length": 11733
+      },
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/button-animations/1127-3.png",
+        "sha256": "5af235c3785c7d582db4fa60f23e570e4bc1a585481574c1c3127e47bc9fed2c",
+        "length": 12627
+      },
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/button-animations/1127-4.png",
+        "sha256": "0bc4198f422537647ad07126dbb037aa00d9e0ee7f9a87ad63e19c235009bf6f",
+        "length": 15174
+      }
+    ],
+    "button-animations/1128-*.png": [],
+    "easel-1032.wav": [
+      {
+        "path": "/home/zsrobinson/code/kidpix/public/original/ui/easel-1032.wav",
+        "sha256": "a1f63e7c2afd11f6dea5505d13af7021f58bdab13868530715e22603e32e4f7f",
+        "length": 75664
+      }
+    ],
+    "reusable1128Frames": [
+      "flipbook-0.png",
+      "flipbook-1.png",
+      "flipbook-2.png"
+    ],
+    "newMediaRequired": 0,
+    "nativeClipLTRB": [
+      933,
+      592,
+      1012,
+      687
+    ],
+    "localClipLTRB": [
+      0,
+      10,
+      79,
+      105
+    ],
+    "clippedCompositionOracle": [
+      {
+        "image": "flipbook-0.png",
+        "nativeClipOverCleanRGBA": "d7248dca6d66fb0f2cab1bb2467a7211b22389843dd5bc21a3d28150e632d63b",
+        "restOutsideClipRGBA": "519ef0229421d42fd911a425fb2a497bad127b38648b298eb372eeaee550cc7f",
+        "outsideTopEqualsRest": true,
+        "outsideBottomEqualsRest": true
+      },
+      {
+        "image": "flipbook-1.png",
+        "nativeClipOverCleanRGBA": "239730c73fc3f8300623099eae5fcb4ac2af3f14ea087f324ab4567a1c4ef8bf",
+        "restOutsideClipRGBA": "181fce25573a0b2c6839d2852b180e7f42a5a663e1cba94b25fd6fd87397ec25",
+        "outsideTopEqualsRest": false,
+        "outsideBottomEqualsRest": true
+      },
+      {
+        "image": "flipbook-2.png",
+        "nativeClipOverCleanRGBA": "297724a69dcedb79ae401c79c12ae1818d3f8432e3df9c0b6b1b59bb04737f1a",
+        "restOutsideClipRGBA": "5eb14275307eea3a5e5dbca006154135747874b2a8582ab18fc989c9e122e92b",
+        "outsideTopEqualsRest": false,
+        "outsideBottomEqualsRest": false
+      }
+    ],
+    "existingManifestRow": {
+      "index": 23,
+      "name": "flipbook",
+      "stateScripts": [
+        1126,
+        1127,
+        0,
+        0
+      ],
+      "hotspotKind": 2,
+      "hotspotResource": 1082,
+      "command": 301,
+      "rolloverScript": 1128,
+      "rolloverParameters": [
+        1,
+        0,
+        0
+      ],
+      "rolloverLoops": true,
+      "rolloverCancelsOnLeave": true,
+      "group": 0,
+      "rawWords": [
+        1126,
+        1127,
+        0,
+        0,
+        2,
+        1082,
+        301,
+        1,
+        0,
+        0,
+        1128,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "hotspotRegion": {
+        "type": "rectangle-union",
+        "status": "exact",
+        "boundsXYWH": [
+          933,
+          592,
+          79,
+          95
+        ],
+        "rectsLTRB": [
+          [
+            933,
+            592,
+            1012,
+            687
+          ]
+        ],
+        "rawWord12": 1,
+        "rectangleCount": 1,
+        "source": "Data/Easel.MHK",
+        "resourceType": "MRGN",
+        "resource": 1082,
+        "coordinateSpace": "native-master"
+      },
+      "hotspotBounds": [
+        933,
+        592,
+        79,
+        95
+      ]
+    },
+    "existing1128": null,
+    "unsupported1128": "Trailing data after tSCR end"
+  },
+  "cleanPlate": {
+    "path": "/home/zsrobinson/code/kidpix/public/original/ui/paint-empty.png",
+    "sha256": "8236d056bb42312cb04ce3ef2c36a4e161a04dae3fe882580ad1c7b2433ebb56",
+    "length": 412398
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "script": 1128,
+  "resourceSha256": "cc8822ca3f4b2723aa4182bbf743e2dd7458369dfa87aacfcfb87c2f9f53754b",
+  "consumedBytes": 62,
+  "trailing": {
+    "hex": "800801ec011801020002",
+    "sha256": "377a5fb0ec64a8db3a7e08d86d70f63ccd72c647ae33083263e9237469e951ad",
+    "classification": "opaque nonexecuted suffix; unreachable only in auxiliary 1128 creation/playback path"
+  },
+  "rect": [
+    933,
+    582,
+    79,
+    170
+  ],
+  "clipRect": [
+    933,
+    592,
+    79,
+    95
+  ],
+  "restore": {
+    "image": "paint-empty.png",
+    "size": [
+      1024,
+      768
+    ]
+  },
+  "frames": [
+    {
+      "image": "flipbook-0.png",
+      "ticks": 1
+    },
+    {
+      "image": "flipbook-1.png",
+      "ticks": 1
+    },
+    {
+      "image": "flipbook-2.png",
+      "ticks": 0
+    }
+  ],
+  "sounds": [],
+  "tickMs": 100,
+  "durationTicks": 2,
+  "endCheckTick": 3
+}

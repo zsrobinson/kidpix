@@ -5,9 +5,10 @@ The interval command uses milliseconds (verified against the i386 scheduler).
 """
 
 import struct
+import hashlib
 
 
-def decode_script(data):
+def decode_script(data, *, resource=None):
     if len(data) < 28:
         raise ValueError("Truncated tSCR header")
     collection, = struct.unpack_from(">H", data, 2)
@@ -45,9 +46,17 @@ def decode_script(data):
             events.append({"op": "sound", "cue": cue, "channel": channel})
             position += 4
         elif (opcode, argument) == (0x00, 0x02):
+            result = {"collection": collection, "origin": origin, "events": events}
             if position != len(data):
-                raise ValueError("Trailing data after tSCR end")
-            return {"collection": collection, "origin": origin, "events": events}
+                # Proven only for Easel's exact auxiliary 1128 creation path.
+                if not (resource == ("Data/Easel.MHK", 1128) and position == 62
+                        and hashlib.sha256(data).hexdigest() == "cc8822ca3f4b2723aa4182bbf743e2dd7458369dfa87aacfcfb87c2f9f53754b"):
+                    raise ValueError("Trailing data after tSCR end")
+                result.update(consumedBytes=position, trailing={
+                    "hex": data[position:].hex(), "sha256": hashlib.sha256(data[position:]).hexdigest(),
+                    "classification": "opaque nonexecuted suffix; unreachable only in auxiliary 1128 creation/playback path",
+                })
+            return result
         else:
             raise ValueError(f"Unsupported tSCR command {opcode:02x}{argument:02x} at {position - 2}")
     raise ValueError("Missing tSCR end command")

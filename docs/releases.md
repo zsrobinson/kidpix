@@ -2,12 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.28.0 (release validation)
+## 0.28.0
 
 - Restore non-Stamp library category arrows from eight original programs and ten draw groups, including disabled boundary artwork, finite rollover and the delayed tracking cue. Preserve category dropdowns, page navigation, tiles, Stamp controls and document history.
 - Restore only the source-verified 43×62 category footprint. Add seventeen payloads and extend the secondary manifest without changing existing records or sounds.
 - Keep the first accepted activation key through tracking and delayed artwork loading. A held Space gesture rejects Enter and unrelated semantic clicks, completes once on its matching release, and retains cancellation and fresh activation.
-- Independent correction review found no remaining objection within keyboard/shared-default scope. Verified 362 Node checks and 310 scoped browser checks across Chromium/WebKit development/built. Full/static/public release validation remains pending.
+- Independent correction review found no remaining objection within keyboard/shared-default scope. Verified 362 Node checks, 862 development cases, 774 built cases and 625 WebKit cases, with existing explicit skips; source-only 334 checks pass with 28 imported-asset skips, build and deployment dry run. All 18 published media objects match their pinned hashes.
+- All 17 final captures exactly match the reviewed preflight. Sixteen remain unchanged; Backgrounds changes by 791 pixels entirely within category ownership. An independent original-resource reconstruction matches the full 786,432-pixel image exactly and seven mutation controls reject corruption. Only that web baseline changes; native references and pixel tolerances are unchanged.
 - Ten additional Stamp WebKit pixel assertions fail identically on accepted 0.27 and the candidate; their cause remains unresolved and evidence is retained. They are outside the established full WebKit population, and no assertion or tolerance is relaxed. Native references stay 0/17; physical iPad feel, foreground idle and audible delivery remain unverified. Enlarged vacuum stays disabled and Pencil preview defaults off.
 
 ## 0.27.0

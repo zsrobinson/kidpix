@@ -81,6 +81,20 @@ The corrected matrix passes 79 Chromium development, 78 Chromium built, 77 WebKi
 
 ## Exact media receipt
 
+## Parent release validation
+
+The independent correction recheck found no remaining ranked findings within correction/shared-default scope: 289 browser cases and 26 Node cases passed, with three meaningful prior-candidate failures retained. Parent correction coverage passed 310 browser cases across both engines and development/built entries, plus all 362 Node checks.
+
+The final frozen full run at `43e0dafc31ffced17b2d36af21a9c43da6d8ee2f` passed 862 development cases with one skip, 774 built cases with one skip and 625 WebKit cases with three skips. Source-only validation passed 334 checks with 28 imported-asset skips; asset verification, build, deployment dry run and fourteen portable exporter checks passed. All eighteen staged objects reproduced exactly and their public bodies match the pinned hashes. Old manifest records and payloads are preserved.
+
+All nineteen static preflight cases pass. Only Backgrounds changes: 791 pixels within the category footprint. An independent raw-resource parser, registration/dispatch audit and integer compositor reconstruct the entire 786,432-pixel image exactly, with seven meaningful corruption controls rejected. Only its web baseline was updated after that review; sixteen other captures remain unchanged. The full run's seventeen captures match this reviewed preflight exactly. Previous captures and baseline metadata are preserved, including their actual frozen `584b93b`, dirty=true provenance rather than relabeling them as clean `c22c4e2` captures. Native references and tolerances are unchanged.
+
+The initial static run's eighteen passes and one failed capture wait are preserved: placing a sticker correctly switches to Grab, so that scenario has no category actor. The test-only correction waits for both finished category actors only in Backgrounds. The earlier private-config working-directory startup failure is also retained. No application change was needed for either test setup correction.
+
+Exact revision publication and selected public acceptance remain the final release gates. The ten additional Stamp WebKit pixel failures remain pre-existing, unresolved and unwaived; the established full WebKit population does not include those assertions. Native execution, physical iPad latency, foreground-idle causation, audible delivery and IME behavior remain unverified.
+
+### Object hashes
+
 | Object key | Bytes | SHA256 |
 | --- | ---: | --- |
 | `ui/secondary-motion/backdrops/library-category.png` | 215 | `a381424f24345690d81c5ffc5b198462359c99044f0038c8a73b1bdac0f7d45e` |

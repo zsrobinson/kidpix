@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { PNG } from 'pngjs';
+import { stampFetchHeader, unexpectedStampRequests } from './stamp-request-errors.js';
 
 let manifest;
 test.beforeAll(async () => {
@@ -22,11 +23,28 @@ test.beforeAll(async () => {
 });
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(({header}) => {
+    const fetch = window.fetch;
+    window.stampAbortedFetches = new Set();
+    window.fetch = function (input, options) {
+      const url = new URL(input instanceof Request ? input.url : input, document.baseURI);
+      const signal = options?.signal ?? (input instanceof Request ? input.signal : undefined);
+      if (!signal || url.origin !== location.origin || !/\/original\/ui\/(?:tool-motion|secondary-motion)\//.test(url.pathname)) return fetch.apply(this, arguments);
+      const id = crypto.randomUUID();
+      const aborted = () => window.stampAbortedFetches.add(id);
+      signal.addEventListener('abort', aborted, {once:true});
+      if (signal.aborted) aborted();
+      const headers = new Headers(options?.headers ?? (input instanceof Request ? input.headers : undefined));
+      headers.set(header, id);
+      return fetch.call(this, input, {...options, headers});
+    };
+  }, {header:stampFetchHeader});
   page.stampErrors = [];
+  page.stampFailedRequests = [];
   page.on('pageerror', error => page.stampErrors.push(error.message));
   page.on('response', response => { if (response.status() >= 400) page.stampErrors.push(`${response.status()} ${response.url()}`); });
   page.on('requestfailed', request => {
-    if (request.failure()?.errorText !== 'net::ERR_ABORTED') page.stampErrors.push(`${request.failure()?.errorText} ${request.url()}`);
+    page.stampFailedRequests.push({error:request.failure()?.errorText, url:request.url(), fetchId:request.headers()[stampFetchHeader]});
   });
   // Replace one library entry, then exercise the shipped library/editor flow.
   // Native editor artwork, sound and manifest requests still reach the server.
@@ -49,7 +67,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async ({ page }) => {
-  expect(page.stampErrors, 'Browser errors and missing native assets').toEqual([]);
+  const aborted = await page.evaluate(() => [...(window.stampAbortedFetches ?? [])]);
+  expect([...page.stampErrors, ...unexpectedStampRequests(page.stampFailedRequests, aborted)], 'Browser errors and missing native assets').toEqual([]);
 });
 
 function stampFixture() {

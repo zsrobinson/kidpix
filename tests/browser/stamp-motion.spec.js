@@ -1,4 +1,5 @@
 import { canonicalMotionFrame } from './canonical-motion-frame.js';
+import { stampPngPresentation } from './stamp-png-presentation.js';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -38,10 +39,24 @@ function compose(bounds, poses) {
   }
   return out;
 }
-async function pixels(page,name) {
+function presentationLayers(poses, buttons) {
+  const backdrop = manifest.backdrops.stamps;
+  return [{path:'paint-empty.png',x:0,y:0},
+    {path:backdrop.pages[0].image,x:backdrop.rect[0],y:backdrop.rect[1]},
+    ...poses.flatMap((pose,i) => {
+      const script = manifest.scripts[pose.script];
+      return script.frames[pose.frameIndex].parts.map(part => ({
+        path:manifest.sprites[`${script.collection}:${part.sprite}`].image,
+        x:part.x,y:part.y,clip:pose.auxiliary?buttons[i].auxiliaryClipRect:null,
+      }));
+    })];
+}
+async function pixels(page,name,mutateLayers) {
   const states=await snap(page,name),[table,rows,bounds]=profiles[name];
   const buttons=manifest.tables[table].buttons.filter(b=>rows.includes(b.index));
-  const expected=compose(bounds,states.map((s,i)=>({...s,clip:s.auxiliary?buttons[i].auxiliaryClipRect:null})));
+  const layers=presentationLayers(states,buttons);
+  mutateLayers?.(layers);
+  const expected=await stampPngPresentation(page,bounds,layers);
   const actual=PNG.sync.read(Buffer.from((await canonicalMotionFrame(actor(page,name))).split(',')[1],'base64'));
   const studio=PNG.sync.read(await page.locator('#studio').screenshot());
   expect([studio.width,studio.height]).toEqual([1024,768]);
@@ -220,3 +235,67 @@ test('tray exit stops Stamp-owned audio and cancels captured input',async({page}
   expect(await page.evaluate(()=>window.stampAudio.filter(e=>e[0]==='stop'&&e[1].includes('secondary-motion/sounds/18003.wav')).length)).toBeGreaterThan(stops);
   await page.mouse.up();await expect(page.locator('[data-native-stamp-motion]')).toHaveCount(0);
 });
+
+async function expectPixelRejection(check) {
+  let rejection;
+  try { await check(); } catch (error) { rejection = error; }
+  expect(rejection, 'Corruption must fail the normal whole-footprint assertion').toBeTruthy();
+  expect(rejection.message).toContain('arrows complete footprint, vacated pixels, visible studio');
+  await test.info().attach('expected-pixel-rejection', { body: rejection.message, contentType: 'text/plain' });
+}
+
+function alteredPng(layer, change) {
+  const image = png(layer.path); change(image);
+  layer.image = `data:image/png;base64,${PNG.sync.write(image).toString('base64')}`;
+}
+
+const presentationMutations = {
+  'wrong source pose': layers => { layers[2].path = 'secondary-motion/sprites/18000-453.png'; },
+  'shifted registration': layers => { layers[2].x++; },
+  'source channel corruption': layers => alteredPng(layers[2], image => {
+    for (let i=0;i<image.data.length;i+=4) if(image.data[i+3]) image.data[i] ^= 64;
+  }),
+  'backdrop channel corruption': layers => alteredPng(layers[1], image => {
+    for (let i=0;i<image.data.length;i+=4) image.data[i+1] ^= 32;
+  }),
+  'backdrop alpha corruption': layers => alteredPng(layers[1], image => {
+    for (let i=3;i<image.data.length;i+=4) image.data[i]=0;
+  }),
+  'missing backdrop restoration': layers => { layers.splice(1,1); },
+};
+for (const [name, mutate] of Object.entries(presentationMutations)) {
+  test(`independent presentation rejects ${name}`, async({page}) => {
+    await fixture(page); await ready(page); await sourceClock(page);
+    await pixels(page,'arrows');
+    await expectPixelRejection(() => pixels(page,'arrows',mutate));
+    await pixels(page,'arrows');
+  });
+}
+
+for (const kind of ['channel', 'restoration hole', 'outside footprint']) {
+  test(`presentation checks reject actual canvas ${kind} corruption`,async({page}) => {
+    await fixture(page); await ready(page); await sourceClock(page);
+    await pixels(page,'arrows');
+    // The initial previous-arrow corner has no source sprite coverage, so its
+    // opaque pixel comes from restoration, not the arrow. Removing it must fail.
+    expect(png('secondary-motion/sprites/18000-730.png').data[3]).toBe(0);
+    await actor(page,'arrows').evaluate((canvas,kind) => {
+      const context=canvas.getContext('2d'),left=parseInt(canvas.style.left||'0'),top=parseInt(canvas.style.top||'0');
+      window.stampPixelBackup=context.getImageData(0,0,canvas.width,canvas.height);
+      if(kind==='restoration hole') {
+        context.save(); context.resetTransform(); context.clearRect(329-left,665-top,1,1); context.restore();
+      } else {
+        const x=kind==='channel'?330-left:0,y=kind==='channel'?666-top:0;
+        const sample=context.getImageData(x,y,1,1);
+        if(kind==='channel')sample.data[0]^=32;
+        else sample.data.set([255,0,0,255]);
+        context.putImageData(sample,x,y);
+      }
+    },kind);
+    try { await expectPixelRejection(() => pixels(page,'arrows')); }
+    finally { await actor(page,'arrows').evaluate(canvas => {
+      canvas.getContext('2d').putImageData(window.stampPixelBackup,0,0); delete window.stampPixelBackup;
+    }); }
+    await pixels(page,'arrows');
+  });
+}

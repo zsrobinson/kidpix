@@ -10,12 +10,13 @@ export function frameAtTick(clip, tick) {
 // Explicit owner semantics, never inferred from MBTN group/argument.
 export function policyFor(table, row) {
   const key = `${table}:${row}`;
-  const boundary = ['18700:1', '18700:2', '9383:2', '9383:3', '9383:4',
+  const boundary = ['18901:1', '18901:2', '18700:1', '18700:2', '9383:2', '9383:3', '9383:4',
     '9383:5', '9383:17', '9383:18'].includes(key);
   const alignment = { '9383:6': 'align:left', '9383:7': 'align:right', '9383:8': 'align:center' };
   const sizes = { '18202:0': 'size:4', '18202:1': 'size:8', '18202:2': 'size:16' };
   const toggles = { '9383:9': 'bold', '9383:10': 'italic', '9383:11': 'underline' };
   const actions = {
+    '18901:1': 'category-step:-1', '18901:2': 'category-step:1',
     '18700:0': '#category', '18700:1': 'category-step:-1',
     '18700:2': 'category-step:1', '18700:3': 'stamp-edit',
     '9383:2': 'font-step:-1', '9383:3': 'font-step:1',

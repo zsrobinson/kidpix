@@ -113,8 +113,9 @@ export function showOriginalLibrary(root, manifest, tray, data) {
   categories.forEach((category, index) => select.add(new Option(category.localizedName || category.name, index, false, index === categoryIndex)));
   select.disabled = !categories.length;
   root.append(select);
-  if (categoryIndex > 0) root.append(action('Previous category', 'category-step:-1', tray.previousCategory));
-  if (categoryIndex + 1 < categories.length) root.append(action('Next category', 'category-step:1', tray.nextCategory));
+  const validCategory = Number.isInteger(categoryIndex) && categoryIndex >= 0 && categoryIndex < categories.length;
+  if ((key === 'stamps' || validCategory) && categoryIndex > 0) root.append(action('Previous category', 'category-step:-1', tray.previousCategory));
+  if ((key === 'stamps' || validCategory) && categoryIndex + 1 < categories.length) root.append(action('Next category', 'category-step:1', tray.nextCategory));
   if (page > 0) root.append(action('Previous library row', 'lib-page:-1', tray.previousPage));
   if (page + 1 < pages) root.append(action('Next library row', 'lib-page:1', tray.nextPage));
   for (const [index, digit] of String(page + 1).padStart(2, '0').slice(-2).split('').entries()) {

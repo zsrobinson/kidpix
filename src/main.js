@@ -27,6 +27,7 @@ import { applyNativeControlRegions } from './native-control-regions.js';
 import { createNativePaperPicker } from './native-paper.js';
 import { createNativeToolMotion } from './native-tool-motion.js';
 import { createNativeActionMotion, actionTarget } from './native-action-motion.js';
+import { createNativeCategoryMotion, createCategoryIdentity } from './native-category-motion.js';
 import { createNativeStampMotion } from './native-stamp-motion.js';
 import { createNativeSecondaryMotion } from './native-secondary-motion.js';
 
@@ -675,6 +676,21 @@ const nativeStampMotion = createNativeStampMotion({
   onActivate: action => activate(action), readState: stampMotionState,
 });
 
+const categoryIdentity = createCategoryIdentity();
+function categoryMotionState() {
+  const key = libraryKey(), tab = state.libraryTab;
+  const categories = libraryCategories(groups, key, tab);
+  const imported = !tab ? importedAssets.get(key) : null;
+  return { active: libKeys.has(state.tray) && key !== 'stamps',
+    nativeUi: Boolean(nativeUi && libraryManifest?.trays[trayKey(key, tab)]),
+    categoryIndex: state.category, categoryCount: categories.length + (imported?.length ? 1 : 0),
+    identity: categoryIdentity({key,tab,source:groups[key],categories,imported,categoryIndex:state.category}) };
+}
+const nativeCategoryMotion = createNativeCategoryMotion({
+  stage: studio, controls: library, resolve: path => original(`ui/${path}`),
+  readState: categoryMotionState, onActivate: action => activate(action),
+});
+
 function libraryKey() {
   if (state.tray === 'stamp') return 'stamps';
   if (state.tray === 'media') return state.media;
@@ -683,6 +699,7 @@ function libraryKey() {
 
 function showLibrary() {
   nativeStampMotion.beforeRender();
+  nativeCategoryMotion.beforeRender();
   const key = libraryKey();
   const categories = [...libraryCategories(groups, key, state.libraryTab)];
   const added = importedAssets.get(key);
@@ -702,9 +719,11 @@ function showLibrary() {
       selected: state.selectedAsset, stampSize: state.sizes.stamp, tab: state.libraryTab, status: catalogStatus,
     });
     nativeStampMotion.update(stampMotionState());
+    nativeCategoryMotion.update(categoryMotionState());
     return;
   }
   nativeStampMotion.update({ ...stampMotionState(), nativeUi: false });
+  nativeCategoryMotion.update({ ...categoryMotionState(), nativeUi: false });
   library.classList.remove('original-library');
   library.innerHTML = `
     <div class="tray-categories">
@@ -744,6 +763,7 @@ function showTray() {
   studio.classList.toggle('native-draw', Boolean(nativeDraw));
   library.hidden = !lib;
   if (state.tray !== 'stamp') nativeStampMotion.update({ active: false });
+  if (!lib) nativeCategoryMotion.update({ active: false });
   $('#tray-bed').hidden = true;
   const layer = $('#tray-buttons');
   layer.replaceChildren();

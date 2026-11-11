@@ -1,3 +1,4 @@
+import { interactionOwner } from './interaction-owner.js';
 import { playUiAudio, observeUiAudio } from './ui-audio.js';
 import { createDrawingMotionController, loadDrawingMotionAssets, paintDrawingMotionFrame } from './native-drawing-motion.js';
 import { regionClipPath } from './native-control-regions.js';
@@ -34,12 +35,25 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   loadAssets = loadDrawingMotionAssets,
   createController = createDrawingMotionController,
   actionForButton = button => `tool:${button.name}`,
-  authoritativeFor, refreshCurrent,
+  authoritativeFor, refreshCurrent, ownInteraction = false, fallbackActions = [],
   targetFor = () => null,
   gestureTargetFor = targetFor,
   supported = tray => ['draw', 'paint', 'bucket', 'mixer', 'eraser', 'grab'].includes(tray),
 }) {
   const view = stage.ownerDocument.defaultView;
+  const interaction = ownInteraction ? interactionOwner(stage.ownerDocument) : null;
+  let contact = null, keyboardOwned = false;
+  const keyboardContact = Symbol('motion-keyboard');
+  function retireKeyboard() {
+    if (keyboardOwned) interaction.release(controls, keyboardContact);
+    keyboardOwned = false;
+  }
+  function retireContact(cancelled = false, down = true) {
+    if (!contact) return;
+    const retired = contact; contact = null;
+    interaction.reject(retired, cancelled ? { down, quarantineClick: true } : { clickOnly: true });
+    interaction.release(controls, retired.pointerId);
+  }
   const listeners = new view.AbortController();
   const options = { signal: listeners.signal };
   const loaded = new Map();
@@ -51,6 +65,27 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   let pending;
   let abort;
   let raf;
+  // Preserve native semantic activation if optional assets bind during an
+  // already-held fallback contact. This guards input only; no source stream is
+  // fabricated before readiness, and the application still owns the action.
+  let fallbackInput = null;
+  function fallbackControl(event) {
+    const control = event.target.closest?.('[data-action]');
+    return ownInteraction && current?.nativeUi && supported(current.tray)
+      && fallbackActions.includes(control?.dataset.action) ? control : null;
+  }
+  function fallbackPointerEnd(event) {
+    if (fallbackInput?.kind !== 'pointer' || event.pointerId !== fallbackInput.pointerId) return;
+    if (event.type === 'pointercancel') { cancel(event); return; }
+    refreshState(event);
+    if (!fallbackInput) return;
+    if (fallbackInput.identity !== targetFor(current)) { cancel(event); return; }
+    const rect = fallbackInput.control.getBoundingClientRect();
+    if (event.clientX < rect.left || event.clientX >= rect.right || event.clientY < rect.top || event.clientY >= rect.bottom) { cancel(event); return; }
+    fallbackInput.released = true;
+    const released = contact; contact = null;
+    if (released) interaction.release(controls, released.pointerId);
+  }
   let tracking = null;
   let trackingInside = false;
   let pointerId = null;
@@ -128,6 +163,9 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   }
 
   function reset() {
+    retireKeyboard();
+    retireContact(true);
+    fallbackInput = null;
     generation++;
     abort?.abort(); abort = null; pending = null;
     view.cancelAnimationFrame(raf);
@@ -143,7 +181,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     return index !== null && owner && gestureTargetFor(current, owner.manifest.buttons[index]) !== gestureIdentity;
   }
 
-  function refreshState() {
+  function refreshState(event) {
     if (refreshCurrent) {
       const next = { ...current, ...refreshCurrent() };
       const nextTarget = targetFor(next);
@@ -151,7 +189,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
       targetIdentity = nextTarget;
       current = next;
       syncAuthoritative();
-      if (changedTarget || changedGesture()) cancel();
+      if (changedTarget || changedGesture()) cancel(event);
     }
   }
 
@@ -259,6 +297,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     const key = `${next.art}:${next.page}`;
     const ready = owner?.tray === next.tray && owner.backdrop?.key === key;
     layer.hidden = !ready;
+    if (changedTarget && fallbackInput) cancel();
     if (owner) {
       syncAuthoritative();
       if (changedTarget || changedGesture()) cancel();
@@ -278,7 +317,7 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   }
 
   function target(event) {
-    if (owner) refreshState();
+    if (owner) refreshState(event);
     const control = event.target.closest?.('[data-native-motion-index]');
     const index = Number(control?.dataset.nativeMotionIndex);
     return control && !layer.hidden && owner?.manifest.buttons[index]
@@ -289,7 +328,11 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     return toolRegionContains(owner.manifest.buttons[i].region,
       (event.clientX - rect.left) * 1024 / rect.width, (event.clientY - rect.top) * 768 / rect.height);
   }
-  function cancel() {
+  function cancel(event) {
+    if (fallbackInput?.kind === 'keyboard') cancelledKeyboardClick = true;
+    retireKeyboard();
+    retireContact(true, !['pointerup','pointercancel','click','blur','pagehide','visibilitychange'].includes(event?.type));
+    fallbackInput = null;
     if (keyboardIndex !== null) cancelledKeyboardClick = true;
     tracking = null; releaseIndex = undefined;
     gestureIdentity = undefined;
@@ -312,9 +355,25 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   controls.addEventListener('pointerdown', event => {
     releaseIndex = undefined;
     const hit = target(event);
-    if (!hit || event.button !== 0) return;
+    if (event.button !== 0) return;
+    if (!hit) {
+      const control = fallbackControl(event);
+      if (!control || !interaction.claim(event, controls)) return;
+      contact = { pointerId: event.pointerId, pointerType: event.pointerType };
+      fallbackInput = { kind: 'pointer', pointerId: event.pointerId, control,
+        identity: targetFor(current), released: false };
+      cancelledKeyboardClick = false;
+      return;
+    }
     releaseIndex = undefined; soundActive = true; cancelledKeyboardClick = false;
-    if (!owner.controller.press(hit.index)) return;
+    if (!owner.controller.press(hit.index)) {
+      if (interaction) interaction.reject(event, { quarantineClick: true });
+      return;
+    }
+    if (interaction) {
+      if (!interaction.claim(event, controls)) { owner.controller.cancel(); return; }
+      contact = { pointerId: event.pointerId, pointerType: event.pointerType };
+    }
     gestureIdentity = gestureTargetFor(current, owner.manifest.buttons[hit.index]);
     tracking = hit.index; trackingInside = true; pointerId = event.pointerId;
     pointerCaptureTarget = hit.control;
@@ -334,46 +393,81 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   controls.addEventListener('pointerup', event => {
     // Selection/capabilities may have changed in the same task as this release,
     // before the next RAF. Refresh can cancel the held proposal and capture.
-    if (owner) refreshState();
+    if (owner) refreshState(event);
     if (!owner || tracking === null || event.pointerId !== pointerId) return;
     const proposal = normalizeProposal(owner.controller.release(contains(tracking, event)), tracking);
     tracking = null; pointerId = null;
+    retireContact();
     // Commit here: a same-tray render may have removed the original pointerdown
     // element, in which case browsers omit the compatibility click entirely.
     releaseIndex = null;
     activateProposal(proposal);
   }, options);
   controls.addEventListener('pointercancel', event => {
-    if (event.pointerId === pointerId) cancel();
+    if (event.pointerId === pointerId) cancel(event);
   }, options);
   controls.addEventListener('lostpointercapture', event => {
     if (tracking !== null && event.target === pointerCaptureTarget) cancel();
   }, options);
   controls.addEventListener('keydown', event => {
-    const hit = target(event);
+    const hit = target(event), fallback = !hit && fallbackControl(event);
+    if (fallback && ['Enter', ' '].includes(event.key)) {
+      if (event.repeat) { event.preventDefault(); return; }
+      if (!interaction.claim({pointerId: keyboardContact, pointerType: 'keyboard'}, controls)) { event.preventDefault(); return; }
+      keyboardOwned = true; cancelledKeyboardClick = false;
+      fallbackInput = { kind: 'keyboard', control: fallback, identity: targetFor(current), released: event.key === 'Enter' };
+      return;
+    }
     if (hit && event.repeat && ['Enter', ' '].includes(event.key)) { event.preventDefault(); return; }
     if (hit) {
       soundActive = true;
       if (!event.repeat && ['Enter', ' '].includes(event.key)) cancelledKeyboardClick = false;
     }
     if (hit && !event.repeat && ['Enter', ' '].includes(event.key) && owner.controller.press(hit.index)) {
+      if (interaction) {
+        if (!interaction.claim({pointerId: keyboardContact, pointerType: 'keyboard'}, controls)) {
+          owner.controller.cancel(); return;
+        }
+        keyboardOwned = true;
+      }
       keyboardIndex = hit.index;
       gestureIdentity = gestureTargetFor(current, owner.manifest.buttons[hit.index]);
     }
     if (event.key === 'Escape') cancel();
   }, options);
   controls.addEventListener('keyup', event => {
-    if (owner) refreshState();
+    if (fallbackInput?.kind === 'keyboard' && event.key === ' ') {
+      refreshState(event);
+      if (!fallbackInput || fallbackInput.identity !== targetFor(current)) { cancel(event); event.preventDefault(); return; }
+      fallbackInput.released = true; retireKeyboard();
+      return; // The native semantic click is validated below, even after bind.
+    }
+    if (event.key === ' ' && cancelledKeyboardClick && fallbackControl(event)) { event.preventDefault(); return; }
+    if (owner) refreshState(event);
     const hit = target(event);
     if (event.key === ' ' && hit && cancelledKeyboardClick) { event.preventDefault(); return; }
     if (event.key !== ' ' || keyboardIndex === null || hit?.index !== keyboardIndex) return;
     event.preventDefault();
     const index = keyboardIndex;
     keyboardIndex = null;
+    retireKeyboard();
     activateProposal(normalizeProposal(owner.controller.release(true), index));
   }, options);
   controls.addEventListener('click', event => {
-    if (owner) refreshState();
+    let inherited = fallbackInput;
+    if (inherited?.kind === 'pointer' && inherited.released && event.detail === 0) { fallbackInput = null; inherited = null; }
+    if (inherited) {
+      // A competing assistive/physical click cannot release another contact.
+      if ((event.detail > 0) !== (inherited.kind === 'pointer')) { event.preventDefault(); event.stopPropagation(); return; }
+      refreshState(event);
+      const valid = inherited.released && inherited.identity === targetFor(current)
+        && event.target.closest?.('[data-action]') === inherited.control;
+      fallbackInput = null; retireKeyboard();
+      if (valid) return; // Preserve the existing application fallback handler.
+      event.preventDefault(); event.stopPropagation(); return;
+    }
+    if (event.detail === 0 && cancelledKeyboardClick && fallbackControl(event)) { event.preventDefault(); event.stopPropagation(); return; }
+    if (owner) refreshState(event);
     const hit = target(event);
     if (!hit && (releaseIndex === undefined || event.detail === 0)) return;
     event.preventDefault(); event.stopPropagation();
@@ -390,17 +484,27 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
     }
     if (index !== null && index !== undefined) {
       keyboardIndex = null;
+      retireKeyboard();
       activateProposal(index);
     }
   }, { ...options, capture: true });
-  controls.addEventListener('focusout', () => { if (keyboardIndex !== null && !rendering) cancel(); }, options);
+  controls.addEventListener('focusout', () => { if ((keyboardIndex !== null || fallbackInput?.kind === 'keyboard') && !rendering) cancel(); }, options);
   // Formatting/action pointers can retain editor focus outside the controls.
   stage.ownerDocument.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && (tracking !== null || keyboardIndex !== null)) cancel();
+    if (event.key === 'Escape' && (tracking !== null || keyboardIndex !== null || fallbackInput !== null)) cancel();
   }, options);
+  if (ownInteraction) {
+    view.addEventListener('pointerup', fallbackPointerEnd, { ...options, capture: true });
+    view.addEventListener('pointercancel', fallbackPointerEnd, { ...options, capture: true });
+    view.addEventListener('pointerdown', () => { if (fallbackInput?.released) fallbackInput = null; }, { ...options, capture: true });
+    view.addEventListener('keydown', event => { if (!event.repeat && fallbackInput?.released) fallbackInput = null; }, { ...options, capture: true });
+    view.addEventListener('lostpointercapture', event => {
+      if (fallbackInput?.kind === 'pointer' && !fallbackInput.released && fallbackInput.pointerId === event.pointerId) cancel(event);
+    }, { ...options, capture: true });
+  }
   view.addEventListener('blur', cancel, options);
   view.addEventListener('pagehide', cancel, options);
-  stage.ownerDocument.addEventListener('visibilitychange', () => { if (stage.ownerDocument.hidden) cancel(); }, options);
+  stage.ownerDocument.addEventListener('visibilitychange', () => { if (stage.ownerDocument.hidden) cancel({type:'visibilitychange'}); }, options);
   return { update, beforeRender() {
     rendering = true;
     const focused = stage.ownerDocument.activeElement;

@@ -6,9 +6,10 @@ import { expect } from '@playwright/test';
 // Existing source-byte/registration oracles pin these installer manifests.
 const primary = JSON.parse(readFileSync('public/original/ui/tool-motion/manifest.json'));
 const secondary = JSON.parse(readFileSync('public/original/ui/secondary-motion/manifest.json'));
+const category = JSON.parse(readFileSync('tests/fixtures/library-category-source.json'));
 export async function canonicalMotionFrame(locator) {
   const identity = await locator.evaluate(c => ({ primary:c.dataset.nativeToolMotion,
-    secondary:c.dataset.nativeSecondaryMotion, action:c.dataset.nativeActionMotion, stamp:c.dataset.nativeStampMotion }));
+    secondary:c.dataset.nativeSecondaryMotion, action:c.dataset.nativeActionMotion, stamp:c.dataset.nativeStampMotion, category:c.dataset.nativeCategoryMotion }));
   let rectangles;
   if (identity.primary) {
     const m = primary.trays[identity.primary];
@@ -16,8 +17,10 @@ export async function canonicalMotionFrame(locator) {
       [p.x,p.y,m.sprites[p.sprite].width,m.sprites[p.sprite].height])));
     rectangles.push(...(m.restorationRects || []));
   } else {
+    const source = identity.category ? category : secondary;
     let table, rows;
-    if (identity.secondary) table = Number(identity.secondary.split(':')[1]);
+    if (identity.category) {table=18901;rows=[1,2];}
+    else if (identity.secondary) table = Number(identity.secondary.split(':')[1]);
     else if (identity.stamp) {
       [table,rows] = { arrows:[18700,[1,2]],editor:[18700,[3]],size:[18202,[0,1,2]] }[identity.stamp.split(':')[1]];
     } else {
@@ -27,10 +30,10 @@ export async function canonicalMotionFrame(locator) {
       expect(rows).toEqual(tray === 'text' ? [2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18]
         : rows.length === 3 ? [2,3,4] : rows.length === 4 ? [2,3,4,11] : [2,3,4,5,6,7,8,9,10]);
     }
-    rectangles = secondary.tables[table].buttons.filter(b => !rows || rows.includes(b.index))
+    rectangles = source.tables[table].buttons.filter(b => !rows || rows.includes(b.index))
       .flatMap(b => [...b.stateScripts,b.rolloverScript].filter(Boolean))
-      .flatMap(id => { const s = secondary.scripts[id]; return s.frames.flatMap(f => f.parts.map(p => {
-        const info = secondary.sprites[`${s.collection}:${p.sprite}`]; return [p.x,p.y,info.width,info.height];
+      .flatMap(id => { const s = source.scripts[id]; return s.frames.flatMap(f => f.parts.map(p => {
+        const info = source.sprites[`${s.collection}:${p.sprite}`]; return [p.x,p.y,info.width,info.height];
       })); });
   }
   let x0=1024,y0=768,x1=0,y1=0;

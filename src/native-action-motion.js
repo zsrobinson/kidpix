@@ -21,12 +21,21 @@ export function actionManifest(data, profile) {
     const source = rows.find(row => row.index === index);
     const policy = policyFor(profile.table, index);
     const allowed = { 9383: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18], 926: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-      18700: [0, 1, 2, 3], 18202: [0, 1, 2] }[profile.table] ?? [];
+      18901: [1, 2], 18700: [0, 1, 2, 3], 18202: [0, 1, 2] }[profile.table] ?? [];
     if (!allowed.includes(index) || !source || !policy.binding || !regionClipPath(source.region)
       || source.rolloverParameters?.join() !== (profile.table === 926 && index !== 11 ? '1,0,0' : '0,0,0')) throw new Error('Unsupported action row');
     if (profile.table === 926 && index === 11 && (source.command !== 22361
       || source.stateScripts?.join() !== '18377,18378,0,0' || source.rolloverScript !== 18379
       || source.rolloverLoops !== false || source.rolloverCancelsOnLeave !== true)) throw new Error('Unsupported Make Sticker row');
+    const category = profile.table === 18901;
+    const categoryRest = index === 1 ? 18290 : 18293;
+    if (category && (source.command !== (index === 1 ? 18802 : 18803)
+      || source.stateScripts?.join() !== (index === 1 ? '18290,18291,0,18315' : '18293,18294,0,18316')
+      || source.rolloverScript !== categoryRest + 2 || source.rawWords?.join() !== (index === 1
+      ? [18290,18291,0,18315,1,0,18802,1,1,0,18292,0,0,0,20,0]
+      : [18293,18294,0,18316,1,0,18803,1,1,0,18295,0,0,0,20,0]).join()
+      || source.region.boundsXYWH?.join() !== `320,${index === 1 ? 690 : 721},43,31`
+      || source.rolloverLoops !== false || source.rolloverCancelsOnLeave !== true)) throw new Error('Unsupported category row');
     const navigation = profile.table === 926 && [5, 10].includes(index);
     const rest = index === 5 ? 18358 : 18373;
     if (navigation && (source.command !== (index === 5 ? 22355 : 22360)
@@ -44,6 +53,18 @@ export function actionManifest(data, profile) {
         || clip.frames?.length !== (id === rest + 1 ? 2 : 1)
         || clip.frames.some((frame, tick) => frame.tick !== tick || frame.parts?.length !== 1)
         || JSON.stringify(clip.sounds) !== JSON.stringify(id === rest + 1 ? [{ tick: 1, sound: 18072, cue: 72, channel: 1 }] : []))) throw new Error('Truncated navigation program');
+      if (category) {
+        const tracking = id === categoryRest + 1;
+        const sprite = ({18290:561,18291:560,18292:562,18293:564,18294:563,18295:565,18315:566,18316:567})[id];
+        const registration = ({560:[236,-274],561:[230,-274],562:[230,-274],563:[243,-296],564:[243,-296],565:[243,-296],566:[227,-274],567:[238,-296]})[sprite];
+        if (clip.tickMs !== 100 || clip.endCheckTick !== (tracking ? 2 : 1)
+          || clip.frames?.length !== (tracking ? 2 : 1)
+          || JSON.stringify(clip.sounds) !== JSON.stringify(tracking ? [{tick:1,sound:18003,cue:3,channel:1}] : [])
+          || clip.frames.some((frame,tick) => frame.tick !== tick || frame.parts?.length !== 1
+            || frame.parts[0].sprite !== sprite || frame.parts[0].x !== 320
+            || frame.parts[0].y !== (index === 1 ? 690 : 721)
+            || frame.parts[0].registrationXY?.join() !== registration.join())) throw new Error('Truncated category program');
+      }
       scripts[id] = { ...clip, script: id, frames: clip.frames.map(frame => ({ ...frame,
         parts: frame.parts.map(part => {
           const key = `${clip.collection}:${part.sprite}`;

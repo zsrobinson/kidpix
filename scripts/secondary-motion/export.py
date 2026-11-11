@@ -18,7 +18,7 @@ original = import_module('import-original')
 sha = lambda data: hashlib.sha256(data).hexdigest()
 TABLES = {18400: range(4,13), 18001: range(2), 18002: range(2), 18003: range(2),
           18200: range(3), 18201: range(3), 18202: range(3), 18203: range(2),
-          18700: range(4), 9383: range(19), 926: range(2,12)}
+          18901: range(1,3), 18700: range(4), 9383: range(19), 926: range(2,12)}
 SOURCE_HASH = '00e92bdce3a7aaf3b72b18a38928f163ba096e7a6c5a3371b5345a3df4482ae5'
 
 
@@ -190,6 +190,30 @@ def export_backdrops(read, archive, result, output):
         omittedCategoryArrowSprites=[dict(collection=18000,sprite=451),dict(collection=18000,sprite=454)])
 
 
+
+def export_category_backdrop(archive, result, output):
+    """Compare complete supported source recipes before sharing one crop."""
+    from PIL import Image
+    ui = load_ui()
+    crops = {}; recipes = {}
+    for name, (base, start, columns, tabs, controls) in ui.LIBRARY_TRAYS.items():
+        if name == 'stamps': continue
+        retained = [base,18034,18028,18031,*tabs.values(),*controls.values(),18289,18037]
+        frame = Image.new('RGBA',(1024,768))
+        for program in retained: ui.render_script(frame,archive,program)
+        crop = frame.crop((320,690,363,752))
+        crops[name] = crop
+        recipes[name] = dict(retainedScripts=retained, rgbaSha256=sha(crop.tobytes()))
+    first = next(iter(crops.values()))
+    if any(image.tobytes() != first.tobytes() for image in crops.values()):
+        raise ValueError('Library category source footprints differ; explicit profiles required')
+    path = 'secondary-motion/backdrops/library-category.png'
+    target = output/path; target.parent.mkdir(parents=True,exist_ok=True); first.save(target)
+    result['backdrops']['library-category'] = dict(rect=[320,690,43,62],
+        pages=[dict(image=path,sha256=sha(target.read_bytes()))], recipes=recipes,
+        omittedCategoryArrowSprites=[451,454], omittedCategoryPrograms=[18290,18291,18292,18293,18294,18295,18315,18316])
+
+
 def export(resources, output):
     read=installer_reader(resources); ui=load_ui(); raw=read('Data/Tools/Tp.MHK')
     if sha(raw)!=SOURCE_HASH: raise ValueError('Unaudited Tp.MHK source hash')
@@ -197,6 +221,7 @@ def export(resources, output):
     result=compile_manifest(archive); result['sourceSha256']=sha(raw)
     write_payloads(archive,result,output)
     export_backdrops(read,archive,result,output)
+    export_category_backdrop(archive,result,output)
     path=output/'secondary-motion/manifest.json'
     path.write_text(json.dumps(result,indent=2)+'\n')
     return result

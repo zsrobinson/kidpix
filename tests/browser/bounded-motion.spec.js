@@ -5,12 +5,14 @@ import { readFileSync } from 'node:fs';
 const clipboard = JSON.parse(readFileSync('tests/fixtures/text-clipboard-source.json'));
 const clipboardFrames = Object.values(clipboard.programs).reduce((n, s) => n + s.frames.length, 0);
 const navigation = JSON.parse(readFileSync('tests/fixtures/hand-navigation-source.json'));
+const category = JSON.parse(readFileSync('tests/fixtures/library-category-source.json'));
+const categoryFrames = Object.values(category.scripts).reduce((n,s)=>n+s.frames.length,0);
 const navigationFrames = Object.values(navigation.programs).reduce((n, s) => n + s.frames.length, 0);
 
 test('bounded backing stores preserve every source frame against full native targets @module', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto('/');
-  const result = await page.evaluate(async ({clipboardIds,navigationIds}) => {
+  const result = await page.evaluate(async ({clipboardIds,navigationIds,categoryIds}) => {
     const { loadDrawingMotionAssets, paintDrawingMotionFrame } = await import('/src/native-drawing-motion.js');
     const { motionCanvasBounds } = await import('/src/native-tool-motion.js');
     const { secondaryManifest, secondaryProfiles } = await import('/src/native-secondary-motion.js');
@@ -23,9 +25,9 @@ test('bounded backing stores preserve every source frame against full native tar
         for(const profile of secondaryProfiles({tray,selected,eraserShape})) manifests.push(secondaryManifest(secondary,profile));
     for(const profile of [{table:9383,rows:[2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18]},
       {table:926,rows:[2,3,4]}, {table:926,rows:[2,3,4,5,6,7,8,9,10]},
-      {table:18700,rows:[1,2]}, {table:18700,rows:[3]}, {table:18202,rows:[0,1,2]}]) manifests.push(actionManifest(secondary,profile));
+      {table:18901,rows:[1,2]}, {table:18700,rows:[1,2]}, {table:18700,rows:[3]}, {table:18202,rows:[0,1,2]}]) manifests.push(actionManifest(secondary,profile));
     const chrome = new Image(); chrome.src=resolve('paint-empty.png');await chrome.decode();
-    let frames=0;const failures=[];const seen=new Set();const clipboardCoverage=[],navigationCoverage=[];
+    let frames=0;const failures=[];const seen=new Set();const clipboardCoverage=[],navigationCoverage=[],categoryCoverage=[];
     for(const manifest of manifests){
       const key=Object.keys(manifest.scripts).sort().join(',');if(seen.has(key))continue;seen.add(key);
       const assets=await loadDrawingMotionAssets(manifest,{resolve});
@@ -41,6 +43,7 @@ test('bounded backing stores preserve every source frame against full native tar
       for(const [id,script] of Object.entries(manifest.scripts))for(const [i,frame] of script.frames.entries()){
         if (manifest.buttons.some(b => b.action?.startsWith('text-clipboard:')) && clipboardIds.includes(id)) clipboardCoverage.push(`${id}:${i}`);
         if (manifest.buttons.some(b => b.action?.startsWith('navigate:')) && navigationIds.includes(id)) navigationCoverage.push(`${id}:${i}`);
+        if (manifest.buttons.some(b=>b.command === 18802) && categoryIds.includes(id)) categoryCoverage.push(`${id}:${i}`);
         const clipRect = manifest.buttons.find(b=>b.rolloverScript===Number(id))?.auxiliaryClipRect;
         for(const [ctx,origin] of [[fullCtx,[0,0]],[localCtx,[left,top]]]){
           ctx.clearRect(origin[0],origin[1],ctx.canvas.width,ctx.canvas.height);
@@ -52,10 +55,11 @@ test('bounded backing stores preserve every source frame against full native tar
         if(count)failures.push({id,i,count});frames++;
       }
     }
-    return {frames,failures,clipboardCoverage,navigationCoverage};
-  }, {clipboardIds:Object.keys(clipboard.programs),navigationIds:Object.keys(navigation.programs)});
+    return {frames,failures,clipboardCoverage,navigationCoverage,categoryCoverage};
+  }, {clipboardIds:Object.keys(clipboard.programs),navigationIds:Object.keys(navigation.programs),categoryIds:Object.keys(category.scripts)});
   console.log(JSON.stringify({boundedSourceFrames:result.frames,differences:result.failures.length}));
-  expect(result.frames).toBe(672 + clipboardFrames + navigationFrames);
+  expect(result.frames).toBe(672 + clipboardFrames + navigationFrames + categoryFrames);
+  expect(result.categoryCoverage.sort()).toEqual(Object.entries(category.scripts).flatMap(([id,s])=>s.frames.map((_,i)=>`${id}:${i}`)).sort());
   expect(result.failures).toEqual([]);
   expect(result.clipboardCoverage.sort()).toEqual(Object.entries(clipboard.programs)
     .flatMap(([id, s]) => s.frames.map((_, i) => `${id}:${i}`)).sort());

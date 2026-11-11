@@ -17,7 +17,7 @@ async function save(page) {
   return JSON.parse(await readFile(await (await download).path(), 'utf8'));
 }
 
-for (const style of ['rectangle', 'freehand']) test(`shipped Make Sticker ${style}: exact geometry, retained ink, one Undo/Redo and saved picture`, async ({ page }) => {
+for (const style of ['rectangle', 'freehand', 'ellipse', 'polygon']) test(`shipped Make Sticker ${style}: exact geometry, retained ink, one Undo/Redo and saved picture`, async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('[data-native-tool-motion="draw"]')).toBeVisible();
   await drag(page, [[110, 110], [130, 120], [145, 140]]);
@@ -27,7 +27,10 @@ for (const style of ['rectangle', 'freehand']) test(`shipped Make Sticker ${styl
   await command(page, `style:${style}`);
   const control = page.locator('#tray-buttons [data-action="make-sticker"]');
   await expect(control).toBeDisabled();
-  await drag(page, style === 'rectangle' ? [[100, 100], [160, 160]] : [[100, 100], [160, 100], [100, 160], [100, 100]]);
+  if (style === 'polygon') {
+    const box = await page.locator('#paper-canvas').boundingBox();
+    for (const [x, y] of [[100, 100], [160, 100], [100, 160], [100, 100]]) await page.mouse.click(box.x + x, box.y + y);
+  } else await drag(page, ['rectangle', 'ellipse'].includes(style) ? [[100, 100], [160, 160]] : [[100, 100], [160, 100], [100, 160], [100, 100]]);
   await expect(control).toBeEnabled();
   if (style === 'rectangle') await control.click();
   else {

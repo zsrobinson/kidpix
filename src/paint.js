@@ -295,6 +295,9 @@ export function createPaint(canvas, hooks = {}) {
   function cancel() {
     clearPrediction()
     const current = gesture
+    // A polygon's closing down may have staged a selection before release.
+    // Cancellation must retire that completion, while keeping idle selections.
+    if (contact !== null && selection && freshSelections.get(selection) === stickerRevision) freshSelections.delete(selection)
     current?.nativeTracking?.end()
     stopNativeBrushPolling(current)
     if (gesture?.type === 'move-selection') {
@@ -918,12 +921,29 @@ export function createPaint(canvas, hooks = {}) {
       nativeTexture: nativePaperTexture(), invertTexture: Boolean(event.altKey) }
   }
 
+  // Preserve legacy editing thresholds while admitting source-authorized fresh
+  // selections. Pending polygon vertices never call this completion boundary.
+  function completeSelection(item, brush) {
+    const bounds = selectionBounds(item)
+    const ordinary = item.shape === 'polygon' || bounds.width > 2 && bounds.height > 2
+    const fresh = brush.tool === 'scissors' && ['rectangle', 'ellipse', 'lasso', 'polygon'].includes(item.shape)
+    if (!(ordinary || fresh && bounds.width > 0 && bounds.height > 0)) return
+    selection = item
+    if (!ordinary) stickerOnlySelections.add(selection)
+    const points = item.points || []
+    const origin = points[0]
+    const edge = points.find(point => point.x !== origin?.x || point.y !== origin?.y)
+    const hasArea = ['rectangle', 'ellipse'].includes(item.shape) || edge && points.some(point =>
+      (edge.x - origin.x) * (point.y - origin.y) !== (edge.y - origin.y) * (point.x - origin.x))
+    if (fresh && hasArea) freshSelections.set(selection, stickerRevision)
+  }
+
   function finishPolygon(point) {
     const current = pendingShape
     if (current.points.length > 2 && distance(current.start, point) <= 12) {
       pendingShape = null
       if (current.type === 'polygon-select') {
-        selection = { shape: 'polygon', start: current.start, end: point, points: current.points }
+        completeSelection({ shape: 'polygon', start: current.start, end: point, points: current.points }, current.options)
         clearPreview()
         render()
       } else {
@@ -1147,7 +1167,12 @@ export function createPaint(canvas, hooks = {}) {
 
   function handleUp(event) {
     if (!gesture) {
-      if (contact === event.pointerId) { releaseContact(); paintAudio.stop(true) }
+      if (contact === event.pointerId) {
+        releaseContact(); paintAudio.stop(true)
+        // Polygon completion occurs on the closing down; availability waits
+        // for release of that same captured contact.
+        if (selection && freshSelections.has(selection)) render()
+      }
       return
     }
     if (gesture.pointerId !== event.pointerId) return
@@ -1162,21 +1187,7 @@ export function createPaint(canvas, hooks = {}) {
     if (current.type === 'native-moving') {
       finishMovingStroke(current)
     } else if (current.type === 'select') {
-      const bounds = selectionBounds(current.selection)
-      const ordinary = bounds.width > 2 && bounds.height > 2
-      const fresh = current.options.tool === 'scissors' && ['rectangle', 'lasso'].includes(current.selection.shape)
-      if (ordinary || fresh && bounds.width > 0 && bounds.height > 0) {
-        selection = current.selection
-        if (!ordinary) stickerOnlySelections.add(selection)
-        const points = selection.points || []
-        const origin = points[0]
-        const edge = points.find(point => point.x !== origin?.x || point.y !== origin?.y)
-        const hasArea = selection.shape === 'rectangle' || edge && points.some(point =>
-          (edge.x - origin.x) * (point.y - origin.y) !== (edge.y - origin.y) * (point.x - origin.x))
-        if (fresh && hasArea) {
-          freshSelections.set(selection, stickerRevision)
-        }
-      }
+      completeSelection(current.selection, current.options)
       render()
     } else if (current.type === 'move-selection') {
       if (current.piece) {

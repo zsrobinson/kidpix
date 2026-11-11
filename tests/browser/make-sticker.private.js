@@ -81,8 +81,8 @@ for(const fallback of [false,true])for(const input of ['pointer','touch','Space'
  if(input==='pointer')await b.click();else if(input==='touch')await b.tap();else if(input==='assistive')await b.evaluate(e=>e.click());else{await b.focus();await page.keyboard.press(input);}
  await expect.poll(()=>api(page,t=>t.scene.snapshot().length)).toBe(1);expect(await api(page,t=>t.undo.length)).toBe(1);
 });
-test('unsupported and moved selections reject; repeated activation dedupes',async({page})=>{
- await start(page);await api(page,t=>t.activate('style:ellipse'));await select(page);await api(page,t=>t.activate('make-sticker'));expect((await snapshot(page)).objects).toHaveLength(0);
+test('pending polygon and moved selections reject; repeated activation dedupes',async({page})=>{
+ await start(page);await api(page,t=>t.activate('style:polygon'));await select(page);await api(page,t=>t.activate('make-sticker'));expect((await snapshot(page)).objects).toHaveLength(0);
  await api(page,t=>t.activate('style:rectangle'));await select(page);await select(page,[[50,60],[60,70]]);
  await api(page,t=>t.activate('make-sticker'));expect((await snapshot(page)).objects).toHaveLength(0);
  await select(page,[[200,200],[260,260]]);await api(page,t=>Promise.all([t.activate('make-sticker'),t.activate('make-sticker')]));expect((await snapshot(page)).objects).toHaveLength(1);
@@ -233,4 +233,88 @@ for(const pageIndex of [1,2])for(const fail of [false,true])test(`Scissors page 
  if(fail){const before=await snapshot(page);await api(page,async t=>{const orig=t.undo.push;t.undo.push=()=>{throw Error('modeled late history failure')};await t.activate('make-sticker');t.undo.push=orig});expect(await snapshot(page)).toEqual(before)}
  else{await api(page,t=>t.activate('make-sticker'));expect((await snapshot(page)).tool).toBe('grab');await api(page,t=>t.history('undo'));expect((await snapshot(page)).tool).toBe('scissors');expect((await snapshot(page)).identity).toBeTruthy()}
  expect(await api(page,t=>t.state.page)).toBe(pageIndex);await expect(page.locator('#tray-buttons [data-action="make-sticker"]')).toBeEnabled();
+});
+
+async function shapeSelection(page, shape, {close = true} = {}) {
+ await api(page,(t,s)=>t.activate(`style:${s}`),shape);
+ if(shape==='ellipse')return select(page,[[30,40],[90,100]]);
+ const box=await page.locator('#paper-canvas').boundingBox();
+ for(const [x,y]of [[30,40],[90,40],[30,100],...(close?[[30,40]]:[])])await page.mouse.click(box.x+x,box.y+y);
+}
+for(const shape of ['ellipse','polygon'])test(`${shape}: fresh mask, retained ink, exact bounds and one Undo/Redo`,async({page})=>{
+ await start(page);const ink=await api(page,t=>t.paint.save());await shapeSelection(page,shape);
+ expect(await api(page,t=>t.paint.stickerIdentity)).toBeTruthy();
+ await api(page,t=>t.activate('make-sticker'));const after=await snapshot(page);
+ expect(after.paint).toEqual(ink);expect(after.objects).toHaveLength(1);expect(after.objects[0]).toMatchObject({x:30,y:40,width:60,height:60});expect(after.undo).toBe(1);
+ expect(await api(page,async(t,s)=>{const i=new Image();i.src=t.scene.snapshot()[0].src;await i.decode();const c=document.createElement('canvas');c.width=c.height=60;const x=c.getContext('2d');x.drawImage(i,0,0);return [[...x.getImageData(s==='ellipse'?30:10,s==='ellipse'?30:10,1,1).data],[...x.getImageData(s==='ellipse'?0:55,s==='ellipse'?0:55,1,1).data]]},shape)).toEqual([[240,32,64,255],[0,0,0,0]]);
+ await api(page,t=>t.history('undo'));expect((await snapshot(page)).objects).toHaveLength(0);expect(await api(page,t=>t.paint.stickerIdentity)).toBeTruthy();expect(await api(page,t=>t.state.selectionStyle)).toBe(shape);
+ await api(page,t=>t.history('redo'));expect((await snapshot(page)).objects).toEqual(after.objects);
+});
+for(const shape of ['ellipse','polygon'])for(const change of ['Escape','tool','document','failure'])test(`${shape}: deferred ${change} preserves ownership and document`,async({page})=>{
+ await start(page);await shapeSelection(page,shape);
+ if(change==='failure'){
+  const before=await snapshot(page);await api(page,async t=>{const old=t.undo.push;t.undo.push=()=>{throw Error('modeled history failure')};await t.activate('make-sticker');t.undo.push=old});expect(await snapshot(page)).toEqual(before);return;
+ }
+ await page.evaluate(()=>{const old=Image.prototype.decode;window.originalShapeDecode=old;Image.prototype.decode=function(){return new Promise(r=>{window.resolveShape=()=>old.call(this).then(r)})}});
+ await api(page,t=>{t.activate('make-sticker')});await expect.poll(()=>page.evaluate(()=>!!window.resolveShape)).toBe(true);
+ if(change==='Escape')await page.keyboard.press('Escape');else if(change==='tool')await api(page,t=>t.activate('tool:grab'));else await api(page,t=>t.freshPicture());
+ const before=await snapshot(page);await page.evaluate(()=>{Image.prototype.decode=originalShapeDecode;resolveShape()});await page.waitForTimeout(50);expect(await snapshot(page)).toEqual(before);
+});
+test('polygon pending vertices and closing contact cannot expose a sticker capability',async({page})=>{
+ await start(page);await shapeSelection(page,'polygon',{close:false});expect(await api(page,t=>t.paint.stickerIdentity)).toBeNull();
+ const box=await page.locator('#paper-canvas').boundingBox();await page.mouse.move(box.x+30,box.y+40);await page.mouse.down();expect(await api(page,t=>t.paint.captureSticker())).toBeNull();await page.mouse.up();expect(await api(page,t=>t.paint.stickerIdentity)).toBeTruthy();
+});
+test('polygon cancellation and collinear completion remain unavailable',async({page})=>{
+ await start(page);await shapeSelection(page,'polygon',{close:false});await page.keyboard.press('Escape');expect(await api(page,t=>t.paint.stickerIdentity)).toBeNull();
+ const box=await page.locator('#paper-canvas').boundingBox();for(const[x,y]of[[30,40],[60,70],[90,100],[30,40]])await page.mouse.click(box.x+x,box.y+y);
+ expect(await api(page,t=>t.paint.captureSticker())).toBeNull();
+});
+test('ellipse reverse bounds work; zero-width and zero-height do not complete a sticker',async({page})=>{
+ await start(page);await api(page,t=>t.activate('style:ellipse'));for(const points of [[[30,40],[30,100]],[[30,40],[90,40]]]){await select(page,points);expect(await api(page,t=>t.paint.captureSticker())).toBeNull()}
+ await select(page,[[90,100],[30,40]]);await api(page,t=>t.activate('make-sticker'));expect((await snapshot(page)).objects[0]).toMatchObject({x:30,y:40,width:60,height:60});
+});
+test('all ten source cookie masks remain visible editable selections but unavailable for Make Sticker',async({page})=>{
+ await start(page);for(let id=13004;id<=13013;id++){
+  await api(page,async(t,id)=>{t.paint.clearStickerSelection();await t.activate(`cookie:${id}`);await t.paint.setOptions({})},id);
+  await page.locator('#paper-canvas').click({position:{x:360,y:260}});
+  expect(await api(page,t=>t.paint.actionState.copy)).toBe(true);expect(await api(page,t=>t.paint.copy())).toMatch(/^data:image\/png/);
+  expect(await api(page,t=>t.paint.captureSticker())).toBeNull();await api(page,t=>t.activate('make-sticker'));expect((await snapshot(page)).objects).toHaveLength(0);
+ }
+});
+
+for(const interruption of ['Escape','lost capture'])test(`polygon cancelled closing contact never becomes fresh: ${interruption}`,async({page})=>{
+ await start(page);await shapeSelection(page,'polygon',{close:false});
+ const paper=page.locator('#paper-canvas'),box=await paper.boundingBox();await paper.evaluate(c=>c.addEventListener('pointerdown',e=>{c.dataset.closePointer=e.pointerId},{once:true}));
+ await page.mouse.move(box.x+30,box.y+40);await page.mouse.down();expect(await api(page,t=>t.paint.stickerIdentity)).toBeNull();
+ if(interruption==='Escape')await page.keyboard.press('Escape');else {
+  // setPointerCapture is pending until a subsequent pointer event establishes
+  // capture. Releasing a pending override need not emit lostpointercapture.
+  await paper.evaluate(c=>{c.dataset.closeLost='0';c.addEventListener('lostpointercapture',()=>{c.dataset.closeLost=String(Number(c.dataset.closeLost)+1)})});
+  await page.mouse.move(box.x+31,box.y+40);
+  expect(await paper.evaluate(c=>c.hasPointerCapture(Number(c.dataset.closePointer)))).toBe(true);
+  await paper.evaluate(c=>c.releasePointerCapture(Number(c.dataset.closePointer)));
+  await page.mouse.move(box.x+32,box.y+40);await expect(paper).toHaveAttribute('data-close-lost','1');
+ }
+ await page.mouse.up();expect(await api(page,t=>t.paint.captureSticker())).toBeNull();
+});
+
+test('tiny polygon keeps its pre-existing Cut/Copy capability while rectangle/ellipse keep legacy thresholds',async({page})=>{
+ await start(page);await api(page,t=>t.activate('style:polygon'));const box=await page.locator('#paper-canvas').boundingBox();
+ for(const[x,y]of[[30,40],[31,40],[30,41],[30,40]])await page.mouse.click(box.x+x,box.y+y);
+ expect(await api(page,t=>t.paint.actionState.copy)).toBe(true);expect(await api(page,t=>t.paint.stickerIdentity)).toBeTruthy();
+ await api(page,t=>t.activate('make-sticker'));expect((await snapshot(page)).objects[0]).toMatchObject({x:30,y:40,width:1,height:1});
+});
+
+test('self-intersecting polygon retains the existing browser mask and exact bounds',async({page})=>{
+ await start(page);await api(page,t=>t.activate('style:polygon'));const box=await page.locator('#paper-canvas').boundingBox();
+ for(const[x,y]of[[30,40],[90,100],[30,100],[90,40],[30,40]])await page.mouse.click(box.x+x,box.y+y);
+ await api(page,t=>t.activate('make-sticker'));expect((await snapshot(page)).objects[0]).toMatchObject({x:30,y:40,width:60,height:60});
+ expect(await api(page,async t=>{const i=new Image();i.src=t.scene.snapshot()[0].src;await i.decode();const c=document.createElement('canvas');c.width=c.height=60;const x=c.getContext('2d');x.drawImage(i,0,0);return [[...x.getImageData(30,5,1,1).data],[...x.getImageData(5,30,1,1).data]]})).toEqual([[240,32,64,255],[0,0,0,0]]);
+});
+test('off-page ellipse remains unavailable without resizing its selection',async({page})=>{
+ await start(page);await api(page,t=>t.activate('style:ellipse'));const ink=await api(page,t=>t.paint.save());await select(page,[[20,30],[-20,-30]]);expect(await api(page,t=>t.paint.captureSticker())).toBeNull();await api(page,t=>t.activate('make-sticker'));const after=await snapshot(page);expect(after.objects).toHaveLength(0);expect(after.undo).toBe(0);expect(after.paint).toEqual(ink);expect(after.tool).toBe('scissors');
+});
+test('duplicate polygon vertices cannot manufacture a nonempty fresh selection',async({page})=>{
+ await start(page);await api(page,t=>t.activate('style:polygon'));const box=await page.locator('#paper-canvas').boundingBox();for(let i=0;i<4;i++)await page.mouse.click(box.x+30,box.y+40);
+ expect(await api(page,t=>t.paint.captureSticker())).toBeNull();await api(page,t=>t.activate('make-sticker'));expect((await snapshot(page)).objects).toHaveLength(0);
 });

@@ -2,12 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.22.0 — candidate
+## 0.22.0
 
 - Add an explicit “Pencil preview (experimental)” switch in the Paint Zone menu, off by default. A browser preference remembers explicit choices without changing saved projects or document history.
 - Use browser-provided estimates only for eligible pen/freehand Pencil strokes. Keep temporary marks out of saved ink, exports, clipboard and Undo/Redo; clear them on correction, release, cancellation, expiry or switching the option off.
 - Keep expanded menus readable and touch-sized in tablet portrait and split view, with scrolling and viewport-aware placement. Reject remapped compatibility clicks while paper or another control owns input.
-- Preserve existing native tools and display settings. Independent correction review, full release gates and public acceptance are pending. No new media is required.
+- Preserve existing native tools and display settings. Independent review found no remaining release objection. Verified 294 Node checks, 775 development cases, 690 built cases and 542 WebKit cases; browser skips are explicit. Source-only 266 checks pass with 28 imported-asset skips, build and deployment dry run. All 17 static captures are pixel-identical to 0.21, without baseline changes or new media.
+- Full Chromium suites passed serially after two initial context-close trace failures exhausted temporary disk space. Failed reports are retained; source, assertions and tracing are unchanged.
 - Physical Pencil accuracy and latency benefit remain unverified. Native references remain 0/17; the enlarged vacuum stays disabled.
 
 ## 0.21.0

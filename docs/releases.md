@@ -2,12 +2,12 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.26.0 (release validation)
+## 0.26.0
 
 - Give Stamp Editor buttons, palette chips and blank chrome a shared first-contact policy. Preserve matched release, capture recovery and keyboard/assistive activation while protecting an active Pencil gesture from competing contacts and commands.
 - Keep each original tracking cue owned by its control; stop and remove its observers on replacement, release, interruption or teardown. Preserve the existing artwork, geometry, pixel edits and history policies. The original 32 scripts each contain one pose; no animation sequence is invented.
 - Contain closing-touch compatibility clicks across WebKit pointer-ID remapping and consume their released-sequence records without retaining each accepted touch ID. Held-contact rejection remains separate; a fresh primary down retires a cancelled sequence with no click.
-- Independent correction review found no remaining objections within contact and shared-input scope. Full release validation is pending. Native references remain 0/17; physical iPad feel, audible timing and IME safety remain unverified. The enlarged vacuum stays disabled and Pencil preview stays off by default.
+- Independent correction review found no remaining objections within contact and shared-input scope. Verified 328 Node checks, 806 development cases, 720 built cases and 571 WebKit cases, with existing explicit skips; source-only 300 checks pass with 28 imported-asset skips, build and deployment dry run. All 17 captures are RGBA-identical to 0.25, with no media, baseline or tolerance changes; all 36 existing public media bodies match their pinned hashes. Native references remain 0/17; physical iPad feel, audible timing and IME safety remain unverified. The enlarged vacuum stays disabled and Pencil preview stays off by default.
 
 ## 0.25.0
 

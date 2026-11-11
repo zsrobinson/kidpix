@@ -226,3 +226,12 @@ Independent review found that real WebKit Cancel taps could deliver their remapp
 Released control contacts now retain their pointer type in one pending physical-sequence record, separate from held-contact rejections. A matching click or WebKit touch-to-mouse remap is blocked and consumes the record. Semantic activation and hover do not consume it; the next accepted primary down retires a sequence that emitted no click. The independent double-click disposition remains available after consumption. No timer, broad future-mouse rejection or held-contact policy change is introduced.
 
 Two actual-modal tests fail before the fix in WebKit at 1024x768 and 640x480: the compatibility click reaches the studio after tapping Cancel. Both pass afterward, including twelve prior taps, unchanged studio data/tool, and clean reopen with a fresh activation. Five focused guard tests cover remapping, consumption over 1,000 touch identities, cancellation without clicks, fresh input, semantic/hover preservation, and independence from held rejected contacts. An old-source counterfactual preserves the expected assertion failures. Evidence is retained under artifacts/t3/release-0260; parent re-review and release gates remain separate.
+
+
+## Parent release validation
+
+The correction recheck found no ranked findings or remaining objection within its contact and shared-default-policy scope. It passed 23 helper checks and 66 actual-app checks across Chromium/WebKit development/built entries. Old-source controls reproduced four browser and four helper failures. Diagnostic failures and synthetic-only retained-state probes remain documented in the release evidence; they do not establish physical-device behavior.
+
+The final frozen release passed 328 Node tests, 806 development cases (one skip), 720 built cases (one skip), and 571 WebKit cases (three skips). Source-only checks passed 300 cases with 28 imported-asset skips, production build and Worker dry run. Asset verification and all 36 existing public media body hashes passed. All 17 final captures are RGBA-identical to accepted 0.25; no baseline, tolerance or original media changed. Full receipts are retained under artifacts/t3/release-0260.
+
+Progressive Stamp Editor erase is separate future work and is not bundled here. The current release preserves immediate erase, artwork and existing operation behavior while fixing contacts and cue cleanup. No original native-runtime reference, physical iPad/Pencil latency, audible-output or hardware IME acceptance is claimed.

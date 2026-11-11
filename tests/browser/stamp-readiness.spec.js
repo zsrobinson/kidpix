@@ -13,9 +13,10 @@ test.beforeEach(async({page})=>{
   page.on('response',r=>{if(r.status()>=400)page.stampErrors.push(`${r.status()} ${r.url()}`);});
   page.on('requestfailed',r=>page.stampFailures.push({error:r.failure()?.errorText,url:r.url(),fetchId:r.headers()[stampFetchHeader]}));
   await page.addInitScript(({header})=>{
-    const originalFetch=window.fetch;window.stampAbortedFetches=new Set();
+    const originalFetch=window.fetch;window.stampAbortedFetches=new Set();window.editorFetchCalls=[];
     window.fetch=function(input,options){
       const url=new URL(input instanceof Request?input.url:input,document.baseURI);
+      if(url.pathname.endsWith('/ui/stamp-editor/manifest.json'))window.editorFetchCalls.push(url.href);
       const signal=options?.signal??(input instanceof Request?input.signal:undefined);
       if(!signal||url.origin!==location.origin||!/\/original\/ui\/(?:tool-motion|secondary-motion)\//.test(url.pathname))return originalFetch.apply(this,arguments);
       const id=crypto.randomUUID(),aborted=()=>window.stampAbortedFetches.add(id);
@@ -87,6 +88,26 @@ test('Stamp Editor Enter fallback and later semantic activation remain usable',a
   await editor(page).getByRole('button',{name:'Cancel',exact:true}).click();
   await editorButton(page).evaluate(node=>node.click());await expect(editor(page)).toHaveCount(1);
 });
+
+for(const reason of ['Escape','blur','focusout']){
+  test(`cancelled Stamp Editor fallback Space permits fresh semantic activation after ${reason}`,async({page})=>{
+    try{
+      await hold(page,'Space');
+      if(reason==='Escape')await page.keyboard.press('Escape');
+      else if(reason==='blur')await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+      else await page.locator('#category').focus();
+      page.stampGate.release();await ready(page);
+      // An unrelated key release must not retire the held Space tombstone.
+      await page.keyboard.press('Shift');
+      await editorButton(page).evaluate(node=>node.click());
+      await expect(editor(page)).toHaveCount(0);expect(page.editorRequests).toEqual([]);
+      await page.keyboard.up(' ');
+      await expect(editor(page)).toHaveCount(0);expect(page.editorRequests).toEqual([]);
+      expect(await page.evaluate(()=>window.editorFetchCalls)).toEqual([]);
+      await editorButton(page).evaluate(node=>node.click());await expect(editor(page)).toBeVisible();
+    }finally{page.stampGate.release();await page.keyboard.up(' ');}
+  });
+}
 
 test.describe('Stamp Editor touch ownership',()=>{
   test.use({hasTouch:true});

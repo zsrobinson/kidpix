@@ -36,12 +36,21 @@ It asserts the same connected button, actual editor opening, cancellation and
 fresh activation. Before the fix, the pointer-during-readiness case fails at the
 dialog assertion while five before/after/keyboard controls pass. Enabling ownership
 without refreshing the pre-ready target still fails four cases; the final fix
-passes all fifteen focused WebKit cases.
+passes all fifteen original focused WebKit cases.
 
 Coverage includes pointer and Space before/during/after readiness, Escape and blur,
 outside release, Enter and semantic activation, genuine touch, and rejection of a
 competing touch during held Space. Network errors retain the existing per-request
 abort-identity checks. Assertions, timeouts and pixel tolerances are unchanged.
+Independent review found that cancelled fallback Space still suppressed fresh
+semantic activation after its release. Interaction-owning profiles now retain
+the cancelled key identity and observe its matching keyup at window capture,
+including after focus leaves the controls. That keyup prevents native activation
+and retires suppression. Unrelated key releases do not unlock the cancelled
+contact. Three additional editor cases cover Escape, blur and focusout followed
+by fresh semantic activation; a category case covers the shared ready path.
+The original default ownership policy is unchanged.
+
 Shared-control regression, independent review and release receipts are recorded
 separately under `artifacts/t3/release-0291/`.
 

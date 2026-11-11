@@ -147,6 +147,13 @@ test('outside release, reentry, Escape, blur, capture loss, cancelled Space, ass
   await next().focus();await page.keyboard.press('Space');await expect(page.locator('#category')).toHaveValue('2');
   await page.locator('#category').selectOption('1');await next().hover();await page.mouse.down();await page.mouse.move(500,400);await next().hover();await page.mouse.up();await expect(page.locator('#category')).toHaveValue('2');
 });
+test('cancelled category Space releases suppression before fresh semantic activation',async({page})=>{
+  await fixture(page);await page.locator('#category').selectOption('1');
+  const next=control(page,'category-step:1');
+  await next.focus();await page.keyboard.down('Space');await page.keyboard.press('Escape');
+  await page.keyboard.up('Space');await expect(page.locator('#category')).toHaveValue('1');
+  await next.evaluate(button=>button.click());await expect(page.locator('#category')).toHaveValue('2');
+});
 test('native Audio retrieves the complete pinned 18003 payload through Range-capable originals',async({page})=>{
   await fixture(page,3,false);
   const responses=[];page.on('response',r=>{if(new URL(r.url()).pathname.endsWith('/secondary-motion/sounds/18003.wav') && (r.status()===200 || r.status()===206 && r.headers()['content-range']==='bytes 0-3603/3604'))responses.push(r);});

@@ -2,11 +2,18 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.29.0 (candidate)
+
+- Restore Add Picture to Slide Show's authored three-pose, silent hover loop at 100 ms per source update. Clip playback to its original 79×95 control rectangle and restore the clean backing before each frame; preserve the existing Add Picture action and sound.
+- Accept only the exact source-identified 1128 resource through an explicit decoder opt-in. Preserve its unreachable trailing bytes as metadata; keep unknown tails and Play program 1039 rejected. Reuse existing artwork and clean backing, with no media upload or baseline changes planned.
+- Retire ready or pending hover playback on leave, press, cancellation, lost capture, inactivity or disposal. Independent review found no actionable issues: 92 scoped browser checks and 20 Python checks passed. Full local and public release validation remains pending.
+- Native references remain 0/17. Physical iPad latency, foreground idle, audible behavior and IME remain unverified; enlarged vacuum stays disabled and Pencil preview defaults off.
+
 ## 0.28.1
 
 - Recover once from a rejected storage metadata/body read within the existing two-attempt limit. Refresh metadata and re-evaluate HTTP conditions and ranges before the retry; retain ETag pinning and streamed bodies.
 - Preserve healthy-request storage call counts, cache behavior and HTTP response contracts. Persistent failures remain bounded and visible; no retry occurs after response streaming starts.
-- Independent review found no objections within read-retry, HTTP, stream and cache scope. All 371 Node checks and original-sound fault replays pass; source-only checks pass with existing imported-asset skips. Packaging, deployment dry run and 43 media-heavy built-browser cases pass. All 17 captures are identical to accepted 0.28, with no media, baseline or drawing/UI source changes. Public validation remains pending. The historical sound-request 503 cause remains unresolved; no physical iPad latency or audio-perception fix is claimed.
+- Independent review found no objections within read-retry, HTTP, stream and cache scope. All 371 Node checks and original-sound fault replays pass; source-only checks pass with existing imported-asset skips. Packaging, deployment dry run and 43 media-heavy built-browser cases pass. All 17 captures are identical to accepted 0.28, with no media, baseline or drawing/UI source changes. Selected public acceptance passed 528 Chromium and 303 WebKit cases, all 17 captures matched, and 13 HTTP contracts passed. The historical sound-request 503 cause remains unresolved; no physical iPad latency or audio-perception fix is claimed.
 
 ## 0.28.0
 

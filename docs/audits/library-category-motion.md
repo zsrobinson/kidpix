@@ -79,8 +79,6 @@ Fallback input retains its accepted held key through artwork decoding and reject
 
 The corrected matrix passes 79 Chromium development, 78 Chromium built, 77 WebKit development and 76 WebKit built cases, with zero skips, errors or flaky results. This includes all category cases and existing library-readiness, library lifecycle, Text steppers and audio recovery checks. All 362 Node checks pass. No media, source poses, oracle, tolerance or established profile changed in the correction. A fresh independent correction recheck and parent full/static/media/public gates remain pending.
 
-## Exact media receipt
-
 ## Parent release validation
 
 The independent correction recheck found no remaining ranked findings within correction/shared-default scope: 289 browser cases and 26 Node cases passed, with three meaningful prior-candidate failures retained. Parent correction coverage passed 310 browser cases across both engines and development/built entries, plus all 362 Node checks.
@@ -93,7 +91,7 @@ The initial static run's eighteen passes and one failed capture wait are preserv
 
 Exact revision publication and selected public acceptance remain the final release gates. The ten additional Stamp WebKit pixel failures remain pre-existing, unresolved and unwaived; the established full WebKit population does not include those assertions. Native execution, physical iPad latency, foreground-idle causation, audible delivery and IME behavior remain unverified.
 
-### Object hashes
+## Exact media receipt
 
 | Object key | Bytes | SHA256 |
 | --- | ---: | --- |

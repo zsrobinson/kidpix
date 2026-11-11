@@ -4,9 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { PNG } from 'pngjs';
 import { stampFetchHeader, unexpectedStampRequests } from './stamp-request-errors.js';
+import { createHash } from 'node:crypto';
 
 let manifest;
-test.beforeAll(async () => {
+test.beforeAll(async ({ browser }) => {
+  console.log(`Stamp Editor browser: ${browser.version()}`);
   const candidates = [
     fileURLToPath(new URL('../../public/original/ui/', import.meta.url)),
     fileURLToPath(new URL('../../artifacts/research/native-stamp-editor/', import.meta.url)),
@@ -165,6 +167,7 @@ test('native Stamp Editor preserves pixels through rotate, mirror, undo, erase, 
   await command(dialog, 'Undo Guy').click();
   expect(await data(dialog)).toBe(original);
   await command(dialog, 'Eraser').click();
+  await expect(dialog).not.toHaveAttribute('data-erasing', 'true');
   expect(await dialog.locator('.native-stamp-pixels').evaluate(canvas => canvas.getContext('2d').getImageData(0, 0, 32, 32).data.every(value => value === 0))).toBe(true);
   await command(dialog, 'Restore Original').click();
   expect(await data(dialog)).toBe(original);
@@ -536,4 +539,171 @@ test.describe('closing touch containment', () => {
       await expect(reopened).toHaveCount(0);
     });
   }
+});
+
+async function freezeEraseClock(page) {
+  await page.evaluate(() => {
+    const native = window.setTimeout;
+    window.eraseCallbacks = [];
+    window.setTimeout = (callback, delay, ...args) => delay === 66
+      ? (window.eraseCallbacks.push(() => callback(...args)), -window.eraseCallbacks.length)
+      : native(callback, delay, ...args);
+    window.deliverErase = () => window.eraseCallbacks.shift()?.();
+  });
+}
+async function eraseState(dialog) {
+  return dialog.evaluate(element => {
+    const read = selector => element.querySelector(selector)?.toDataURL();
+    return { committed:read('.native-stamp-pixels'), preview:read('.native-stamp-preview'), temporary:read('.native-stamp-erase') };
+  });
+}
+for (const transparent of [false,true,'mixed']) test(`NORMAL browser erase temporary composition and atomic history transparent=${transparent}`, async ({ page }) => {
+  const dialog = await openEditor(page);
+  await dialog.locator('.native-stamp-pixels').evaluate((canvas,transparent) => {
+    if(transparent==='mixed')return;
+    const context=canvas.getContext('2d');context.clearRect(0,0,32,32);
+    if(!transparent){context.fillStyle='#e01030';context.fillRect(0,0,32,32);}
+    // Sync the fixture before starting, without exposing the editor's context.
+    const preview=canvas.parentElement.querySelector('.native-stamp-preview');
+    preview.getContext('2d').clearRect(0,0,32,32);preview.getContext('2d').drawImage(canvas,0,0);
+  },transparent);
+  const before=await eraseState(dialog);
+  await freezeEraseClock(page);
+  const responses=[];
+  page.on('response',response=>{if(response.status()===200&&response.url().includes('sound-14006.wav'))responses.push(response);});
+  await command(dialog,'Eraser').click();
+  await expect(dialog).toHaveAttribute('data-erasing','true');
+  const expectedPixels=Buffer.from(PNG.sync.read(Buffer.from(before.committed.split(',')[1],'base64')).data);
+  function expectBrowserComposition(url,step){
+    // Browser policy oracle only; source rectangle geometry is pinned separately.
+    const [top,left,bottom,right]=[[17,15,19,17],[15,13,21,19],[13,11,23,21],[11,9,25,23],[9,7,27,25],[7,5,29,27],[5,3,31,29]][step];
+    for(let y=top;y<bottom;y++)for(let x=left;x<right;x++){
+      if(((x+.5-(left+right)/2)/((right-left)/2))**2+((y+.5-(top+bottom)/2)/((bottom-top)/2))**2<=1)expectedPixels.set([255,255,255,255],(y*32+x)*4);
+    }
+    expect(PNG.sync.read(Buffer.from(url.split(',')[1],'base64')).data).toEqual(expectedPixels);
+  }
+  const immediate=await eraseState(dialog);
+  expectBrowserComposition(immediate.temporary,0);
+  expect(immediate.committed).toBe(before.committed);expect(immediate.preview).toBe(before.preview);
+  expect(immediate.temporary).not.toBe(before.committed);
+  const sample=()=>dialog.locator('.native-stamp-erase').evaluate(canvas=>{
+    const c=canvas.getContext('2d');return {white:[...c.getImageData(15,17,1,1).data],outside:[...c.getImageData(0,0,1,1).data],backing:getComputedStyle(canvas).backgroundColor};
+  });
+  expect(await sample()).toEqual({white:[255,255,255,255],outside:transparent?[0,0,0,0]:[224,16,48,255],backing:'rgb(255, 255, 255)'});
+  await expect.poll(()=>responses.length).toBe(1);
+  const loadedWav = await responses[0].body();
+  // Every delivered callback paints exactly one cumulative rectangle.
+  for(let i=1;i<7;i++) {
+    await page.evaluate(()=>window.deliverErase());
+    const state=await eraseState(dialog);expectBrowserComposition(state.temporary,i);expect(state.committed).toBe(before.committed);expect(state.preview).toBe(before.preview);
+    const painted=await dialog.locator('.native-stamp-erase').evaluate((canvas,i)=>[...canvas.getContext('2d').getImageData(16,17-i*2,1,1).data],i);
+    expect(painted).toEqual([255,255,255,255]);
+  }
+  await page.evaluate(()=>window.deliverErase());
+  await expect(dialog).not.toHaveAttribute('data-erasing','true');
+  expect(await dialog.locator('.native-stamp-pixels').evaluate(canvas=>canvas.getContext('2d').getImageData(0,0,32,32).data.every(x=>x===0))).toBe(true);
+  expect((await eraseState(dialog)).preview).toBe((await eraseState(dialog)).committed);
+  await command(dialog,'Undo Guy').click();expect((await eraseState(dialog)).committed).toBe(before.committed);
+  await expect(command(dialog,'Undo Guy')).toHaveAttribute('aria-disabled','true');
+  await expect.poll(()=>responses.length).toBe(1);
+  const bytes=loadedWav;expect(bytes.subarray(0,4).toString()).toBe('RIFF');
+  expect(createHash('sha256').update(bytes).digest('hex')).toBe('3cf76d5838f2008dbe7eb7b0336d71c7df989bee2a2cebd3e5ff923e690f22cf');
+  const metadata=await page.request.get('/original/ui/stamp-editor/manifest.json');
+  expect(createHash('sha256').update(await metadata.body()).digest('hex')).toBe('59ddf639accf10f968117c1b1a6d22c1363cc62e751b174e30b39f153c6d7a34');
+  expect((await metadata.json()).operations.erase).toMatchObject({sound:14006,geometry:'normal-32-v1',intervalMs:66});
+});
+
+test('NORMAL erase rejects reentry Save history palette and held contacts through late click',async({page})=>{
+ const dialog=await openEditor(page);const before=await eraseState(dialog);await freezeEraseClock(page);
+ await command(dialog,'Eraser').click();
+ for(const label of ['OK','Eraser','Rotate','Restore Original','Undo Guy','Fill Bucket',`Color ${manifest.chips[0].color}`])await command(dialog,label).evaluate(el=>el.click());
+ await page.keyboard.press('ControlOrMeta+z');await page.keyboard.press('Enter');
+ expect((await eraseState(dialog)).committed).toBe(before.committed);expect(await page.evaluate(()=>window.eraseCallbacks.length)).toBe(1);
+ // Rejected down persists through completion and cannot become a semantic click.
+ await command(dialog,'OK').dispatchEvent('pointerdown',{pointerId:778,pointerType:'touch',isPrimary:true,button:0});
+ for(let i=0;i<7;i++)await page.evaluate(()=>window.deliverErase());
+ await command(dialog,'OK').dispatchEvent('pointerup',{pointerId:778,pointerType:'touch',isPrimary:true,button:0});
+ const late=await command(dialog,'OK').evaluate(el=>{
+  let reached=false;el.addEventListener('click',()=>{reached=true;},{once:true});
+  const event=new PointerEvent('click',{bubbles:true,cancelable:true,pointerId:778,pointerType:'touch',detail:1});
+  el.dispatchEvent(event);return {reached,blocked:event.defaultPrevented};
+ });
+ expect(late).toEqual({reached:false,blocked:true});
+ await expect(dialog).toBeVisible();await command(dialog,'Undo Guy').click();expect((await eraseState(dialog)).committed).toBe(before.committed);
+});
+for(const reason of ['Escape','blur','pagehide','resize','hidden','Cancel','close'])test(`NORMAL erase ${reason} cancels without late work`,async({page})=>{
+ const dialog=await openEditor(page);const before=await eraseState(dialog);await freezeEraseClock(page);
+ await command(dialog,'Eraser').click();
+ if(reason==='Escape')await page.keyboard.press('Escape');
+ else if(reason==='Cancel')await command(dialog,'Cancel').click();
+ else if(reason==='close')await dialog.evaluate(el=>el.close());
+ else await page.evaluate(reason=>{if(reason==='hidden'){Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));}else window.dispatchEvent(new Event(reason));},reason);
+ for(let i=0;i<8;i++)await page.evaluate(()=>window.deliverErase());
+ if(['Cancel','close'].includes(reason)){await expect(dialog).toHaveCount(0);await page.getByRole('button',{name:'Stamp Editor',exact:true}).click();await expect(dialog).toBeVisible();}
+ expect((await eraseState(dialog)).committed).toBe(before.committed);expect((await eraseState(dialog)).preview).toBe(before.preview);
+ await expect(dialog.locator('.native-stamp-erase')).toHaveCount(0);
+ await expect(command(dialog,'Undo Guy')).toHaveAttribute('aria-disabled','true');
+});
+
+for(const terminal of ['finish','cancel','reject','pause','error'])test(`NORMAL operation sound independent lifetime ${terminal}`,async({page})=>{
+ await page.evaluate(terminal=>{
+  window.operationAudio=[];
+  window.Audio=class extends EventTarget{
+   constructor(src){super();this.src=src;this.pauses=0;window.operationAudio.push(this);}
+   play(){this.plays=(this.plays||0)+1;return terminal==='reject'&&this.src.includes('14006')?Promise.reject(Error('rejected')):Promise.resolve();}
+   pause(){this.pauses++;this.dispatchEvent(new Event('pause'));}
+  };
+ },terminal);
+ const dialog=await openEditor(page);await freezeEraseClock(page);
+ await command(dialog,'Eraser').hover();await page.mouse.down();
+ expect(await page.evaluate(()=>window.operationAudio.filter(a=>a.src.includes('14006')).length)).toBe(0);
+ await page.mouse.up();
+ expect(await page.evaluate(()=>window.operationAudio.filter(a=>a.src.includes('14006')).map(a=>[a.plays,a.pauses,a.loop||false]))).toEqual([[1,0,false]]);
+ expect(await page.evaluate(()=>window.operationAudio.filter(a=>a.src.includes('14002')).every(a=>a.pauses===1))).toBe(true);
+ if(['pause','error'].includes(terminal))await page.evaluate(terminal=>window.operationAudio.find(a=>a.src.includes('14006')).dispatchEvent(new Event(terminal)),terminal);
+ await expect(dialog).toHaveAttribute('data-erasing','true');
+ if(terminal==='cancel')await page.keyboard.press('Escape');else for(let i=0;i<7;i++)await page.evaluate(()=>window.deliverErase());
+ await expect(dialog).not.toHaveAttribute('data-erasing','true');
+ expect(await page.evaluate(()=>window.operationAudio.filter(a=>a.src.includes('14006')).length)).toBe(1);
+ if(['finish','cancel'].includes(terminal))expect(await page.evaluate(()=>window.operationAudio.find(a=>a.src.includes('14006')).pauses)).toBe(1);
+ await command(dialog,'Rotate').click(); // audio failure never retains operation ownership
+});
+
+test('NORMAL owner abort retires temporary operation before reopening @module',async({page})=>{
+ const dialog=await openEditor(page);const before=await eraseState(dialog);await freezeEraseClock(page);
+ await command(dialog,'Eraser').click();
+ await page.evaluate(async()=> (await import('/src/native-stamp-editor.js')).cancelStampEditor());
+ await expect(dialog).toHaveCount(0);
+ await page.getByRole('button',{name:'Stamp Editor',exact:true}).click();await expect(dialog).toBeVisible();
+ for(let i=0;i<8;i++)await page.evaluate(()=>window.deliverErase());
+ expect((await eraseState(dialog)).committed).toBe(before.committed);expect((await eraseState(dialog)).preview).toBe(before.preview);
+ await command(dialog,'Rotate').click();expect(await pixel(dialog,28,2)).toEqual([255,0,0,255]);
+});
+
+for(const failure of ['allocation','render','schedule','commit'])test(`NORMAL internal ${failure} failure restores pixels preview and history`,async({page})=>{
+ const dialog=await openEditor(page);const original=await data(dialog);
+ await clickPixel(page,dialog,10,10);const before=await eraseState(dialog);
+ await freezeEraseClock(page);
+ await page.evaluate(failure=>{
+  let failed=false;
+  if(failure==='allocation'){
+   const get=HTMLCanvasElement.prototype.getContext;
+   HTMLCanvasElement.prototype.getContext=function(...args){if(!failed&&this.classList.contains('native-stamp-erase')){failed=true;return null;}return get.apply(this,args);};
+  }else if(failure==='schedule'){
+   const set=window.setTimeout;window.setTimeout=(callback,delay,...args)=>{if(!failed&&delay===66){failed=true;throw Error('schedule fixture');}return set(callback,delay,...args);};
+  }else{
+   const method=failure==='render'?'fillRect':'clearRect', prior=CanvasRenderingContext2D.prototype[method];
+   CanvasRenderingContext2D.prototype[method]=function(...args){
+    const target=failure==='render'?this.canvas.classList.contains('native-stamp-erase'):this.canvas.classList.contains('native-stamp-pixels')&&this.canvas.closest('dialog')?.dataset.erasing;
+    const result=prior.apply(this,args);
+    if(!failed&&target){failed=true;throw Error(`${failure} fixture`);}return result;
+   };
+  }
+ },failure);
+ await command(dialog,'Eraser').click();for(let i=0;i<7;i++)await page.evaluate(()=>window.deliverErase());
+ await expect(dialog).not.toHaveAttribute('data-erasing','true');
+ const after=await eraseState(dialog);expect(after.committed).toBe(before.committed);expect(after.preview).toBe(before.preview);expect(after.temporary).toBeUndefined();
+ await command(dialog,'Undo Guy').click();expect(await data(dialog)).toBe(original);
+ await command(dialog,'Eraser').click();await expect(dialog).toHaveAttribute('data-erasing','true');
+ await page.keyboard.press('Escape');await expect(dialog).not.toHaveAttribute('data-erasing','true');
 });

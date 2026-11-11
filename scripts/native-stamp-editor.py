@@ -6,6 +6,7 @@ to an ignored research directory unless an explicit output path is supplied.
 """
 
 import argparse
+import hashlib
 from importlib import import_module
 import json
 from pathlib import Path
@@ -30,7 +31,11 @@ BUTTONS = [
 def export_stamp_editor(read, ui_output):
     ui = import_module("import-ui")
     decode = import_module("mohawk-script").decode_script
-    archive = ui.mohawk(read("Data/StampEd.MHK"))
+    archive_bytes = read("Data/StampEd.MHK")
+    archive_hash = hashlib.sha256(archive_bytes).hexdigest()
+    if archive_hash != "d3be6fc4f07ca6bfb02c6af85b8c16c7f07f197807c804338a67750599658427":
+        raise ValueError("Unsupported StampEd source; re-audit NORMAL erase first")
+    archive = ui.mohawk(archive_bytes)
     folder = Path(ui_output) / "stamp-editor"
     folder.mkdir(parents=True, exist_ok=True)
     preview = Image.new("RGBA", (1024, 768))
@@ -94,7 +99,9 @@ def export_stamp_editor(read, ui_output):
                 "color": "#%02x%02x%02x" % color,
                 "rect": [672 + column * 13, 340 + row * 13, 12, 12],
             })
-    sounds = sorted({sound for button in manifest["buttons"].values()
+    manifest["operations"] = {"erase": {"geometry": "normal-32-v1", "intervalMs": 66,
+        "sound": 14006, "archiveSha256": archive_hash}}
+    sounds = sorted({14006} | {sound for button in manifest["buttons"].values()
                      for state in button["states"].values() for sound in state["sounds"]})
     for sound in sounds:
         ui.pcm_sound(archive[b"tWAV", sound], folder / f"sound-{sound}.wav")

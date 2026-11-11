@@ -1,5 +1,6 @@
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
 import { bindStampControl, trackingCue } from './stamp-editor-control.js';
+import { normalErase, paintBrowserOval } from './stamp-editor-erase.js';
 import { original } from './library.js';
 import { place } from './trays.js';
 import { editStamp as editFallbackStamp } from './stamp-editor.js';
@@ -135,6 +136,82 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
   let gesture;
   let saved = null;
   const cues = [];
+  let eraseOperation;
+  const operationCue = trackingCue();
+  function cancelErase() { eraseOperation?.cancel(); }
+  function erase() {
+    // Fail closed without supported exported metadata; never instant-clear.
+    const parameters = manifest.operations?.erase;
+    if (parameters?.sound !== 14006 || parameters?.intervalMs !== 66 ||
+        parameters?.geometry !== 'normal-32-v1' ||
+        parameters?.archiveSha256 !== 'd3be6fc4f07ca6bfb02c6af85b8c16c7f07f197807c804338a67750599658427' ||
+        !manifest.sounds['14006'] ||
+        canvas.width !== 32 || canvas.height !== 32) return;
+    let temporary, before, previewBefore, historyBefore;
+    const operation = normalErase({
+      width: canvas.width, height: canvas.height,
+      prepare() {
+        before = context.getImageData(0, 0, 32, 32);
+        previewBefore = previewContext.getImageData(0, 0, 32, 32);
+        historyBefore = history.slice();
+        temporary = document.createElement('canvas');
+        temporary.width = temporary.height = 32;
+        temporary.className = 'native-stamp-erase';
+        temporary.style.cssText = place(...manifest.canvas);
+        const pixels = temporary.getContext('2d');
+        if (!pixels) throw new Error('Cannot allocate stamp presentation');
+        pixels.putImageData(before, 0, 0);
+        stage.append(temporary);
+        dialog.dataset.erasing = 'true';
+      },
+      render(rect) { paintBrowserOval(temporary.getContext('2d'), rect); },
+      commit() {
+        context.clearRect(0, 0, 32, 32);
+        history.push(before);
+        if (history.length > 32) history.shift();
+        update();
+      },
+      rollback() {
+        try { if (before) context.putImageData(before, 0, 0); }
+        finally {
+          try { if (previewBefore) previewContext.putImageData(previewBefore, 0, 0); }
+          finally { if (historyBefore) history.splice(0, history.length, ...historyBefore); }
+        }
+      },
+      start() {
+        const audio = new Audio(source(manifest.sounds['14006']));
+        audio.volume = .65;
+        operationCue.play(audio);
+      },
+      stop: operationCue.stop,
+      settle() {
+        eraseOperation = null;
+        delete dialog.dataset.erasing;
+        temporary?.remove();
+        // Only semantics, no fallible pixel copy during cleanup.
+        buttons.get('undo')?.setAttribute('aria-disabled', String(!history.length));
+      },
+    });
+    if (operation.active) eraseOperation = operation;
+  }
+  // Reject contacts for their entire physical sequence, including late clicks
+  // after completion. Explicit Cancel remains available through the normal seam.
+  dialog.addEventListener('pointerdown', event => {
+    if (!eraseOperation || event.target.closest('[data-command="cancel"]')) return;
+    inputOwner.reject(event);
+    event.preventDefault(); event.stopImmediatePropagation();
+  }, { ...options, capture: true });
+  dialog.addEventListener('click', event => {
+    if (!eraseOperation || event.target.closest('[data-command="cancel"]')) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+  }, { ...options, capture: true });
+  dialog.addEventListener('keydown', event => {
+    if (!eraseOperation) return;
+    if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); cancelErase(); return; }
+    if (event.target.closest('[data-command="cancel"]')) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+  }, { ...options, capture: true });
+  onInteractionInactive(dialog, cancelErase, listeners.signal);
 
   function playSounds(cue, state) {
     for (const id of state.sounds ?? []) {
@@ -183,11 +260,12 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
   let closing = false;
   function run(command) {
     if (!dialog.open || closing) return;
+    if (eraseOperation) { if (command !== 'cancel') return; cancelErase(); }
     if (command === 'cancel' || command === 'save') closing = true;
     if (command === 'pencil' || command === 'fill') tool = command;
     else if (command === 'undo') undo();
     else if (command === 'rotate' || command === 'flip') transform(command);
-    else if (command === 'erase') { remember(); context.clearRect(0, 0, canvas.width, canvas.height); }
+    else if (command === 'erase') { erase(); return; }
     else if (command === 'restore') { remember(); context.putImageData(originalPixels, 0, 0); }
     else if (command === 'cancel') dialog.close();
     else if (command === 'save') {
@@ -237,7 +315,7 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
     control.title = chip.color;
     control.dataset.color = chip.color;
     control.style.cssText = place(...chip.rect);
-    bindStampControl(control, { owner: inputOwner, signal: listeners.signal, activate: () => { color = chip.color; update(); } });
+    bindStampControl(control, { owner: inputOwner, signal: listeners.signal, activate: () => { if (!eraseOperation) { color = chip.color; update(); } } });
     stage.append(control);
   }
 
@@ -250,7 +328,7 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
   };
   const draw = (x, y) => { context.fillStyle = color; context.fillRect(x, y, 1, 1); };
   canvas.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || event.isPrimary === false || gesture || !inputOwner.claim(event, canvas)) return;
+    if (eraseOperation || event.button !== 0 || event.isPrimary === false || gesture || !inputOwner.claim(event, canvas)) return;
     event.preventDefault();
     canvas.focus();
     try { canvas.setPointerCapture(event.pointerId); }
@@ -296,7 +374,7 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
   dialog.addEventListener('keyup', event => event.stopPropagation(), options);
   // Browser context menus can steal capture from a held primary contact.
   dialog.addEventListener('contextmenu', event => event.preventDefault(), options);
-  dialog.addEventListener('cancel', event => { event.preventDefault(); if (!inputOwner.busy()) run('cancel'); }, options);
+  dialog.addEventListener('cancel', event => { event.preventDefault(); if (eraseOperation) cancelErase(); else if (!inputOwner.busy()) run('cancel'); }, options);
   // Blank modal chrome also participates in first-contact ownership.
   let chromePointer;
   dialog.addEventListener('pointerdown', event => {
@@ -334,6 +412,8 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
   function finish() {
     if (finished) return;
     finished = true;
+    cancelErase();
+    operationCue.stop();
     signal.removeEventListener('abort', finish);
     try { finishGesture(); } catch { /* Still remove the session on audio failure. */ }
     finishChrome();

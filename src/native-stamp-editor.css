@@ -44,3 +44,7 @@
 .native-stamp-chip { border-radius: 1px; }
 .native-stamp-chip:focus-visible { outline-offset: 1px; }
 .native-stamp-button:focus-visible { border-radius: 12px; outline-offset: 0; }
+
+/* Opaque backing is explicit for both committed and temporary presentation. */
+.native-stamp-pixels, .native-stamp-preview, .native-stamp-erase { background: #fff; }
+.native-stamp-erase { image-rendering: pixelated; pointer-events: none; }

@@ -81,6 +81,9 @@ export function createNativeStampMotion({ stage, controls = stage.querySelector(
       onActivate,
       onReady() {
         if (disposed) return;
+        // Selection can change before loading finishes without a library render.
+        // Reapplying the cached adapter state would cancel a valid held input.
+        if (read) current = { ...current, ...read() };
         rememberStyles();
         motion.update(stateFor(profile, current));
         suppressSizeShadow();

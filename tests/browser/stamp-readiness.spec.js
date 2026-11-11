@@ -39,9 +39,12 @@ test.beforeEach(async({page})=>{
   });
   const png=new PNG({width:32,height:32});png.data.fill(0);png.data.set([255,0,0,255],(3*32+2)*4);
   await page.route('**/original/stamps/readiness-fixture.png*',route=>route.fulfill({contentType:'image/png',body:PNG.sync.write(png)}));
+  const traysReady=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/original/ui/trays.json')&&r.ok());
   await page.goto('/');
+  await (await traysReady).finished();
   await expect(page.locator('#paint-chrome')).toHaveClass(/native/);
   await page.getByRole('button',{name:'Rubber Stamp Tools',exact:true}).click();
+  await expect(page.locator('#library-tray')).toHaveClass(/original-library/);
   await page.locator('#library-tray [data-item="stamp-readiness-fixture"]').click();
   await expect(page.locator('#paper-canvas')).toHaveAttribute('data-tool','stamp');
   await page.stampGate.requested;
@@ -130,6 +133,40 @@ test.describe('Stamp Editor touch ownership',()=>{
   });
 });
 const releaseInput=(page,input)=>input==='pointer'?page.mouse.up():page.keyboard.up(' ');
+
+async function gateStampSprite(page,id){
+  let release;const gate=new Promise(resolve=>release=resolve);
+  await page.route(`**/original/ui/secondary-motion/sprites/18000-${id}.argb*`,async route=>{
+    const response=await route.fetch();await gate;await route.fulfill({response});
+  });
+  return release;
+}
+
+for(const input of ['pointer','Space'])for(const order of ['editor-first','size-first']){
+  test(`Stamp Editor callback order ${order} preserves held ${input}`,async({page})=>{
+    // Separate raw-sprite gates force owner completion without altering artwork.
+    const releaseArrows=await gateStampSprite(page,451);
+    const releaseSize=await gateStampSprite(page,478);
+    const releaseEditor=await gateStampSprite(page,557);
+    try{
+      await hold(page,input);
+      if(order==='editor-first')releaseEditor();else releaseSize();
+      page.stampGate.release();
+      if(order==='size-first'){
+        await expect(page.locator('[data-native-stamp-motion="stamp:size"]')).toBeVisible();
+        releaseEditor();
+      }
+      await ready(page);
+      expect(await editorButton(page).evaluate(node=>node===window.heldStampEditor&&node.isConnected)).toBe(true);
+      if(order==='editor-first'){
+        await expect(page.locator('[data-native-stamp-motion="stamp:size"]')).toHaveCount(0);
+        await expect(page.locator('[data-native-stamp-motion="stamp:arrows"]')).toHaveCount(0);
+      }
+      if(input==='Space')await expect(editorButton(page)).toBeFocused();
+      await releaseInput(page,input);await expect(editor(page)).toBeVisible();
+    }finally{releaseArrows();releaseSize();releaseEditor();page.stampGate.release();await releaseInput(page,input);}
+  });
+}
 
 for(const input of ['pointer','Space'])for(const timing of ['before','during','after']){
   test(`Stamp Editor readiness ${timing} ${input} preserves activation`,async({page})=>{

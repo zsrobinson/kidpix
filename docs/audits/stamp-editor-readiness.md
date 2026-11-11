@@ -51,6 +51,17 @@ contact. Three additional editor cases cover Escape, blur and focusout followed
 by fresh semantic activation; a category case covers the shared ready path.
 The original default ownership policy is unchanged.
 
+The next review retained three intermittent built-app opening failures. Forced
+completion-order tests then exposed a second stale-state boundary: each owner's
+ready callback reapplied the adapter's cached selection before the application
+callback refreshed it. Editor-first completion cancelled a valid held pointer or
+Space press; size-first completion passed both controls. Every ready callback now
+refreshes adapter state before applying it. Separate gates on unchanged raw
+sprites force both orders; before the correction two editor-first cases fail and
+two size-first controls pass. After correction all twelve repeated order cases
+pass. This establishes the controlled callback-order defect without proving the
+cause of every retained intermittent or original public failure.
+
 Shared-control regression, independent review and release receipts are recorded
 separately under `artifacts/t3/release-0291/`.
 

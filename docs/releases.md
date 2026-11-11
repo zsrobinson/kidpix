@@ -2,6 +2,13 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.27.0 (release validation)
+
+- Replace immediate Stamp Editor erase with the recovered seven-step normal progression: cumulative white ovals in a separate enlarged presentation, one delivered update per nominal 66 ms interval, then one final transparent browser clear and preview sync. Keep committed pixels and the small preview unchanged until completion, with one Undo checkpoint.
+- Add the original operation sound 14006 independently of button tracking cues. Preserve existing images and sounds; metadata gains only the erase contract and that sound reference.
+- Cancel safely on Escape, inactivity, resize, close or owner teardown. Guard history and ordinary controls during erase, preserve actual Cancel activation, and quarantine rejected contacts through their released compatibility click.
+- Independent correction review found no remaining objection within correction/shared-input scope. Full release validation is pending. The pixel-center oval mask, browser scaling, transparent final storage and interruption policy are explicit browser adaptations; exact native edges/runtime, physical iPad feel, audible timing and IME behavior remain unverified. Native references stay 0/17; enlarged vacuum stays disabled and Pencil preview defaults off.
+
 ## 0.26.0
 
 - Give Stamp Editor buttons, palette chips and blank chrome a shared first-contact policy. Preserve matched release, capture recovery and keyboard/assistive activation while protecting an active Pencil gesture from competing contacts and commands.

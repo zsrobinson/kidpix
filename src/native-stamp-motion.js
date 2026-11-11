@@ -64,6 +64,9 @@ export function createNativeStampMotion({ stage, controls = stage.querySelector(
     stage.append(layer);
     let motion;
     motion = createNativeToolMotion({ ...assetOptions, stage, layer, controls, resolve,
+      // Preserve this accepted contact if artwork binds before its release.
+      ownInteraction: profile.name === 'editor',
+      fallbackActions: profile.name === 'editor' ? ['stamp-edit'] : [],
       manifestPath: 'secondary-motion/manifest.json', canvasAttribute: 'nativeStampMotion',
       manifestFor: data => actionManifest(data, profile),
       backdropFor(data) {

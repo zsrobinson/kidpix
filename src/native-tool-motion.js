@@ -318,7 +318,9 @@ export function createNativeToolMotion({ stage, layer, controls, resolve, onRead
   }
 
   function target(event) {
-    if (owner) refreshState(event);
+    // Fallback input needs the current selection too, before assets create an
+    // owner; otherwise readiness mistakes that old snapshot for a target change.
+    if (owner || ownInteraction && current) refreshState(event);
     const control = event.target.closest?.('[data-native-motion-index]');
     const index = Number(control?.dataset.nativeMotionIndex);
     return control && !layer.hidden && owner?.manifest.buttons[index]

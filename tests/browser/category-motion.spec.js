@@ -1,13 +1,13 @@
 import { canonicalMotionFrame } from './canonical-motion-frame.js';
 import { test, expect } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { PNG } from 'pngjs';
 
 // Independent registered-pixel compositor; no application/controller imports.
-const manifest = JSON.parse(readFileSync('artifacts/t3/library-category-motion/delta/ui/secondary-motion/manifest.json'));
+const stagedManifest = 'artifacts/t3/library-category-motion/delta/ui/secondary-motion/manifest.json';
+const manifest = JSON.parse(readFileSync(existsSync(stagedManifest) ? stagedManifest : 'public/original/ui/secondary-motion/manifest.json'));
 const fixtureSource=JSON.parse(readFileSync('tests/fixtures/library-category-source.json'));
-import {existsSync} from 'node:fs';
 const png = path => { const staged=`artifacts/t3/library-category-motion/delta/ui/${path}`;return PNG.sync.read(readFileSync(existsSync(staged)?staged:`public/original/ui/${path}`)); };
 const profiles={arrows:[18901,[1,2],[320,690,43,62]]};
 const actor = (page,name) => page.locator('[data-native-category-motion]');

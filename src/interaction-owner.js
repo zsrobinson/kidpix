@@ -32,7 +32,7 @@ export function interactionOwner(document = globalThis.document) {
       } else lastPhysicalClickRejected = false;
       return;
     }
-    if (rejected.has(id)) {
+    if (rejected.has(id) && (!rejected.get(id).clickOnly || event.type === 'click' || event.type === 'dblclick')) {
       if (event.type === 'pointerup' || event.type === 'pointercancel') rejected.get(id).down = false;
       block(event);
       return;
@@ -53,8 +53,9 @@ export function interactionOwner(document = globalThis.document) {
     busy: () => Boolean(active),
     // Modal page operations reject a down through its eventual physical click,
     // even when the operation ends before that contact lifts.
-    reject(event) {
-      rejected.set(event.pointerId, { down: true });
+    // Released modal controls quarantine their click without suppressing hover.
+    reject(event, { down = true, clickOnly = false } = {}) {
+      rejected.set(event.pointerId, { down, clickOnly });
       lastPhysicalClickRejected = true;
     },
     claim(event, surface) {

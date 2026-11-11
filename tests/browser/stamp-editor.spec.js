@@ -228,3 +228,266 @@ test('a failed artwork decode releases the editor session so a later open can su
   await command(dialog, 'Cancel').click();
   await expect(page.locator('.native-stamp-editor')).toHaveCount(0);
 });
+
+test('control contact owns buttons, canvas and palette through rejected touch clicks', async ({ page }) => {
+  const dialog = await openEditor(page);
+  const original = await data(dialog);
+  await command(dialog, 'Pencil').hover();
+  await page.mouse.down();
+  for (const selector of ['[data-command="fill"]', '.native-stamp-chip', '.native-stamp-pixels']) {
+    await dialog.locator(selector).first().evaluate(element => {
+      for (const type of ['pointerdown', 'pointerup', 'click']) element.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId: 81, pointerType: 'touch', button: 0, isPrimary: true, detail: type === 'click' ? 1 : 0,
+      }));
+    });
+  }
+  await expect(command(dialog, 'Pencil')).toHaveAttribute('aria-pressed', 'true');
+  expect(await data(dialog)).toBe(original);
+  await page.mouse.up();
+});
+
+test('interrupted control cannot activate from a stale physical click or Space release', async ({ page }) => {
+  const dialog = await openEditor(page);
+  const original = await data(dialog);
+  const erase = command(dialog, 'Eraser');
+  await erase.hover();
+  await page.mouse.down();
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.mouse.up();
+  await erase.evaluate(element => element.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 })));
+  expect(await data(dialog)).toBe(original);
+  await erase.focus();
+  await page.keyboard.down('Space');
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.keyboard.up('Space');
+  expect(await data(dialog)).toBe(original);
+});
+
+test('held canvas consumes semantic Undo Save Cancel without changing its checkpoint', async ({ page }) => {
+  const dialog = await openEditor(page);
+  const p = await point(dialog, 10, 10);
+  await page.mouse.move(p.x, p.y);
+  await page.mouse.down();
+  const held = await data(dialog);
+  await page.keyboard.press('ControlOrMeta+z');
+  await command(dialog, 'OK').evaluate(element => element.click());
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  expect(await data(dialog)).toBe(held);
+  await page.mouse.up();
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await pixel(dialog, 10, 10)).toEqual([0, 0, 0, 0]);
+});
+
+for (const inactive of ['blur', 'pagehide', 'resize', 'hidden', 'pointercancel', 'lostpointercapture']) {
+  test(`control retires only its matched contact on ${inactive}`, async ({ page }) => {
+    const dialog = await openEditor(page);
+    const erase = command(dialog, 'Eraser');
+    const original = await data(dialog);
+    await erase.hover();
+    await page.mouse.down();
+    const states = manifest.buttons.erase.states;
+    await expect.poll(() => imagePath(erase.locator('img'))).toBe(`/original/ui/${states.tracking.image}`);
+    await erase.evaluate(element => element.dispatchEvent(new PointerEvent('lostpointercapture', { pointerId: 888 })));
+    await expect.poll(() => imagePath(erase.locator('img'))).toBe(`/original/ui/${states.tracking.image}`);
+    await erase.evaluate((element, type) => {
+      if (type === 'hidden') {
+        Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+        delete document.hidden;
+      } else if (type === 'pointercancel' || type === 'lostpointercapture') {
+        // Real mouse capture ID is recorded by the actual down event.
+        element.dispatchEvent(new PointerEvent(type, { pointerId: window.stampPointer }));
+      } else window.dispatchEvent(new Event(type));
+    }, inactive);
+    await page.mouse.up();
+    expect(await data(dialog)).toBe(original);
+    await expect.poll(() => imagePath(erase.locator('img'))).not.toBe(`/original/ui/${states.tracking.image}`);
+    await command(dialog, 'Fill Bucket').click();
+    await expect(command(dialog, 'Fill Bucket')).toHaveAttribute('aria-pressed', 'true');
+  });
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.evaluate(() => window.addEventListener('pointerdown', event => { window.stampPointer = event.pointerId; }, true));
+});
+
+test('real keyboard and assistive activation are once only, including modifier keyup and cancelled Space', async ({ page }) => {
+  const dialog = await openEditor(page);
+  const original = await data(dialog);
+  const rotate = command(dialog, 'Rotate');
+  await rotate.focus();
+  await page.keyboard.down('Space');
+  await page.keyboard.down('Shift');
+  await page.keyboard.up('Space');
+  await page.keyboard.up('Shift');
+  expect(await pixel(dialog, 28, 2)).toEqual([255, 0, 0, 255]);
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await data(dialog)).toBe(original);
+  await rotate.focus();
+  await page.keyboard.press('Enter');
+  expect(await pixel(dialog, 28, 2)).toEqual([255, 0, 0, 255]);
+  await command(dialog, 'Undo Guy').evaluate(element => element.click());
+  expect(await data(dialog)).toBe(original);
+  await rotate.focus();
+  await page.keyboard.down('Space');
+  await command(dialog, 'Fill Bucket').evaluate(element => element.focus());
+  await page.keyboard.up('Space');
+  expect(await data(dialog)).toBe(original);
+});
+
+test('release outside cancels, reentry commits once, and nonprimary buttons do nothing', async ({ page }) => {
+  const dialog = await openEditor(page);
+  const original = await data(dialog);
+  const rotate = command(dialog, 'Rotate');
+  await rotate.click({ button: 'right' });
+  expect(await data(dialog)).toBe(original);
+  await rotate.hover(); await page.mouse.down();
+  await page.mouse.move(900, 700); await page.mouse.up();
+  expect(await data(dialog)).toBe(original);
+  await rotate.hover(); await page.mouse.down();
+  await page.mouse.move(900, 700); await rotate.hover(); await page.mouse.up();
+  expect(await pixel(dialog, 28, 2)).toEqual([255, 0, 0, 255]);
+  await command(dialog, 'Undo Guy').click();
+  expect(await data(dialog)).toBe(original);
+});
+
+test('tracking audio observes rejection and terminal events without changing held ownership or hover compositing', async ({ page }) => {
+  await page.evaluate(() => {
+    window.stampAudio = [];
+    window.Audio = class extends EventTarget {
+      constructor(src) { super(); this.src = src; this.pauses = 0; this.live = new Map(); window.stampAudio.push(this); }
+      addEventListener(type, fn) { super.addEventListener(type, fn); this.live.set(type, fn); }
+      removeEventListener(type, fn) { super.removeEventListener(type, fn); if (this.live.get(type) === fn) this.live.delete(type); }
+      play() { return window.rejectStampAudio ? Promise.reject(new Error('deterministic rejection')) : Promise.resolve(); }
+      pause() { this.pauses++; this.dispatchEvent(new Event('pause')); }
+    };
+  });
+  const dialog = await openEditor(page);
+  const erase = command(dialog, 'Eraser');
+  for (const terminal of ['ended', 'error', 'pause', 'reject']) {
+    await page.evaluate(reject => { window.rejectStampAudio = reject; }, terminal === 'reject');
+    await erase.hover(); await page.mouse.down();
+    await expect.poll(() => page.evaluate(() => window.stampAudio.at(-1)?.src)).toContain('/stamp-editor/');
+    await page.evaluate(type => {
+      if (type !== 'reject') window.stampAudio.at(-1).dispatchEvent(new Event(type));
+    }, terminal);
+    await expect.poll(() => page.evaluate(() => window.stampAudio.at(-1).live.size)).toBe(0);
+    await expect.poll(() => imagePath(erase.locator('img'))).toBe(`/original/ui/${manifest.buttons.erase.states.tracking.image}`);
+    await command(dialog, 'Fill Bucket').evaluate(element => element.click());
+    await expect(command(dialog, 'Pencil')).toHaveAttribute('aria-pressed', 'true');
+    await page.mouse.move(900, 700); await page.mouse.up();
+  }
+  await page.evaluate(() => { window.rejectStampAudio = false; });
+  await erase.hover(); await page.mouse.down();
+  const count = await page.evaluate(() => window.stampAudio.length);
+  await page.mouse.move(900, 700); await erase.hover();
+  expect(await page.evaluate(() => window.stampAudio.length)).toBe(count);
+  expect(await page.evaluate(() => window.stampAudio.at(-1).pauses)).toBe(0);
+  await dialog.locator('.native-stamp-pixels').evaluate(canvas => canvas.dispatchEvent(new PointerEvent('pointerup', { pointerId: 999 })));
+  expect(await page.evaluate(() => window.stampAudio.at(-1).pauses)).toBe(0);
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.stampAudio.at(-1).pauses)).toBe(1);
+  expect(await page.evaluate(() => window.stampAudio.every(audio => audio.live.size === 0))).toBe(true);
+  await command(dialog, 'Cancel').click();
+  await openEditor(page);
+  await command(dialog, 'Cancel').click();
+  expect(await page.evaluate(() => window.stampAudio.every(audio => audio.live.size === 0))).toBe(true);
+});
+
+test.describe('physical modal contacts', () => {
+  test.use({ hasTouch: true });
+  test('real mouse contact rejects second touch on buttons canvas and palette', async ({ page }) => {
+    const dialog = await openEditor(page);
+    const original = await data(dialog);
+    await command(dialog, 'Pencil').hover(); await page.mouse.down();
+    for (const target of [command(dialog, 'Fill Bucket'), dialog.locator('.native-stamp-pixels'), dialog.locator('.native-stamp-chip').first()]) {
+      const b = await target.boundingBox();
+      await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    }
+    await expect(command(dialog, 'Pencil')).toHaveAttribute('aria-pressed', 'true');
+    expect(await data(dialog)).toBe(original);
+    await page.mouse.up();
+    await command(dialog, 'Fill Bucket').tap();
+    await expect(command(dialog, 'Fill Bucket')).toHaveAttribute('aria-pressed', 'true');
+  });
+  test('browser-delivered pen capture holds editor button against later touch and vice versa', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'CDP pen delivery requires Chromium');
+    const dialog = await openEditor(page);
+    const original = await data(dialog);
+    const pencil = await command(dialog, 'Pencil').boundingBox();
+    const fill = await command(dialog, 'Fill Bucket').boundingBox();
+    const cdp = await page.context().newCDPSession(page);
+    const pen = (type, b) => cdp.send('Input.dispatchMouseEvent', { type, x: b.x + b.width/2, y:b.y+b.height/2, button:'left',buttons:type==='mousePressed'?1:0,clickCount:1,pointerType:'pen',force:.6 });
+    const touch = (type, b) => cdp.send('Input.dispatchTouchEvent', {type,touchPoints:b?[{x:b.x+b.width/2,y:b.y+b.height/2,id:8}]:[]});
+    await pen('mousePressed',pencil); await touch('touchStart',fill);
+    await pen('mouseReleased',pencil); await touch('touchEnd');
+    await expect(command(dialog,'Pencil')).toHaveAttribute('aria-pressed','true');
+    await touch('touchStart',fill); await pen('mousePressed',pencil);
+    await pen('mouseReleased',pencil); await touch('touchEnd');
+    await expect(command(dialog,'Fill Bucket')).toHaveAttribute('aria-pressed','true');
+    expect(await data(dialog)).toBe(original);
+    await cdp.detach();
+  });
+});
+
+test('right-button release cannot displace a held primary button or canvas', async ({ page }) => {
+  const dialog = await openEditor(page);
+  const rotate = command(dialog, 'Rotate');
+  await rotate.hover(); await page.mouse.down();
+  await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' });
+  await expect.poll(() => imagePath(rotate.locator('img'))).toBe(`/original/ui/${manifest.buttons.rotate.states.tracking.image}`);
+  await page.mouse.up();
+  expect(await pixel(dialog, 28, 2)).toEqual([255, 0, 0, 255]);
+  const p = await point(dialog, 10, 10);
+  await page.mouse.move(p.x,p.y); await page.mouse.down();
+  await page.mouse.down({ button:'right' }); await page.mouse.up({ button:'right' });
+  await command(dialog, 'Undo Guy').evaluate(element=>element.click());
+  expect(await pixel(dialog, 10, 10)).toEqual([0, 0, 0, 255]);
+  await page.mouse.up(); await page.keyboard.press('ControlOrMeta+z');
+  expect(await pixel(dialog, 10, 10)).toEqual([0, 0, 0, 0]);
+});
+
+test('external close while tracking releases ownership and stale detached activation cannot save', async ({ page }) => {
+  let dialog = await openEditor(page);
+  const originalThumbnail = await tile(page).locator('img').getAttribute('src');
+  await command(dialog, 'Eraser').hover(); await page.mouse.down();
+  await dialog.evaluate(element => { window.closedStampSave = element.querySelector('[data-command="save"]'); element.close(); });
+  await expect(dialog).toHaveCount(0);
+  await page.mouse.up();
+  await page.evaluate(() => window.closedStampSave.click());
+  await expect(tile(page).locator('img')).toHaveAttribute('src', originalThumbnail);
+  dialog = await openEditor(page);
+  await command(dialog, 'Fill Bucket').click();
+  await expect(command(dialog, 'Fill Bucket')).toHaveAttribute('aria-pressed','true');
+  await command(dialog, 'Cancel').click();
+});
+
+test('abort during tracking and pending artwork decode allows a clean reopen @module', async ({ page }) => {
+  let dialog = await openEditor(page);
+  await command(dialog,'Pencil').hover(); await page.mouse.down();
+  await page.evaluate(async () => (await import('/src/native-stamp-editor.js')).cancelStampEditor());
+  await expect(dialog).toHaveCount(0); await page.mouse.up();
+  await page.evaluate(() => {
+    const decode = Image.prototype.decode;
+    let gateOnce = true;
+    Image.prototype.decode = function () {
+      if (gateOnce && this.src.includes('/stamp-editor/frame.png')) {
+        gateOnce = false;
+        window.stampDecodeEntered = true;
+        return new Promise(resolve => { window.releaseStampDecode = resolve; }).then(() => decode.call(this));
+      }
+      return decode.call(this);
+    };
+    window.restoreStampDecode = () => { Image.prototype.decode = decode; };
+  });
+  await page.getByRole('button',{name:'Stamp Editor',exact:true}).click();
+  await expect.poll(() => page.evaluate(() => Boolean(window.stampDecodeEntered))).toBe(true);
+  await page.evaluate(async () => (await import('/src/native-stamp-editor.js')).cancelStampEditor());
+  await expect(page.locator('.native-stamp-editor')).toHaveCount(0);
+  dialog = await openEditor(page);
+  await page.evaluate(() => { window.releaseStampDecode(); window.restoreStampDecode(); });
+  await expect(dialog).toBeVisible();
+  await command(dialog,'Cancel').click();
+});

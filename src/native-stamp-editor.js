@@ -1,4 +1,5 @@
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
+import { bindStampControl, trackingCue } from './stamp-editor-control.js';
 import { original } from './library.js';
 import { place } from './trays.js';
 import { editStamp as editFallbackStamp } from './stamp-editor.js';
@@ -132,16 +133,15 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
   let tool = 'pencil';
   const inputOwner = interactionOwner(canvas.ownerDocument);
   let gesture;
-  let sound;
   let saved = null;
+  const cues = [];
 
-  function playSounds(state) {
+  function playSounds(cue, state) {
     for (const id of state.sounds ?? []) {
       if (!manifest.sounds[id]) continue;
-      sound?.pause();
-      sound = new Audio(source(manifest.sounds[id]));
-      sound.volume = .65;
-      sound.play().catch(() => {});
+      const audio = new Audio(source(manifest.sounds[id]));
+      audio.volume = .65;
+      cue.play(audio);
     }
   }
 
@@ -180,7 +180,10 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
     context.putImageData(after, 0, 0);
   }
 
+  let closing = false;
   function run(command) {
+    if (!dialog.open || closing) return;
+    if (command === 'cancel' || command === 'save') closing = true;
     if (command === 'pencil' || command === 'fill') tool = command;
     else if (command === 'undo') undo();
     else if (command === 'rotate' || command === 'flip') transform(command);
@@ -206,29 +209,22 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
     control.style.cssText = place(...part.rect);
     const image = imageAt(part.states.rest.image, [0, 0, ...part.states.rest.rect.slice(2)]);
     control.append(image);
-    let inside = false;
-    let pointer = null;
-    let stateName = '';
-    function setState() {
-      const next = inside ? pointer === null ? 'rollover' : 'tracking' : 'rest';
-      if (next === stateName) return;
-      stateName = next;
-      const state = part.states[next];
-      image.src = source(state.image);
-      image.style.cssText = place(state.rect[0] - part.rect[0], state.rect[1] - part.rect[1], ...state.rect.slice(2));
-      playSounds(state);
-    }
-    control.addEventListener('pointerenter', () => { inside = true; setState(); }, options);
-    control.addEventListener('pointerleave', () => { inside = false; setState(); }, options);
-    control.addEventListener('pointerdown', event => {
-      if (event.button !== 0 || control.getAttribute('aria-disabled') === 'true') return;
-      pointer = event.pointerId;
-      inside = true;
-      setState();
-    }, options);
-    window.addEventListener('pointerup', event => { if (event.pointerId === pointer) { pointer = null; setState(); } }, options);
-    window.addEventListener('pointercancel', event => { if (event.pointerId === pointer) { pointer = null; inside = false; setState(); } }, options);
-    control.addEventListener('click', () => { if (control.getAttribute('aria-disabled') !== 'true') run(command); }, options);
+    const cue = trackingCue();
+    cues.push(cue);
+    let stateName;
+    bindStampControl(control, {
+      owner: inputOwner, signal: listeners.signal,
+      activate: () => run(command),
+      start: () => playSounds(cue, part.states.tracking),
+      stop: cue.stop,
+      render(next) {
+        if (next === stateName) return;
+        stateName = next;
+        const state = part.states[next];
+        image.src = source(state.image);
+        image.style.cssText = place(state.rect[0] - part.rect[0], state.rect[1] - part.rect[1], ...state.rect.slice(2));
+      },
+    });
     buttons.set(command, control);
     stage.append(control);
   }
@@ -241,7 +237,7 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
     control.title = chip.color;
     control.dataset.color = chip.color;
     control.style.cssText = place(...chip.rect);
-    control.addEventListener('click', () => { color = chip.color; update(); }, options);
+    bindStampControl(control, { owner: inputOwner, signal: listeners.signal, activate: () => { color = chip.color; update(); } });
     stage.append(control);
   }
 
@@ -254,13 +250,14 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
   };
   const draw = (x, y) => { context.fillStyle = color; context.fillRect(x, y, 1, 1); };
   canvas.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || gesture || !inputOwner.claim(event, canvas)) return;
+    if (event.button !== 0 || event.isPrimary === false || gesture || !inputOwner.claim(event, canvas)) return;
     event.preventDefault();
     canvas.focus();
+    try { canvas.setPointerCapture(event.pointerId); }
+    catch { inputOwner.release(canvas, event.pointerId); return; }
     remember();
     const point = position(event);
     gesture = { pointer: event.pointerId, point, rollbackOnCancel: tool === 'pencil' };
-    canvas.setPointerCapture(event.pointerId);
     if (tool === 'fill') fillPixels(context, ...point, color);
     else {
       draw(...point);
@@ -275,14 +272,13 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
     update();
   }, options);
   function finishGesture(event) {
-    if (!gesture || (event && gesture.pointer !== event.pointerId)) return;
+    if (!gesture || (event && gesture.pointer !== event.pointerId) || event?.type === 'pointerup' && event.button !== 0) return;
     const { pointer, rollbackOnCancel } = gesture;
     gesture = null;
     inputOwner.release(canvas, pointer);
     // Preserve native editor policy: explicit cancel rolls back; capture loss
     // and lifecycle interruptions keep delivered pixels and their checkpoint.
     if (event?.type === 'pointercancel' && rollbackOnCancel) undo();
-    sound?.pause();
   }
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, finishGesture, options);
   onInteractionInactive(canvas, () => finishGesture(), listeners.signal);
@@ -291,9 +287,29 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
     event.stopPropagation();
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z' && !event.shiftKey) {
       event.preventDefault();
-      undo();
+      if (!inputOwner.busy()) undo();
+    } else if (event.key === 'Escape' || event.key === 'Enter') {
+      event.preventDefault();
+      if (!inputOwner.busy() && !event.repeat) run(event.key === 'Escape' ? 'cancel' : 'save');
     }
   }, options);
+  dialog.addEventListener('keyup', event => event.stopPropagation(), options);
+  // Browser context menus can steal capture from a held primary contact.
+  dialog.addEventListener('contextmenu', event => event.preventDefault(), options);
+  dialog.addEventListener('cancel', event => { event.preventDefault(); if (!inputOwner.busy()) run('cancel'); }, options);
+  // Blank modal chrome also participates in first-contact ownership.
+  let chromePointer;
+  dialog.addEventListener('pointerdown', event => {
+    if (event.target.closest('button, canvas') || event.button !== 0 || event.isPrimary === false) return;
+    if (inputOwner.claim(event, dialog)) chromePointer = event.pointerId;
+  }, options);
+  const finishChrome = event => {
+    if (chromePointer === undefined || event && (event.pointerId !== chromePointer || event.type === 'pointerup' && event.button !== 0)) return;
+    const pointer = chromePointer; chromePointer = undefined;
+    inputOwner.release(dialog, pointer);
+  };
+  for (const type of ['pointerup', 'pointercancel']) window.addEventListener(type, finishChrome, options);
+  onInteractionInactive(dialog, () => finishChrome(), listeners.signal);
   const resize = () => {
     let scale = Math.min(window.innerWidth / 1024, window.innerHeight / 768);
     let center = [512, 384];
@@ -320,8 +336,9 @@ async function openStampEditor(stamp, initialColor, onSave, signal) {
     finished = true;
     signal.removeEventListener('abort', finish);
     try { finishGesture(); } catch { /* Still remove the session on audio failure. */ }
+    finishChrome();
     listeners.abort();
-    try { sound?.pause(); } catch { /* An owned sound cannot retain the editor. */ }
+    for (const cue of cues) cue.stop();
     dialog.remove();
     resolveClosed(saved);
   }

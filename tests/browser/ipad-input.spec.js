@@ -11,7 +11,7 @@ async function harness(page) {
     Element.prototype.releasePointerCapture = function () {};
     Element.prototype.hasPointerCapture = function () { return false; };
     window.emit = (target, type, pointerId = 11, x = 50, y = 50, pointerType = 'pen') => target.dispatchEvent(new PointerEvent(type, {
-      bubbles: true, cancelable: true, pointerId, pointerType, button: 0,
+      bubbles: true, cancelable: true, pointerId, pointerType, isPrimary: true, button: 0,
       buttons: type === 'pointerup' ? 0 : 1, clientX: x, clientY: y,
     }));
     window.inactive = type => {

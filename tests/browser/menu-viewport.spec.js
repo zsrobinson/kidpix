@@ -29,3 +29,9 @@ test('expanded menu stays bounded after rotation and lower commands remain reach
  expect(await clear.evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);
  await page.getByRole('button',{name:'Close menus',exact:true}).click();await expect(page.locator('#menu-items')).toBeHidden();await expect(page.getByRole('button',{name:'Show menus'})).toHaveAttribute('aria-expanded','false');
 });
+test('expanded menu leaves the original Show menus toggle reachable',async({page})=>{
+ await open(page,[1024,768]);const trigger=page.getByRole('button',{name:'Show menus'});
+ await expect.poll(()=>trigger.evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);
+ await trigger.tap();await expect(page.locator('#menu-items')).toBeHidden();await expect(trigger).toHaveAttribute('aria-expanded','false');
+ await trigger.tap();await expect(page.locator('#menu-items')).toBeVisible();await page.getByRole('button',{name:'Close menus',exact:true}).click();await expect(page.locator('#menu-items')).toBeHidden();
+});

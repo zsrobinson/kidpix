@@ -178,11 +178,16 @@ function positionMenu() {
   const left = view?.offsetLeft ?? 0, top = view?.offsetTop ?? 0;
   const width = view?.width ?? innerWidth, height = view?.height ?? innerHeight;
   menuItems.style.maxWidth = `${Math.max(0, width - 16)}px`;
-  menuItems.style.maxHeight = `${Math.max(0, height - 16)}px`;
   const anchor = $('#menu-trigger').getBoundingClientRect();
+  const belowTop = Math.max(Math.ceil(top + 8), Math.ceil(anchor.bottom + 8));
+  const aboveBottom = Math.min(Math.floor(top + height - 8), Math.floor(anchor.top - 8));
+  const belowSpace = Math.max(0, Math.floor(top + height - 8) - belowTop);
+  const aboveSpace = Math.max(0, aboveBottom - Math.ceil(top + 8));
+  const below = belowSpace >= aboveSpace;
+  menuItems.style.maxHeight = `${below ? belowSpace : aboveSpace}px`;
   const box = menuItems.getBoundingClientRect();
   menuItems.style.left = `${Math.round(Math.max(left + 8, Math.min(anchor.left, left + width - box.width - 8)))}px`;
-  menuItems.style.top = `${Math.round(Math.max(top + 8, Math.min(anchor.bottom + 8, top + height - box.height - 8)))}px`;
+  menuItems.style.top = `${below ? belowTop : Math.floor(aboveBottom - box.height)}px`;
 }
 
 function setMenuOpen(open) {

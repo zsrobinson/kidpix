@@ -1,0 +1,27 @@
+# Make Sticker browser policy
+
+This is a scoped browser adaptation of command 22361/message 0x1a0d, not a native-parity implementation. Static Mac i386 evidence proves the fresh ordinary Scissors copy path and Grab Hand request. Native one-Undo grouping, late insertion/resource failures and cancellation remain unproved. Native acceptance remains 0/17; enlarged vacuum is disabled. Physical Pencil benefit, audible and timing parity remain unverified.
+
+## Eligibility and preparation
+
+Only newly completed ordinary Scissors rectangle or freehand/lasso selections qualify. Paint owns selection identity, freshness revision, document generation and its own gesture/contact/pending-shape/page-operation checks. Starting a move retires freshness, even if that move is canceled. Pasted pixels, polygon/ellipse/cookie-cutter selections and selections made by other tools do not qualify. Switching tools or selection modes retires freshness. UI contact ownership is deliberately not paint gesture ownership: the Make Sticker press can hold the shared UI owner without disabling itself.
+
+`paint.stickerIdentity` and `paint.actionState.makeSticker` do no raster readback. `captureSticker()` returns an opaque capture with an immutable branded payload, exact integer bounds and a frozen PNG string in a private ownership registry. Extraction includes the background and mask, excludes scene/foreground artwork, and never exposes the extraction canvas or mutates art, clipboards or histories. `validateSticker()` rejects changed selection/raster/tool/document identities. Empty extraction/readback failures fail closed. Tiny positive selections are available specifically for this command; the pre-existing greater-than-two-pixel Cut/Copy/move threshold remains in effect.
+
+`scene.prepareSticker(payload, paint.canvas)` rejects unbranded/foreign ownership, invalid geometry, incompatible dimensions, active scene gestures/playback/text commits and stale scene identities. It decodes before commit. `insertPreparedSticker()` consumes its prepared token, preserves exact dimensions/location/transparency, selects one image object and returns history data without publishing history. It does not call `addAsset()` or apply its centering/sizing defaults.
+
+## Commit, history and failure
+
+The main coordinator captures paint, scene and picture identities before asynchronous decode. Other commands retire the request; selection/raster/scene changes invalidate it. Escape, blur, hidden visibility and pagehide explicitly retire deferred work. Repeated activation is deduplicated. A changed selection retires the pending decode immediately, so a fresh selection can be retried before the old decode completes. No document mutation occurs before validation following decode.
+
+Commit inserts the image, clears only the captured selection, switches to Grab Hand immediately and records one unified `sticker` entry. Original raster pixels and raster/scene/text clipboards are retained. There is no extra paint history entry. Browser Undo restores the scene and its previous selected object, Scissors with the captured selection style and source option page, and the captured fresh selection. Browser Redo restores/selects the sticker, clears the raster selection and returns to Grab Hand. Selection is session history state, not a new field in the saved picture format. Later independent paint/scene edits retain their ordinary history entries. New/Open retire paint document tokens; history never restores a capture into a replacement document.
+
+A synchronous commit checkpoint retains a copied object array, original DOM nodes, selection/mode, preview membership, scene/read revisions and media ownership. Failure restores those nodes and selection, paint freshness, tool, and both unified stacks including the Undo-face direction. Original playing videos resume under their existing nodes; newly created detached videos are paused. Preparation and failed insertion publish no scene history. This stronger all-or-nothing browser policy is not established native behavior.
+
+## Authored control and source oracle
+
+Only Scissors MBTN926 row11 is added: rest 18377, tracking 18378, rollover 18379; state2/3 absent; ordinary mode0; rollover parameters `[0,0,0]`; 100ms ticks; tracking cue18066 at tick1/channel1. The existing rows retain their `[1,0,0]` guard. Hand rows5/10 remain unbound and row11 is absent in Hand. Restoration is the union of all row11 frames, using the Scissors-specific backing. The shared controller retains source timing, finite audio gates, cancellation and once-only fallback dispatch. The Paint Zone menu uses the same authoritative capability and coordinator.
+
+The compact independent fixture `tests/fixtures/make-sticker-source.json` comes from the supplied raw-source evidence, not the production manifest. `scripts/secondary-motion/check_make_sticker_source.py` reuses portable source codecs to verify raw row words, three program hashes/events, four draw groups, regions/registrations, raw ARGB and PNG bytes, sound source hash and required existing public-media hashes. Missing/truncated source records fail closed. No media/exporter/program changes are needed.
+
+The private validation config exports test bindings only in its own dev/build outputs. Normal production contains no private test bindings or debug globals. Browser fault/deferred-decode/playback models are explicit test shims; they establish browser transaction policy, not physical hardware, native timing or audible parity.

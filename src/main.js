@@ -145,7 +145,7 @@ app.innerHTML = `
           <button type="button" data-action="menu-close" aria-label="Close menus">Close</button>
           ${menu('File', [['new', 'New Picture'], ['open', 'Open Picture…'], ['save', 'Save Picture…'], ['export', 'Export PNG…'], ['ideas', 'Idea Machine…'], ['print', 'Print Picture…']])}
           ${menu('Edit', [['undo', 'Undo'], ['redo', 'Redo'], ['edit:cut', 'Cut'], ['edit:copy', 'Copy'], ['edit:paste', 'Paste'], ['import-image', 'Import Image…']])}
-          ${menu('Paint Zone', [['pencil-preview', 'Pencil preview (experimental)'], ['play', 'Play Picture'], ['path', 'Path Animation Tool'], ['loop-path', 'Loop Path'], ['preview-object', 'Play Object'], ['enlarge', 'Enlarge to Fill Canvas'], ['record-video', 'Video Narration…'], ['record-sound', 'Record Sound…'], ['flipbook', 'Add Picture to Slide Show'], ['slideshow', 'Go to Slide Show'], ['clear', 'Erase Picture']])}
+          ${menu('Paint Zone', [['make-sticker', 'Make Sticker'], ['pencil-preview', 'Pencil preview (experimental)'], ['play', 'Play Picture'], ['path', 'Path Animation Tool'], ['loop-path', 'Loop Path'], ['preview-object', 'Play Object'], ['enlarge', 'Enlarge to Fill Canvas'], ['record-video', 'Video Narration…'], ['record-sound', 'Record Sound…'], ['flipbook', 'Add Picture to Slide Show'], ['slideshow', 'Go to Slide Show'], ['clear', 'Erase Picture']])}
           ${menu('Help', [['help', 'Extended Help'], ['about', 'About KID PIX 3D']])}
         </div>
       </nav>
@@ -295,6 +295,10 @@ const paint = createPaint(canvas, {
   includeForeground: false,
   get pencilPredictionPreview() { return pencilPreview.enabled; },
   onBigErase: () => clearPicture(),
+  onSelectionChange: () => queueMicrotask(() => {
+    if (stickerRequest && stickerRequest.identity !== paint.stickerIdentity) retireSticker();
+    updateActionMotion();
+  }),
   onChange({ kind, paperSource }) {
     syncPaperSelection(paperSource);
     if (!['undo', 'redo', 'reset', 'restore'].includes(kind)) remember({ kind: 'paint' });
@@ -331,7 +335,16 @@ function history(direction, fromFace = false) {
   const target = direction === 'undo' ? redoStack : undoStack;
   const entry = source.pop();
   if (!entry) return;
-  if (entry.kind === 'scene') scene.restore(entry[direction === 'undo' ? 'before' : 'after'], { textTarget: scene.actionState.target, history: true, textSelection: entry.ranges?.[direction === 'undo' ? 'before' : 'after'] });
+  if (entry.kind === 'sticker') {
+    const undo = direction === 'undo';
+    scene.restore(entry[undo ? 'before' : 'after'], { history: true });
+    state.tray = 'grab'; state.tools.grab = undo ? 'scissors' : 'grab';
+    state.selectionStyle = entry.style; state.cookie = null; state.page = entry.page ?? 0;
+    showTray();
+    if (undo) paint.restoreStickerSelection(entry.capture);
+    else paint.clearStickerSelection();
+    scene.selectSticker(entry[undo ? 'beforeSelected' : 'afterSelected']);
+  } else if (entry.kind === 'scene') scene.restore(entry[direction === 'undo' ? 'before' : 'after'], { textTarget: scene.actionState.target, history: true, textSelection: entry.ranges?.[direction === 'undo' ? 'before' : 'after'] });
   else if (entry.kind === 'sound') state[entry.track] = entry[direction === 'undo' ? 'before' : 'after'];
   else if (entry.kind === 'clear') {
     if (entry.paint) paint[direction]();
@@ -510,7 +523,7 @@ const textFallbackActions = new Set([...TEXT_STEPPERS, ...VOICE_STEPPERS].map(st
 const traySelectorActions = new Set(['tool', 'style', 'size', 'mode', 'effect', 'page', 'cookie', 'eraser-shape']);
 guardStepperInput($('#tray-buttons'), {
   actions: action => textFallbackActions.has(action) || traySelectorActions.has(action.split(':')[0])
-    || state.tray === 'grab' && action.startsWith('edit:'),
+    || state.tray === 'grab' && (action.startsWith('edit:') || action === 'make-sticker'),
   getTarget: action => traySelectorActions.has(action.split(':')[0])
     ? JSON.stringify([state.tray, trayState(state).art, state.page]) : actionTarget(actionMotionState(), action),
   activate: action => activate(action),
@@ -578,6 +591,8 @@ function syncTextValues() {
   if (size && document.activeElement !== size) size.value = state.textSize;
 }
 function actionMotionState() {
+  const stickerAvailable = state.tray === 'grab' && state.tools.grab === 'scissors' && !state.playing && !loadingProject && !firehose?.busy && Boolean(paint.stickerIdentity);
+  for (const control of app.querySelectorAll('[data-action="make-sticker"]')) control.disabled = !stickerAvailable;
   const capabilities = state.tray === 'grab' && state.tools.grab === 'scissors' ? paint.actionState : scene.actionState;
   if (state.tray === 'text') {
     if (capabilities.textStyle) {
@@ -592,7 +607,7 @@ function actionMotionState() {
     const control = $('#tray-buttons').querySelector(`[data-action="text-clipboard:${action}"]`);
     if (control) control.disabled = state.tray !== 'text' || !textCapabilities[action];
   }
-  return { textCapabilities, textIdentity: JSON.stringify(textTarget), textClipboardGeneration: scene.textClipboard.generation, ...readState(), voice: state.voice, voiceCatalog: voiceCatalog.voices, voiceGeneration: voiceCatalog.generation, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, target: capabilities.target };
+  return { textCapabilities, textIdentity: JSON.stringify(textTarget), textClipboardGeneration: scene.textClipboard.generation, ...readState(), voice: state.voice, voiceCatalog: voiceCatalog.voices, voiceGeneration: voiceCatalog.generation, font: state.font, textSize: state.textSize, bold: state.bold, italic: state.italic, underline: state.underline, align: state.align, capabilities, stickerAvailable, stickerIdentity: paint.stickerIdentity, target: capabilities.target };
 }
 const nativeActionMotion = createNativeActionMotion({
   stage: studio, controls: $('#tray-buttons'), resolve: path => original(`ui/${path}`),
@@ -785,6 +800,7 @@ function showTray() {
       $('#font').value = state.font;
       syncVoiceSelect();
     }
+    if (state.tray === 'grab' && state.tools.grab === 'scissors') layer.innerHTML += button('make-sticker', 'Make Sticker', 493, 647, 61, 86);
     if (state.tray === 'grab' && state.tools.grab === 'grab' && !(nativeUi && nativeTray)) {
       layer.innerHTML += '<div class="path-controls"><button class="pill" data-action="path">Path</button><button class="pill" data-action="loop-path">Loop Path</button><button class="pill" data-action="preview-object">Play Object</button></div>';
     }
@@ -1605,7 +1621,56 @@ let nativeLibraryMotion;
 let nativeToolTabMotion;
 let nativeCommandMotion;
 
+// Browser policy, stronger than the recovered native failure path. No mutation
+// crosses the async decode boundary. Cancellation retires its identity, not edits.
+let stickerRequest = null, stickerEpoch = 0;
+function retireSticker() { stickerEpoch++; stickerRequest = null; }
+for (const type of ['blur', 'pagehide']) window.addEventListener(type, retireSticker);
+document.addEventListener('visibilitychange', () => { if (document.hidden) retireSticker(); });
+window.addEventListener('keydown', event => { if (event.key === 'Escape') retireSticker(); });
+async function makeSticker() {
+  if (stickerRequest || state.tray !== 'grab' || state.tools.grab !== 'scissors' || state.playing || loadingProject || firehose?.busy) return;
+  const capture = paint.captureSticker();
+  if (!capture) return;
+  const request = { identity: capture.identity }; stickerRequest = request;
+  const epoch = stickerEpoch, generation = pictureGeneration, sceneIdentity = scene.stickerIdentity;
+  const style = state.selectionStyle, page = state.page;
+  const valid = () => stickerRequest === request && epoch === stickerEpoch && generation === pictureGeneration
+    && state.tray === 'grab' && state.tools.grab === 'scissors' && !state.playing && !loadingProject && !firehose?.busy
+    && sceneIdentity === scene.stickerIdentity && paint.validateSticker(capture);
+  try {
+    const prepared = await scene.prepareSticker(capture.payload, canvas);
+    if (!prepared || !valid()) return;
+    const undo = undoStack.slice(), redo = redoStack.slice(), face = undoFaceRedo;
+    const checkpoint = scene.suspend();
+    let committed = false;
+    try {
+      const entry = scene.insertPreparedSticker(prepared);
+      if (generation !== pictureGeneration) return;
+      if (!entry || !paint.consumeSticker(capture)) throw new Error('Stale sticker');
+      state.tools.grab = 'grab';
+      showTray();
+      remember({ ...entry, kind: 'sticker', capture, style, page });
+      committed = true;
+    } catch (error) {
+      // Never replay captured state into a reentrant document replacement.
+      if (generation !== pictureGeneration) throw error;
+      state.tray = 'grab'; state.tools.grab = 'scissors'; state.selectionStyle = style; state.page = page;
+      showTray();
+      checkpoint.rollback();
+      paint.restoreStickerSelection(capture, { rollback: true });
+      undoStack.splice(0, undoStack.length, ...undo); redoStack.splice(0, redoStack.length, ...redo);
+      undoFaceRedo = face; syncHistory();
+      throw error;
+    } finally { checkpoint.release(); }
+    if (committed) updateActionMotion();
+  } catch { showStatus('Could not make that sticker.'); }
+  finally { if (stickerRequest === request) stickerRequest = null; }
+}
+
 async function activate(action) {
+  if (action === 'make-sticker') return makeSticker();
+  retireSticker();
   if (firehose?.busy) { nativeToolTabMotion?.completeActivation(); nativeCommandMotion?.cancel(); return; }
   const [id, value] = action.split(':');
   const group = state.tray;

@@ -271,7 +271,7 @@ test('Grab capabilities follow actual clipboard and target; ordering and cut/pas
   expect((await snap(page)).filter(s => s.name !== 'edit:paste').every(s => s.state === 0)).toBe(true);
   await click(page,'edit:paste'); expect(await order()).toEqual(['One','Three','Three','Two']);
   await click(page,'tool:scissors'); await expect(actor(page)).toBeVisible();
-  expect((await snap(page)).map(s=>s.name)).toEqual(['edit:cut','edit:copy','edit:paste']);
+  expect((await snap(page)).map(s=>s.name)).toEqual(['edit:cut','edit:copy','edit:paste','make-sticker']);
   const before = await order(); await click(page,'edit:paste'); expect(await order()).toEqual(before);
 });
 
@@ -341,11 +341,11 @@ test('empty scene and raster selections reject unavailable actions; Scissors cli
   expect((await snap(page)).every(s=>s.disabled)).toBe(true);
   await page.mouse.move(220,180); await page.mouse.down(); await page.mouse.move(320,280); await page.mouse.up();
   await page.clock.runFor(32);
-  expect((await snap(page)).map(s=>s.disabled)).toEqual([false,false,true]);
+  expect((await snap(page)).map(s=>s.disabled)).toEqual([false,false,true,true]);
   await click(page,'edit:copy'); await page.clock.runFor(32);
-  expect((await snap(page)).map(s=>s.disabled)).toEqual([false,false,false]);
+  expect((await snap(page)).map(s=>s.disabled)).toEqual([false,false,false,true]);
   await click(page,'edit:cut'); await page.clock.runFor(32);
-  expect((await snap(page)).map(s=>s.disabled)).toEqual([true,true,false]);
+  expect((await snap(page)).map(s=>s.disabled)).toEqual([true,true,false,true]);
   await click(page,'edit:paste');
   await click(page,'tool:grab'); await expect(actor(page)).toBeVisible();
   expect((await snap(page)).every(s=>s.disabled)).toBe(true);

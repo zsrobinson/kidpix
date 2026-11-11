@@ -1,3 +1,4 @@
+import { stickerRaster } from './sticker-raster.js';
 import { createTextClipboard } from './text-clipboard.js';
 import { editorText } from './editor-text.js';
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js';
@@ -48,12 +49,15 @@ export function createScene(root, surface, onChange) {
   let playing = false;
   let animation;
   let suspended = false;
+  const suspendedVideos = new Set();
+  let sceneRevision = 0;
+  const preparedStickers = new WeakMap();
   let drag = null;
   let path = null;
   let pathStarted = 0;
   const previews = new Set();
   let readRevision = 0, readIdentity;
-  const notify = () => root.dispatchEvent(new Event('scenechange'));
+  const notify = () => { sceneRevision++; root.dispatchEvent(new Event('scenechange')); };
 
   const current = () => objects.find(object => object.id === selected);
   const snapshot = () => structuredClone(objects);
@@ -161,6 +165,7 @@ export function createScene(root, surface, onChange) {
       } else {
         const media = document.createElement(object.kind === 'video' && (previewing || !object.thumbnail) ? 'video' : 'img');
         if (media instanceof HTMLVideoElement) {
+          if (suspended) suspendedVideos.add(media);
           media.src = object.src;
           media.loop = true;
           media.muted = false;
@@ -271,12 +276,14 @@ export function createScene(root, surface, onChange) {
       finishInactive();
     },
     suspend() {
-      const prior = { objects, selected, previews: [...previews], nodes: [...root.childNodes] };
+      const prior = { objects: objects.slice(), selected, mode, sceneRevision, readRevision, previews: [...previews], nodes: [...root.childNodes] };
       suspended = true;
       const videos = [...root.querySelectorAll('video')].filter(video => !video.paused);
       const paused = [];
       function release() {
         suspended = false;
+        for (const video of suspendedVideos) if (!video.isConnected) video.pause();
+        suspendedVideos.clear();
         let failure;
         for (const video of paused.splice(0)) {
           try { if (video.isConnected) video.play().catch(() => {}); }
@@ -294,7 +301,10 @@ export function createScene(root, surface, onChange) {
         // Retain media nodes and the existing playback clock across a failed
         // document commit, rather than rebuilding/restarting their players.
         rollback() {
+          for (const video of suspendedVideos) video.pause();
           objects = prior.objects;
+          mode = prior.mode;
+          sceneRevision = prior.sceneRevision; readRevision = prior.readRevision;
           selected = prior.selected;
           previews.clear();
           prior.previews.forEach(id => previews.add(id));
@@ -302,6 +312,36 @@ export function createScene(root, surface, onChange) {
         },
         release,
       };
+    },
+    get stickerIdentity() { return `${documentEpoch}:${sceneRevision}:${selected}:${mode}:${playing}`; },
+    async prepareSticker(payload, owner) {
+      const raster = stickerRaster(payload);
+      if (!raster || raster.owner !== owner || owner.width !== sceneWidth || owner.height !== sceneHeight
+        || raster.x + raster.width > sceneWidth || raster.y + raster.height > sceneHeight
+        || disposed || suspended || playing || drag || path || before) return null;
+      const identity = this.stickerIdentity;
+      const image = new Image();
+      image.src = raster.src;
+      await image.decode();
+      if (image.naturalWidth !== raster.width || image.naturalHeight !== raster.height
+        || identity !== this.stickerIdentity) return null;
+      const token = Object.freeze({});
+      preparedStickers.set(token, { raster, identity });
+      return token;
+    },
+    insertPreparedSticker(token) {
+      const prepared = preparedStickers.get(token);
+      if (!prepared || prepared.identity !== this.stickerIdentity || disposed || playing || drag || path || before) return null;
+      preparedStickers.delete(token);
+      const { raster } = prepared;
+      const prior = snapshot(), priorSelected = selected;
+      add({ kind: 'image', src: raster.src, name: 'Sticker', x: raster.x, y: raster.y,
+        width: raster.width, height: raster.height });
+      return { before: prior, after: snapshot(), beforeSelected: priorSelected, afterSelected: selected };
+    },
+    selectSticker(id) {
+      selected = objects.some(object => object.id === id) ? id : null;
+      render();
     },
     addAsset(asset, point = { x: 360, y: 271 }) {
       const aspect = (asset.width || 120) / (asset.height || 120);

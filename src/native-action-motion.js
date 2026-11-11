@@ -6,7 +6,7 @@ import { regionClipPath } from './native-control-regions.js';
 
 export function actionProfile({ tray, selected }) {
   if (tray === 'text') return { table: 9383, rows: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18] };
-  if (tray === 'grab') return { table: 926, rows: selected === 'grab' ? [2, 3, 4, 6, 7, 8, 9] : [2, 3, 4] };
+  if (tray === 'grab') return { table: 926, rows: selected === 'grab' ? [2, 3, 4, 6, 7, 8, 9] : selected === 'scissors' ? [2, 3, 4, 11] : [2, 3, 4] };
   return null;
 }
 
@@ -20,13 +20,20 @@ export function actionManifest(data, profile) {
   const buttons = profile.rows.map(index => {
     const source = rows.find(row => row.index === index);
     const policy = policyFor(profile.table, index);
-    const allowed = { 9383: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18], 926: [2, 3, 4, 6, 7, 8, 9],
+    const allowed = { 9383: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18], 926: [2, 3, 4, 6, 7, 8, 9, 11],
       18700: [0, 1, 2, 3], 18202: [0, 1, 2] }[profile.table] ?? [];
     if (!allowed.includes(index) || !source || !policy.binding || !regionClipPath(source.region)
-      || source.rolloverParameters?.join() !== (profile.table === 926 ? '1,0,0' : '0,0,0')) throw new Error('Unsupported action row');
+      || source.rolloverParameters?.join() !== (profile.table === 926 && index !== 11 ? '1,0,0' : '0,0,0')) throw new Error('Unsupported action row');
+    if (profile.table === 926 && index === 11 && (source.command !== 22361
+      || source.stateScripts?.join() !== '18377,18378,0,0' || source.rolloverScript !== 18379
+      || source.rolloverLoops !== false || source.rolloverCancelsOnLeave !== true)) throw new Error('Unsupported Make Sticker row');
     for (const id of [...source.stateScripts, source.rolloverScript].filter(Boolean)) {
       const clip = data.scripts[id];
       if (!clip) throw new Error(`Missing action program ${id}`);
+      if (profile.table === 926 && index === 11 && (clip.tickMs !== 100
+        || clip.frames?.length !== (id === 18378 ? 2 : 1) || clip.endCheckTick !== (id === 18378 ? 2 : 1)
+        || clip.frames.some((frame, tick) => frame.tick !== tick || frame.parts?.length !== 1)
+        || JSON.stringify(clip.sounds) !== JSON.stringify(id === 18378 ? [{tick:1,sound:18066,cue:66,channel:1}] : []))) throw new Error('Truncated Make Sticker program');
       scripts[id] = { ...clip, script: id, frames: clip.frames.map(frame => ({ ...frame,
         parts: frame.parts.map(part => {
           const key = `${clip.collection}:${part.sprite}`;
@@ -41,7 +48,7 @@ export function actionManifest(data, profile) {
   // Text's live font/number fields and Grab's unbound navigation column
   // must stay outside the opaque restoration, including vacated pose pixels.
   const restorationGroups = profile.table === 9383 ? [[2, 3], [4, 5], [6, 7, 8, 9, 10, 11], [12, 13, 14], [15], [17, 18]]
-    : profile.table === 926 ? [[2, 3, 4], [6, 7, 8, 9]] : null;
+    : profile.table === 926 ? [[2, 3, 4], [6, 7, 8, 9], [11]] : null;
   const restorationRects = restorationGroups?.flatMap(rows => {
     const parts = buttons.filter(button => rows.includes(button.index))
       .flatMap(button => [...button.stateScripts, button.rolloverScript].filter(Boolean))
@@ -65,11 +72,12 @@ export function actionStates(manifest, current) {
     }
     return { active: action === 'speak' ? Boolean(current.readActive) : action.startsWith('align:') ? current.align === action.slice(6)
       : ['bold', 'italic', 'underline'].includes(action) ? Boolean(current[action]) : false,
-    disabled: action.startsWith('text-clipboard:') ? !current.textCapabilities?.[action.split(':')[1]] : action === 'speak' ? Boolean(current.readDisabled) : action.startsWith('edit:') ? !current.capabilities?.[action.slice(5)] : false };
+    disabled: action === 'make-sticker' ? !current.stickerAvailable : action.startsWith('text-clipboard:') ? !current.textCapabilities?.[action.split(':')[1]] : action === 'speak' ? Boolean(current.readDisabled) : action.startsWith('edit:') ? !current.capabilities?.[action.slice(5)] : false };
   });
 }
 
 export function actionTarget(current, action) {
+  if (action === 'make-sticker') return current.stickerIdentity;
   if (action === 'speak') return current.readIdentity;
   if (action?.startsWith('text-clipboard:')) return JSON.stringify([current.textIdentity, action.endsWith(':paste') ? current.textClipboardGeneration : null]);
   return action?.startsWith('voice-step:')

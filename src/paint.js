@@ -1,3 +1,4 @@
+import { prepareStickerRaster } from './sticker-raster.js'
 import { pencilPredictions } from './pencil-prediction.js'
 import { interactionOwner, onInteractionInactive } from './interaction-owner.js'
 import { pointerSamples, createPressureInput, pressureFactor, interpolatePressure, nativePressurePoint } from './pointer-samples.js'
@@ -211,6 +212,11 @@ export function createPaint(canvas, hooks = {}) {
   let lastSoundAt = 0
   let pendingShape = null
   let selection = null
+  const freshSelections = new WeakMap()
+  const stickerOnlySelections = new WeakSet()
+  const stickerCaptures = new WeakMap()
+  let stickerRevision = 0, stickerDocument = 0
+  let displayedStickerIdentity = null
   const actionTargets = new WeakMap()
   let actionTargetSequence = 0
   let clipboard = null
@@ -323,6 +329,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function remember(before, kind) {
+    stickerRevision++
     back.push(before)
     if (back.length > historyLimit) back.shift()
     forward.length = 0
@@ -382,6 +389,11 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function render() {
+    const identity = stickerCapability()
+    if (displayedStickerIdentity !== identity) {
+      displayedStickerIdentity = identity
+      hooks.onSelectionChange?.()
+    }
     let displaySource = null
     if (prediction && prediction.current === gesture) {
       if (performance.now() >= prediction.expires) clearPrediction()
@@ -804,13 +816,13 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function containsSelection(point) {
-    if (!selection) return false
+    if (!selection || stickerOnlySelections.has(selection)) return false
     drawSelectionPath(display, selection)
     return display.isPointInPath(point.x, point.y)
   }
 
   function copy() {
-    if (!selection) return null
+    if (!selection || stickerOnlySelections.has(selection)) return null
     clipboard = selectionImage(selection)
     return clipboard?.canvas.toDataURL() || null
   }
@@ -848,6 +860,7 @@ export function createPaint(canvas, hooks = {}) {
   }
 
   function reset() {
+    stickerDocument++
     cancel()
     updateId++
     art.clearRect(0, 0, width, height)
@@ -924,6 +937,7 @@ export function createPaint(canvas, hooks = {}) {
 
   function handleDown(event) {
     if (event.button !== 0 || gesture) return
+    stickerRevision++
     const point = pointFor(event)
     const brush = activeOptions(event)
     const { tool, variant } = brush
@@ -1149,7 +1163,20 @@ export function createPaint(canvas, hooks = {}) {
       finishMovingStroke(current)
     } else if (current.type === 'select') {
       const bounds = selectionBounds(current.selection)
-      if (bounds.width > 2 && bounds.height > 2) selection = current.selection
+      const ordinary = bounds.width > 2 && bounds.height > 2
+      const fresh = current.options.tool === 'scissors' && ['rectangle', 'lasso'].includes(current.selection.shape)
+      if (ordinary || fresh && bounds.width > 0 && bounds.height > 0) {
+        selection = current.selection
+        if (!ordinary) stickerOnlySelections.add(selection)
+        const points = selection.points || []
+        const origin = points[0]
+        const edge = points.find(point => point.x !== origin?.x || point.y !== origin?.y)
+        const hasArea = selection.shape === 'rectangle' || edge && points.some(point =>
+          (edge.x - origin.x) * (point.y - origin.y) !== (edge.y - origin.y) * (point.x - origin.x))
+        if (fresh && hasArea) {
+          freshSelections.set(selection, stickerRevision)
+        }
+      }
       render()
     } else if (current.type === 'move-selection') {
       if (current.piece) {
@@ -1234,6 +1261,7 @@ export function createPaint(canvas, hooks = {}) {
     if (pageOperation) return false
     if (typeof state === 'string' && state.startsWith('{')) state = JSON.parse(state)
     if (!state || state.version !== 1) throw new Error('Unsupported picture file')
+    stickerDocument++
     const request = ++updateId
     const [ink, base, front, texture] = await Promise.all([
       loadAsset(state.art),
@@ -1260,6 +1288,7 @@ export function createPaint(canvas, hooks = {}) {
     const changed = ['tool', 'variant', 'mode'].some(key => key in next && next[key] !== options[key]) ||
       movingPaint.active && 'effectIndex' in next && next.effectIndex !== options.effectIndex
     if (changed) {
+      stickerRevision++
       finishSound()
       cancel()
     }
@@ -1324,6 +1353,17 @@ export function createPaint(canvas, hooks = {}) {
   }, listenerOptions)
   render()
 
+  function stickerCapability() {
+    if (!selection || gesture || contact !== null || pendingShape || pageOperation
+      || options.tool !== 'scissors' || freshSelections.get(selection) !== stickerRevision) return null
+    const bounds = selectionBounds(selection)
+    if (![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isSafeInteger)
+      || bounds.x < 0 || bounds.y < 0 || bounds.width < 1 || bounds.height < 1
+      || bounds.x + bounds.width > width || bounds.y + bounds.height > height) return null
+    if (!actionTargets.has(selection)) actionTargets.set(selection, ++actionTargetSequence)
+    return `${actionTargets.get(selection)}:${stickerRevision}:${updateId}`
+  }
+
   return {
     // Opaque synchronous checkpoint: no private canvases or async serialization.
     beginPageOperation() {
@@ -1345,6 +1385,40 @@ export function createPaint(canvas, hooks = {}) {
         release() { ended = true; pageOperation = false; updateId++ },
       }
     },
+    captureSticker() {
+      const identity = stickerCapability()
+      if (!identity) return null
+      try {
+        const piece = selectionImage(selection)
+        if (!piece) return null
+        const payload = prepareStickerRaster(piece.canvas, piece.bounds, canvas)
+        if (!payload) return null
+        const token = Object.freeze({ identity, payload })
+        stickerCaptures.set(token, { selection, document: stickerDocument, revision: stickerRevision })
+        return token
+      } catch { return null }
+    },
+    validateSticker(token) {
+      return stickerCaptures.has(token) && token.identity === stickerCapability()
+    },
+    consumeSticker(token) {
+      if (!stickerCaptures.has(token) || token.identity !== stickerCapability()) return false
+      selection = null
+      render()
+      return true
+    },
+    // Only coordinator-owned history/rollback tokens can restore selection.
+    restoreStickerSelection(token, { rollback = false } = {}) {
+      const capture = stickerCaptures.get(token)
+      if (!capture || capture.document !== stickerDocument || pageOperation || gesture || pendingShape) return false
+      if (rollback) stickerRevision = capture.revision
+      selection = capture.selection
+      freshSelections.set(selection, stickerRevision)
+      render()
+      return true
+    },
+    clearStickerSelection() { selection = null; render() },
+    get stickerIdentity() { return stickerCapability() },
     canvas,
     setOptions,
     resetNativeSpray() { nextNativeShape = null },
@@ -1377,7 +1451,8 @@ export function createPaint(canvas, hooks = {}) {
     get actionState() {
       if (selection && !actionTargets.has(selection)) actionTargets.set(selection, ++actionTargetSequence)
       return { target: selection ? actionTargets.get(selection) : null,
-        cut: Boolean(selection), copy: Boolean(selection), paste: Boolean(clipboard) }
+        cut: Boolean(selection && !stickerOnlySelections.has(selection)), copy: Boolean(selection && !stickerOnlySelections.has(selection)), paste: Boolean(clipboard),
+        makeSticker: Boolean(stickerCapability()), stickerIdentity: stickerCapability() }
     },
     get canUndo() { return !!back.length },
     get canRedo() { return !!forward.length },

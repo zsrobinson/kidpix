@@ -196,7 +196,7 @@ test('all 36 source rows have explicit compatible policies; unavailable actions 
   });
   assert.throws(() => policyFor(9383, 99), /Unreviewed/);
   assert.equal(row(9383, 15).policy.binding, 'speak');
-  assert.equal(row(926, 11).policy.binding, null);
+  assert.equal(row(926, 11).policy.binding, 'make-sticker');
 });
 
 test('optional source fixture matches portable authored timeline pins', { skip: !fs.existsSync('public/original/ui/secondary-motion/manifest.json') }, () => {
@@ -391,7 +391,7 @@ test('action manifest qualifies repeated sprite IDs and preserves registered geo
 });
 test('action profiles bind sixteen Text controls and existing Hand/Scissors actions with explicit authoritative state', () => {
   assert.deepEqual(actionProfile({tray:'text'}).rows,[2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18]);
-  assert.deepEqual(actionProfile({tray:'grab',selected:'scissors'}).rows,[2,3,4]);
+  assert.deepEqual(actionProfile({tray:'grab',selected:'scissors'}).rows,[2,3,4,11]);
   assert.equal(actionProfile({tray:'stamp'}),null);
   const manifest={buttons:['bold','italic','underline','align:right','edit:paste'].map(action=>({action}))};
   assert.deepEqual(actionStates(manifest,{bold:true,underline:true,align:'right',capabilities:{paste:false}}),[

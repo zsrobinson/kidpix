@@ -25,7 +25,7 @@ export function policyFor(table, row) {
     '9383:0': '#font', '9383:1': '#font-size', '9383:16': '#text-voice',
     '926:2': 'edit:cut', '926:3': 'edit:copy', '926:4': 'edit:paste',
     '926:6': 'edit:front', '926:7': 'edit:back',
-    '926:8': 'edit:forward', '926:9': 'edit:backward',
+    '926:8': 'edit:forward', '926:9': 'edit:backward', '926:11': 'make-sticker',
   };
   if (alignment[key]) return { kind: 'exclusive', selectionGroup: 'text-alignment', binding: alignment[key] };
   if (sizes[key]) return { kind: 'exclusive', selectionGroup: 'stamp-size', binding: sizes[key] };

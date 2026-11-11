@@ -2,6 +2,12 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.28.1 (release validation)
+
+- Recover once from a rejected storage metadata/body read within the existing two-attempt limit. Refresh metadata and re-evaluate HTTP conditions and ranges before the retry; retain ETag pinning and streamed bodies.
+- Preserve healthy-request storage call counts, cache behavior and HTTP response contracts. Persistent failures remain bounded and visible; no retry occurs after response streaming starts.
+- Independent review found no objections within read-retry, HTTP, stream and cache scope. All 371 Node checks and original-sound fault replays pass. Release and public validation remain pending. The historical sound-request 503 cause remains unresolved; no physical iPad latency or audio-perception fix is claimed.
+
 ## 0.28.0
 
 - Restore non-Stamp library category arrows from eight original programs and ten draw groups, including disabled boundary artwork, finite rollover and the delayed tracking cue. Preserve category dropdowns, page navigation, tiles, Stamp controls and document history.

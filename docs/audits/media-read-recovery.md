@@ -1,4 +1,4 @@
-# Bounded media read recovery candidate
+# Bounded media read recovery
 
 Original public failure cause: **UNRESOLVED**. The 2026-11-11 17:14:17 GMT sound18053 503 (ray a58eeeb5afe1610c-EWR) lacked Retry-After, matching the outer catch response shape. Neither the provider exception nor its stage was observed. This change establishes recovery for injected binding promise rejections; it supplies no retrospective forensic proof or Pencil latency result.
 
@@ -25,4 +25,17 @@ Returned streams pass directly into Response. No body is buffered, consumed or r
 - [Workers streams](https://developers.cloudflare.com/workers/runtime-apis/streams/): direct readable-stream Response construction preserves streaming; errors after response headers cannot be repaired by this loop.
 - [Wrangler command index](https://developers.cloudflare.com/workers/wrangler/commands/) and installed `wrangler deploy --help`: dry-run, outdir and assets flags. The attempted `/commands/deploy/` URL was unavailable; installed help supplied the applicable command evidence.
 
-**GO for independent review of a local candidate only. NO-GO for a root-cause-fixed claim or deployment based on these checks alone.** Parent review, integration and release gates remain required.
+## Independent review and integration
+
+Independent review found no release objections within the fixed read-retry,
+HTTP, stream and cache scope. All 29 affected cases and seven independent
+boundary cases pass, including 25 ordered mixed-outcome combinations. Prior
+source controls fail as intended. Both independent original-WAV replays return
+complete 2462-byte 206 responses with the pinned SHA-256. Parent integration
+passes all 371 Node cases and repeats both WAV failure-stage checks.
+
+The 0.28.1 maintenance release retains the existing compatibility date, API
+contracts and application rendering. Release packaging, scoped media-heavy
+built-browser checks and selected public acceptance remain pending. This is
+fault-class recovery evidence, not provider fault reproduction or a claim that
+the historical 503's cause has been identified.

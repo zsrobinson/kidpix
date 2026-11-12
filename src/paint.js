@@ -990,6 +990,7 @@ export function createPaint(canvas, hooks = {}) {
     if (tool !== 'select' && tool !== 'scissors') selection = null
     if (tool === 'eyedropper') {
       const color = getColorAt(point)
+      if (!color) return
       options.color = color
       hooks.onSample?.(color)
       return

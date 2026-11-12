@@ -1,9 +1,11 @@
+import { bundledFaces } from './bundled-fonts.js';
 // Portable browser catalog, in the existing order; not native host enumeration.
 export const TEXT_FONTS = Object.freeze([
   { value: 'Chalkboard, sans-serif', label: 'Chalkboard' },
   { value: 'serif', label: 'Serif' },
   { value: 'sans-serif', label: 'Sans Serif' },
   { value: 'monospace', label: 'Monospace' },
+  ...[...new Map(bundledFaces.map(face => [face.cssFamily, { value: face.cssFamily, label: face.family }])).values()],
 ].map(Object.freeze));
 export const TEXT_STEPPERS = Object.freeze([
   { action: 'font-step:-1', label: 'Previous font', x: 257, y: 643, symbol: '▲' },

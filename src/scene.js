@@ -1,3 +1,4 @@
+import { ensureTextFonts, assertTextFontsReady, applyCanvasFont } from './bundled-fonts.js';
 import { stickerRaster } from './sticker-raster.js';
 import { createTextClipboard } from './text-clipboard.js';
 import { editorText } from './editor-text.js';
@@ -45,6 +46,15 @@ export function createScene(root, surface, onChange) {
   let before = null, typingOwner = null;
   let documentEpoch = 0, textRevision = 0, disposed = false;
   let beforeRange = null;
+  let styleRequest = 0, fontRestore = 0;
+  const styleIntents = new WeakMap();
+  let rangeRevision = 0, lastRange;
+  function syncRangeRevision() {
+    const selection = root.ownerDocument.getSelection();
+    const next = selection && [selection.anchorNode, selection.anchorOffset, selection.focusNode, selection.focusOffset];
+    if (!lastRange || next?.some((value, index) => value !== lastRange[index])) { lastRange = next; rangeRevision++; }
+  }
+  root.ownerDocument.addEventListener('selectionchange', syncRangeRevision, inputOptions);
   let mode = 'paint';
   let playing = false;
   let animation;
@@ -207,6 +217,7 @@ export function createScene(root, surface, onChange) {
           text.spellcheck = true;
           text.addEventListener('focus', () => {
             before ??= snapshot();
+            navigationRevision++;
             selected = object.id;
             beforeRange = textClipboard.target();
           });
@@ -449,6 +460,45 @@ export function createScene(root, surface, onChange) {
         before = prior; typingOwner = null;
       }
     },
+    cancelTextStyleIntent() { styleRequest++; },
+    captureTextStyleTarget(style) {
+      const object = current(), epoch = documentEpoch, ownerMode = mode, identity = JSON.stringify(objects), request = styleRequest;
+      const afterTyping = flushText() ?? navigationIdentity();
+      syncRangeRevision();
+      const token = Object.freeze({ request: ++styleRequest });
+      if (request !== styleRequest - 1 || afterTyping !== navigationIdentity() || object !== current()
+        || epoch !== documentEpoch || ownerMode !== mode || identity !== JSON.stringify(objects)) return token;
+      styleIntents.set(token, { style: Object.freeze(structuredClone(style)), object, editor: editorFor(object?.id), epoch: documentEpoch,
+        revision: navigationRevision, range: rangeRevision, scene: sceneRevision, mode, selected, playing, suspended,
+        text: object && JSON.stringify(object) });
+      return token;
+    },
+    validTextStyleTarget(token) {
+      syncRangeRevision();
+      const intent = styleIntents.get(token);
+      return Boolean(intent && token.request === styleRequest && !disposed && !playing && !suspended
+        && intent.range === rangeRevision && intent.epoch === documentEpoch && intent.revision === navigationRevision && intent.scene === sceneRevision
+        && intent.mode === mode && intent.selected === selected && intent.playing === playing && intent.suspended === suspended
+        && intent.object === current() && intent.editor === editorFor(current()?.id)
+        && intent.text === (current() && JSON.stringify(current())));
+    },
+    commitTextStyle(token) {
+      if (!this.validTextStyleTarget(token)) return false;
+      // No focus, flush, render or user callbacks between validation and journal.
+      const { object, style } = styleIntents.get(token);
+      if (object?.kind === 'text') {
+        const prior = snapshot(), range = textClipboard.target();
+        Object.assign(object, style);
+        const editor = editorFor(object.id);
+        Object.assign(editor.style, { fontFamily: object.font, fontSize: `${object.size}px`,
+          fontWeight: object.bold ? 'bold' : 'normal', fontStyle: object.italic ? 'italic' : 'normal',
+          textDecoration: object.underline ? 'underline' : 'none', textAlign: object.align || 'left', color: object.color });
+        styleRequest++;
+        changed(prior, range ? { before: range, after: range } : undefined);
+        notify();
+      } else styleRequest++;
+      return true;
+    },
     setTextStyle(style) {
       flushText();
       const object = current();
@@ -625,14 +675,16 @@ export function createScene(root, surface, onChange) {
       }));
       return new Map(entries);
     },
+    assertFontsReady() { assertTextFontsReady(objects); },
     draw(context, rightEye = null) {
+      assertTextFontsReady(objects);
       for (const node of root.children) {
         const saved = objects.find(item => item.id === node.dataset.object);
         const object = { ...saved, x: parseFloat(node.style.left), y: parseFloat(node.style.top) };
         if (object.kind === 'text') {
           context.save();
           context.fillStyle = object.color;
-          context.font = `${object.italic ? 'italic' : 'normal'} ${object.bold ? 'bold' : 'normal'} ${object.size}px ${object.font}`;
+          applyCanvasFont(context, `${object.italic ? 'italic' : 'normal'} ${object.bold ? 'bold' : 'normal'} ${object.size}px ${object.font}`, object);
           context.textBaseline = 'top';
           let y = object.y;
           for (const paragraph of object.text.split('\n')) {
@@ -701,6 +753,12 @@ export function createScene(root, surface, onChange) {
       if (!history) { documentEpoch++; textClipboard.clear(); }
       readRevision++;
       objects = structuredClone(state); navigationRevision++;
+      styleRequest++;
+      const generation = ++fontRestore;
+      const pending = ensureTextFonts(objects);
+      pending?.catch(error => {
+        if (!disposed && generation === fontRestore) root.dispatchEvent(new CustomEvent('fontfailure', { detail: error.message }));
+      });
       previews.clear();
       selected = objects.find(object => object.id === (textSelection?.objectId ?? textTarget) && object.kind === 'text')?.id ?? null;
       render();

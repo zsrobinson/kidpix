@@ -1,4 +1,5 @@
-import { existsSync, statSync, readFileSync } from 'node:fs';
+import { verifyFontStage } from './bundled-font-assets.mjs';
+import { existsSync, statSync, readFileSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import { dirname, join, relative, resolve, sep } from 'node:path';
@@ -24,6 +25,8 @@ function read(path) {
 }
 
 try {
+  // Resolve the explicitly linked media root, then retain strict component/leaf checks.
+  await verifyFontStage(dirname(realpathSync(original)));
   const catalog = read('catalog.json');
   if (catalog.version !== 1) throw new Error('Unsupported catalog version');
   const entries = new Set();

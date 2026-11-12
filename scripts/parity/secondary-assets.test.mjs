@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync, mkdirSync, mkdtempSync, copyFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, mkdirSync, mkdtempSync, copyFileSync, cpSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,13 +19,17 @@ test('asset verification rejects corrupted source audio without touching importe
     const scripts = join(temporary, 'scripts');
     mkdirSync(scripts);
     copyFileSync(join(root, 'scripts/verify-assets.mjs'), join(scripts, 'verify-assets.mjs'));
+    copyFileSync(join(root, 'scripts/bundled-font-assets.mjs'), join(scripts, 'bundled-font-assets.mjs'));
+    mkdirSync(join(temporary, 'src'));
+    copyFileSync(join(root, 'src/bundled-font-catalog.json'), join(temporary, 'src/bundled-font-catalog.json'));
     // Mirror only ancestors of one WAV; every other entry points to untouched
     // source data. The verifier still traverses its real manifest and all assets.
     function mirror(source, destination, remaining) {
       mkdirSync(destination, { recursive: true });
       for (const entry of readdirSync(source)) {
         const from = join(source, entry), to = join(destination, entry);
-        if (entry !== remaining[0]) symlinkSync(from, to);
+        if (entry === 'fonts') cpSync(from, to, { recursive: true, dereference: true });
+        else if (entry !== remaining[0]) symlinkSync(from, to);
         else if (remaining.length > 1) mirror(from, to, remaining.slice(1));
         else copyFileSync(from, to);
       }

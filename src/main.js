@@ -1,3 +1,4 @@
+import { ensureFace, ensureTextFonts, assertTextFontsReady, bundledFaceStatus } from './bundled-fonts.js';
 import { playUiAudio } from './ui-audio.js';
 import { createSpeechCoordinator } from './speech-coordinator.js';
 import { VOICE_STEPPERS, voiceStep, voiceOptions, createVoiceCatalog } from './text-voices.js';
@@ -572,6 +573,42 @@ $('#objects').addEventListener('focusin', event => {
     if (state.tray === 'text') updateActionMotion();
   }
 });
+let fontChoice = 0;
+function retireFontChoice() { fontChoice++; scene.cancelTextStyleIntent(); }
+for (const type of ['blur', 'pagehide']) window.addEventListener(type, retireFontChoice);
+document.addEventListener('visibilitychange', () => { if (document.hidden) retireFontChoice(); });
+document.addEventListener('keydown', retireFontChoice, true);
+document.addEventListener('pointerdown', retireFontChoice, true);
+document.addEventListener('input', retireFontChoice, true);
+document.addEventListener('focusin', () => { retireFontChoice(); }, true);
+$('#objects').addEventListener('fontfailure', event => showStatus(`Font unavailable: ${event.detail}. Retry the font choice or output command.`));
+function chooseTextStyle(change) {
+  const request = ++fontChoice;
+  const defaults = JSON.stringify(textStyle()), tray = state.tray;
+  const style = { ...textStyle(), ...change };
+  if ('textSize' in change) { style.size = change.textSize; delete style.textSize; }
+  const token = scene.captureTextStyleTarget(style);
+  const focus = document.activeElement;
+  const commit = () => {
+    if (request !== fontChoice || tray !== state.tray || defaults !== JSON.stringify(textStyle())
+      || document.activeElement !== focus || document.hidden || !scene.validTextStyleTarget(token)) return false;
+    if (!scene.commitTextStyle(token)) return false;
+    Object.assign(state, change);
+    if (change.size !== undefined) state.textSize = change.size;
+    showStatus(''); syncTextValues(); updateActionMotion(); syncTool();
+    return true;
+  };
+  if (['legacy', 'loaded'].includes(bundledFaceStatus(style))) { commit(); return; }
+  // Keep controls and defaults committed while a separate request is pending.
+  const select = $('#font');
+  if (select) select.value = state.font;
+  showStatus('Loading font…');
+  ensureFace(style).then(() => {
+    if (!commit() && request === fontChoice) showStatus('Font choice cancelled. Choose again to retry.');
+  }).catch(error => {
+    if (request === fontChoice) { showStatus(`Font unavailable: ${error.message}. Choose again to retry.`); syncTextValues(); }
+  });
+}
 function applyTextStyle() { textRange.apply(() => scene.setTextStyle(textStyle())); }
 function syncTextValues() {
   if (state.tray !== 'text') return;
@@ -1227,7 +1264,24 @@ function freshPicture() {
   selectTray('draw');
 }
 
+// Explicit commands alone pay for pixel serialization. This catches ordinary ink
+// mutations as well as scene/document changes, including across later image awaits.
+function rasterIdentity() { return JSON.stringify([pictureGeneration, project(), scene.navigation.identity, state.playing, loadingProject]); }
+async function prepareRaster() {
+  scene.flushText();
+  const snapshot = scene.snapshot(), identity = rasterIdentity();
+  await ensureTextFonts(snapshot);
+  const valid = () => identity === rasterIdentity();
+  if (!valid()) throw new Error('Picture changed while preparing fonts. Try again.');
+  assertTextFontsReady(snapshot);
+  return valid;
+}
+async function rasterCommand(action) {
+  try { const valid = await prepareRaster(); if (valid()) action(); }
+  catch (error) { showStatus(`Could not render picture: ${error.message}. Retry the command.`); }
+}
 function createComposite(result = document.createElement('canvas')) {
+  scene.assertFontsReady();
   result.width = canvas.width;
   result.height = canvas.height;
   const context = result.getContext('2d');
@@ -1307,11 +1361,15 @@ firehose = createFirehoseOperation({ surface, canvas, original,
     }
   },
   composite: createComposite,
-  onError: () => showStatus('Could not erase the picture.'),
+  onError: error => showStatus(error?.message?.startsWith('Bundled font')
+    ? 'Fonts are not ready. Retry the font choice or an output command before erasing.'
+    : 'Could not erase the picture.'),
 });
 
 let colorSample;
 function samplePictureColor(point) {
+  try { scene.assertFontsReady(); }
+  catch { showStatus('Fonts are not ready. Retry the font choice before sampling.'); return null; }
   colorSample ??= document.createElement('canvas');
   const context = createComposite(colorSample).getContext('2d');
   const x = Math.max(0, Math.min(canvas.width - 1, Math.floor(point.x)));
@@ -1334,7 +1392,8 @@ function project() {
 
 async function restoreProject(data) {
   if (firehose?.busy) return;
-  const generation = pictureGeneration;
+  retireFontChoice();
+  const generation = ++pictureGeneration;
   if (data?.version !== 1 || data?.format !== 'kidpix-web' || !Array.isArray(data.objects)) throw new Error('Choose a Kid Pix web picture.');
   data = rebaseProject(data);
   loadingProject = true;
@@ -1359,6 +1418,7 @@ async function exportStereo() {
     return;
   }
   try {
+    const valid = await prepareRaster();
     const left = createComposite();
     const stateImage = paint.save();
     const right = document.createElement('canvas');
@@ -1372,9 +1432,12 @@ async function exportStereo() {
     await Promise.all([background.decode(), ink.decode()]);
     context.drawImage(background, 0, 0, right.width, right.height);
     context.drawImage(ink, 0, 0, right.width, right.height);
-    scene.draw(context, await scene.rightEyeImages());
+    const rightImages = await scene.rightEyeImages();
+    if (!valid()) return;
+    scene.draw(context, rightImages);
     if (state.backdrop.layers?.length) await drawLayers(context, state.backdrop.layers, true);
     else paint.renderForegroundTo(context);
+    if (!valid()) return;
     const lctx = left.getContext('2d');
     const ldata = lctx.getImageData(0, 0, left.width, left.height);
     const rdata = context.getImageData(0, 0, right.width, right.height);
@@ -1391,6 +1454,7 @@ let slides = [];
 let selectedSlide = 0;
 let slidePage = 0;
 let slideTimer;
+let slideGeneration = 0;
 let slideTransitions = false;
 
 function showSlides() {
@@ -1425,6 +1489,7 @@ function openSlides(open) {
 const slideScene = createScene($('#slide-objects'), $('#playback-picture'), () => {});
 
 function stopSlides() {
+  slideGeneration++;
   clearTimeout(slideTimer);
   if ($('#playback').hidden) return;
   slideTrack?.pause();
@@ -1445,6 +1510,8 @@ function setSlideImage(id, source) {
 function playSlides() {
   if (!slides.length) { showStatus('Add a picture with the Flipbook button first.'); return; }
   stopSlides();
+  const generation = slideGeneration;
+  const deck = structuredClone(slides);
   const player = $('#playback');
   const pictureView = $('#playback-picture');
   let index = 0;
@@ -1454,10 +1521,14 @@ function playSlides() {
     slideTrack.loop = true;
     slideTrack.play().catch(() => {});
   }
-  function advance() {
-    if (index >= slides.length) { stopSlides(); return; }
-    const slide = slides[index++];
+  async function advance() {
+    if (generation !== slideGeneration) return;
+    if (index >= deck.length) { stopSlides(); return; }
+    const slide = deck[index++];
     const picture = slide.picture;
+    try { await ensureTextFonts(picture.objects || []); }
+    catch (error) { if (generation === slideGeneration) { stopSlides(); showStatus(`Slide font unavailable: ${error.message}. Retry playback.`); } return; }
+    if (generation !== slideGeneration) return;
     const ink = picture.paint;
     setSlideImage('#slide-base', ink?.background || (!ink ? slide.preview : null));
     setSlideImage('#slide-ink', ink?.art);
@@ -1547,8 +1618,8 @@ const commands = {
     if (!entries.length) state.category = 0;
     showLibrary();
   },
-  export: () => download(`${title.value || 'Kid Pix'}.png`, createComposite().toDataURL()),
-  print: () => window.print(),
+  export: () => rasterCommand(() => download(`${title.value || 'Kid Pix'}.png`, createComposite().toDataURL())),
+  print: () => rasterCommand(() => window.print()),
   stereo: exportStereo,
   clear: clearPicture,
   play: () => { if (!state.playing) playUiSound(1003); playPicture(); },
@@ -1590,8 +1661,8 @@ const commands = {
     syncTool();
     showStatus('Draw a path for the selected object.');
   },
-  bold: () => { state.bold = !state.bold; applyTextStyle(); showTray(); },
-  italic: () => { state.italic = !state.italic; applyTextStyle(); showTray(); },
+  bold: () => chooseTextStyle({ bold: !state.bold }),
+  italic: () => chooseTextStyle({ italic: !state.italic }),
   underline: () => { state.underline = !state.underline; applyTextStyle(); showTray(); },
   'pencil-preview': () => {
     const enabled = pencilPreview.toggle();
@@ -1602,13 +1673,13 @@ const commands = {
   },
   menu: () => setMenuOpen(menuItems.hidden),
   'menu-close': () => setMenuOpen(false),
-  flipbook: () => {
+  flipbook: () => rasterCommand(() => {
     playUiSound(1032);
     slides.push({ preview: createComposite().toDataURL(), picture: project() });
     selectedSlide = slides.length - 1;
     slidePage = Math.floor(selectedSlide / 12);
     showStatus(`Picture added as slide ${slides.length}.`);
-  },
+  }),
   slideshow: () => { playUiSound(1031); openSlides(true); },
   'paint-zone': () => openSlides(false),
   'slide-play': playSlides,
@@ -1706,6 +1777,7 @@ async function activate(action) {
   }
   if (action === 'make-sticker') return makeSticker();
   retireSticker();
+  retireFontChoice();
   if (firehose?.busy) { nativeToolTabMotion?.completeActivation(); nativeCommandMotion?.cancel(); return; }
   const [id, value] = action.split(':');
   const group = state.tray;
@@ -1769,7 +1841,7 @@ async function activate(action) {
     if (uri !== null) { state.voice = uri; applyTextStyle(); updateActionMotion(); syncTool(); }
   } else if (id === 'font-step' || id === 'font-size-step') {
     const change = textStep(state, `${id}:${value}`);
-    if (change) { Object.assign(state, change); applyTextStyle(); updateActionMotion(); syncTool(); }
+    if (change) chooseTextStyle(change);
   } else if (id === 'align') { state.align = value; applyTextStyle(); showTray(); }
   else if (id === 'edit') doEdit(value);
   else {
@@ -1825,7 +1897,7 @@ app.addEventListener('change', async event => {
   } else if (target.id === 'custom-color') {
     chooseColor(target.value);
   } else if (['font', 'font-size', 'text-voice'].includes(target.id)) {
-    if (target.id === 'font') state.font = target.value;
+    if (target.id === 'font') { chooseTextStyle({ font: target.value }); return; }
     else if (target.id === 'text-voice') {
       const session = voiceSelectSession?.control === target ? voiceSelectSession : null;
       const current = scene.actionState;

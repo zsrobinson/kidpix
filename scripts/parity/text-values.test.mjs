@@ -14,7 +14,10 @@ test('all 23 native presets step without wrap', () => {
   assert.equal(sizeStep(undefined,1),null);
 });
 test('portable catalog bounds, empty, singleton and retained unknown identity', () => {
-  assert.deepEqual(TEXT_FONTS.map(f => f.value), ['Chalkboard, sans-serif','serif','sans-serif','monospace']);
+  assert.deepEqual(TEXT_FONTS.slice(0, 4).map(f => f.value), ['Chalkboard, sans-serif','serif','sans-serif','monospace']);
+  assert.equal(TEXT_FONTS.length, 29);
+  assert.equal(TEXT_FONTS.find(f => f.label === 'FifthAve').value, 'KPX Native FifthAve');
+  assert.equal(new Set(TEXT_FONTS.map(f => f.value)).size, 29);
   TEXT_FONTS.forEach((font,index) => {
     assert.equal(fontStep(font.value,-1),TEXT_FONTS[index-1]?.value ?? null);
     assert.equal(fontStep(font.value,1),TEXT_FONTS[index+1]?.value ?? null);

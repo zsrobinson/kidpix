@@ -186,6 +186,14 @@ delivery by the parent. Native references remain 0/17; vacuum enlargement disabl
 experimental Pencil OFF; physical iPad latency, foreground idle, audio and IME
 remain unverified. No baseline, version or publication acceptance is implied.
 
+Restore errors are checked per face against the current scene, not just the
+restore generation. Replacing the last reference suppresses that retired face's
+failure. A different object using the same face still receives the error, and
+retiring one face does not hide a separate pending face's failure. The regression
+controls hold real requests across a successful Serif choice, then return HTTP
+errors; the old restore-wide handler fails both retired-reference assertions in
+Chromium and WebKit, in development and built entries.
+
 Browser fixtures compare family identity with optional CSSOM quotes: Chromium
 serializes these aliases quoted, while WebKit returns an unquoted family. Saved
 JSON remains the same exact alias on both engines.
@@ -202,3 +210,9 @@ per engine, including the strict WebKit fallback control. Normal Node tests pass
 Wrangler dry run pass. Failed fixture attempts and the earlier legacy runs are
 retained under `artifacts/t3/bundled-font-product`; this is integration evidence,
 not parent release or native acceptance.
+
+The restore-error correction passes the complete 158-case focused product/output
+suite across Chromium/WebKit dev/built, including 16 new reference-lifecycle
+checks. The prior source fails eight intended retired-reference assertions while
+eight current-reference controls pass. Host Node tests pass 378/378, zero skipped;
+strict asset verification passes. Parent release and public gates remain pending.

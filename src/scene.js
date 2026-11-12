@@ -1,4 +1,4 @@
-import { ensureTextFonts, assertTextFontsReady, applyCanvasFont } from './bundled-fonts.js';
+import { ensureFace, resolveBundledFace, assertTextFontsReady, applyCanvasFont } from './bundled-fonts.js';
 import { stickerRaster } from './sticker-raster.js';
 import { createTextClipboard } from './text-clipboard.js';
 import { editorText } from './editor-text.js';
@@ -755,9 +755,15 @@ export function createScene(root, surface, onChange) {
       objects = structuredClone(state); navigationRevision++;
       styleRequest++;
       const generation = ++fontRestore;
-      const pending = ensureTextFonts(objects);
-      pending?.catch(error => {
-        if (!disposed && generation === fontRestore) root.dispatchEvent(new CustomEvent('fontfailure', { detail: error.message }));
+      const faces = new Set(objects.filter(object => object.kind === 'text').map(resolveBundledFace).filter(Boolean));
+      for (const face of faces) ensureFace(face).catch(error => {
+        // A restored face can be replaced without restoring the whole document.
+        // Check each failed face against live references; retiring one must not
+        // silence a different face, or another object still using the same face.
+        if (!disposed && generation === fontRestore && objects.some(object => object.kind === 'text'
+          && resolveBundledFace(object)?.key === face.key)) {
+          root.dispatchEvent(new CustomEvent('fontfailure', { detail: error.message }));
+        }
       });
       previews.clear();
       selected = objects.find(object => object.id === (textSelection?.objectId ?? textTarget) && object.kind === 'text')?.id ?? null;

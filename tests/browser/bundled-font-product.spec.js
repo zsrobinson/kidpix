@@ -21,6 +21,68 @@ async function gate(page) {
   await page.route('**/fonts/*.ttf?*', async route => { calls++; await held; await route.continue(); });
   return { release, calls: () => calls };
 }
+for (const remaining of ['replaced', 'current', 'another-object']) test(`restored font failure is reported only while referenced: ${remaining}`, async ({ page }) => {
+  await start(page);
+  let release, requested = 0, responded = 0;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route('**/fonts/*.ttf?*', async route => {
+    requested++; await held; await route.fulfill({ status: 503, body: 'unavailable' }); responded++;
+  });
+  await open(page, 'KPX Native Catchup');
+  await expect.poll(() => requested).toBe(1);
+  await page.locator('#objects').evaluate(root => {
+    window.restoreFontErrors = [];
+    root.addEventListener('fontfailure', event => window.restoreFontErrors.push(event.detail));
+  });
+  if (remaining === 'another-object') {
+    const saved = { version: 1, format: 'kidpix-web', paint: { version: 1 }, objects: [0, 1].map(index => ({
+      id: `owner-${index}`, kind: 'text', x: 100 + index * 300, y: 100, width: 235, height: 100,
+      text: 'Stored font', font: 'KPX Native Catchup', size: 32, color: '#000000',
+    })) };
+    await page.locator('#picture-file').setInputFiles({ name: 'two-fonts.kpx', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
+    await expect(page.locator('.object-text')).toHaveCount(2);
+  }
+  if (remaining !== 'current') {
+    await editor(page).focus(); await page.locator('#font').selectOption('serif');
+    await expect(editor(page)).toHaveCSS('font-family', 'serif');
+  }
+  release(); await expect.poll(() => responded).toBe(1);
+  // HTTP-error handling aborts the fetch, so requestfinished is not guaranteed.
+  // Fulfillment has completed; allow the fetch rejection and scene callback to settle.
+  await page.waitForTimeout(150);
+  const errors = await page.evaluate(() => window.restoreFontErrors);
+  if (remaining === 'replaced') {
+    expect(errors).toEqual([]); await expect(page.locator('#status')).not.toContainText('Font unavailable');
+  } else {
+    expect(errors).toEqual(['Font HTTP 503']); await expect(page.locator('#status')).toContainText('Font HTTP 503');
+  }
+});
+test('each restored face reports its own still-referenced failure', async ({ page }) => {
+  await start(page);
+  const releases = new Map(), responded = new Set();
+  await page.route('**/fonts/*.ttf?*', async route => {
+    const key = route.request().url().includes('Catchup') ? 'retired' : 'current';
+    await new Promise(resolve => releases.set(key, resolve));
+    await route.fulfill({ status: key === 'retired' ? 503 : 502, body: 'unavailable' }); responded.add(key);
+  });
+  const saved = { version: 1, format: 'kidpix-web', paint: { version: 1 }, objects: ['Catchup', 'Schoolhouse'].map((family, index) => ({
+    id: `owner-${index}`, kind: 'text', x: 100 + index * 300, y: 100, width: 235, height: 100,
+    text: family, font: `KPX Native ${family}`, size: 32, color: '#000000',
+  })) };
+  await page.locator('#picture-file').setInputFiles({ name: 'two-faces.kpx', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
+  await expect.poll(() => releases.size).toBe(2);
+  await page.locator('#objects').evaluate(root => {
+    window.restoreFontErrors = [];
+    root.addEventListener('fontfailure', event => window.restoreFontErrors.push(event.detail));
+  });
+  await editor(page).focus(); await page.locator('#font').selectOption('serif');
+  await expect(editor(page)).toHaveCSS('font-family', 'serif');
+  releases.get('retired')(); await expect.poll(() => responded.has('retired')).toBe(true); await page.waitForTimeout(150);
+  expect(await page.evaluate(() => window.restoreFontErrors)).toEqual([]);
+  releases.get('current')();
+  await expect.poll(() => page.evaluate(() => window.restoreFontErrors)).toEqual(['Font HTTP 502']);
+  await expect(page.locator('#status')).toContainText('Font HTTP 502');
+});
 test('cold/warm catalog, Schoolhouse actual styles, synthesis, focused select and exact save', async ({ page }) => {
   const urls = []; page.on('request', request => { if (request.url().includes('/fonts/')) urls.push(request.url()); });
   await start(page); expect(urls).toEqual([]);

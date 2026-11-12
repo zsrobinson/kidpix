@@ -407,3 +407,16 @@ test('failed attempts never populate cache; successful recovery caches only fres
   assert.equal(cached.headers.get('ETag'), '"v4"');
   assert.deepEqual(operations(calls), ['head', 'get', 'head', 'get', 'head', 'get', 'head', 'get']);
 });
+
+test('TTF fallback MIME preserves GET, HEAD, range and delivery headers', async () => {
+  for (const options of [{}, { method: 'HEAD' }, { headers: { Range: 'bytes=2-5' } }]) {
+    const { fetch } = setup({ metadata: { writeHttpMetadata() {} } });
+    const response = await fetch('/original/fonts/FifthAvenue.ttf?sha256=pinned', options);
+    assert.equal(response.status, options.headers ? 206 : 200);
+    assert.equal(response.headers.get('Content-Type'), 'font/ttf');
+    assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');
+    assert.equal(response.headers.get('ETag'), '"abc123"');
+    assert.equal(response.headers.get('Cache-Control'), 'public, max-age=3600');
+    assert.equal(await response.text(), options.method ? '' : options.headers ? '2345' : '0123456789');
+  }
+});

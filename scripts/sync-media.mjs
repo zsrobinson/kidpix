@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const mediaRoot = fileURLToPath(new URL('../public/original/', import.meta.url));
 const types = {
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.ttf': 'font/ttf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml', '.webp': 'image/webp', '.gif': 'image/gif',
   '.mp3': 'audio/mpeg', '.flac': 'audio/flac', '.wav': 'audio/wav',
   '.mp4': 'video/mp4', '.webm': 'video/webm', '.ogg': 'audio/ogg',
@@ -64,6 +64,17 @@ export async function buildManifest(root = mediaRoot) {
   await visit(root);
   if (!files.length) throw new Error('No media found. Run npm run import:original first.');
   return files;
+}
+
+export async function buildFontManifest(stageRoot) {
+  const { verifyFontStage } = await import('./bundled-font-assets.mjs');
+  const receipt = await verifyFontStage(stageRoot);
+  return Promise.all(receipt.files.map(async file => {
+    const path = join(stageRoot, file.key);
+    const info = await stat(path);
+    return { path, key: file.key, size: file.bytes, sha256: file.sha256, modified: info.mtimeMs,
+      contentType: contentType(path), cacheControl: cacheControl(path) };
+  }));
 }
 
 export function unchanged(remote, file) {
@@ -189,7 +200,7 @@ export async function main(args = process.argv.slice(2), env = process.env) {
   if (args.includes('--help')) {
     console.log(`Upload public/original/ to R2 as original/* without deleting remote objects.
 
-Usage: node scripts/sync-media.mjs [--dry-run] [--concurrency 1-32]
+Usage: node scripts/sync-media.mjs [--dry-run] [--concurrency 1-32] [--font-stage STAGED_ROOT]
 
 Environment: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
 Optional: R2_BUCKET (default: kidpix-media)
@@ -199,17 +210,22 @@ Existing objects with matching SHA-256, size, Content-Type, and Cache-Control ar
 Interrupted uploads are safe to resume by running the same command again.`);
     return;
   }
+  let fontStage;
   let dryRun = false;
   let concurrency = 6;
   for (let index = 0; index < args.length; index++) {
-    if (args[index] === '--dry-run') dryRun = true;
+    if (args[index] === '--font-stage') {
+      fontStage = args[++index];
+      if (!fontStage || fontStage.startsWith('--')) throw new Error('--font-stage requires an explicit staged root');
+    }
+    else if (args[index] === '--dry-run') dryRun = true;
     else if (args[index] === '--concurrency') concurrency = Number(args[++index]);
     else throw new Error(`Unknown argument: ${args[index]}`);
   }
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 32) throw new Error('Concurrency must be an integer from 1 to 32.');
   const bucket = env.R2_BUCKET || 'kidpix-media';
   if (!/^[a-z\d][a-z\d-]{1,61}[a-z\d]$/.test(bucket)) throw new Error('R2_BUCKET must be a valid bucket name.');
-  const files = await buildManifest();
+  const files = fontStage ? await buildFontManifest(fontStage) : await buildManifest();
   const bytes = files.reduce((sum, file) => sum + file.size, 0);
   console.log(`${dryRun ? 'Dry run' : 'Sync'}: ${files.length.toLocaleString('en')} files (${(bytes / 1024 ** 3).toFixed(2)} GiB) to R2 bucket ${bucket}, prefix original/.`);
   if (dryRun) {

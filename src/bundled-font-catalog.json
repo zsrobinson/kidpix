@@ -1,0 +1,286 @@
+{
+  "version": 1,
+  "synthesis": "Browser bold/italic synthesis for single-face families is an adaptation, not recovered native fidelity.",
+  "faces": [
+    {
+      "family": "Catchup",
+      "cssFamily": "KPX Native Catchup",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "0e35c9494c9c0ce92b167aa4343e536177b240b7b1279e6bf05ef41d30d11869",
+      "bytes": 77548,
+      "source": "sfnt/CatchupNormal.ttf",
+      "key": "original/fonts/CatchupNormal.ttf"
+    },
+    {
+      "family": "Cuckoo",
+      "cssFamily": "KPX Native Cuckoo",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "d7d6fcc96f0f744b8e9c1b5bb5e2ef6e3062b6decb5d5938054270293a91c747",
+      "bytes": 34732,
+      "source": "sfnt/Cuckoo.ttf",
+      "key": "original/fonts/Cuckoo.ttf"
+    },
+    {
+      "family": "Diploma",
+      "cssFamily": "KPX Native Diploma",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "d9682fb7160dc3d453a4e526fa7badc36a687f0ee59199d09be5b26e003d054e",
+      "bytes": 61084,
+      "source": "sfnt/Diploma.ttf",
+      "key": "original/fonts/Diploma.ttf"
+    },
+    {
+      "family": "Eurasia",
+      "cssFamily": "KPX Native Eurasia",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "1e3f462694e760566920aae93dd3421022fc9c08c9719692d4bc91ea5bc34eb5",
+      "bytes": 54768,
+      "source": "sfnt/EurasiaNormal.ttf",
+      "key": "original/fonts/EurasiaNormal.ttf"
+    },
+    {
+      "family": "Expose",
+      "cssFamily": "KPX Native Expose",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "f2544efafdc7ae5fdf307bd2b50d13dbfbefba09f81f0c79a1e669538c23f0d7",
+      "bytes": 59844,
+      "source": "sfnt/ExposeNormal.ttf",
+      "key": "original/fonts/ExposeNormal.ttf"
+    },
+    {
+      "family": "FifthAve",
+      "cssFamily": "KPX Native FifthAve",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "fc17a5ffd6cd3d5c3547e16925566072664553164904b0bea577cfc4b4286707",
+      "bytes": 57696,
+      "source": "sfnt/FifthAvenue.ttf",
+      "key": "original/fonts/FifthAvenue.ttf"
+    },
+    {
+      "family": "Flat Brush",
+      "cssFamily": "KPX Native Flat Brush",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "8fa39adbdec66088a25811296c17852f31a8baa2961e41fee6ff70aa2cf7f13e",
+      "bytes": 54848,
+      "source": "sfnt/FlatBrushNormal.ttf",
+      "key": "original/fonts/FlatBrushNormal.ttf"
+    },
+    {
+      "family": "Franciscan",
+      "cssFamily": "KPX Native Franciscan",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "80726b1753edf347000e2113293e2cb401ffa93b15f7fd1cb2b1085f025dc864",
+      "bytes": 41536,
+      "source": "sfnt/Franciscan.ttf",
+      "key": "original/fonts/Franciscan.ttf"
+    },
+    {
+      "family": "Gremlin",
+      "cssFamily": "KPX Native Gremlin",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "67d0812484bd0528f68c78954f4f3cad9936e0a8d5eab9d3b3838df148a91502",
+      "bytes": 173092,
+      "source": "sfnt/GremlinNormal.ttf",
+      "key": "original/fonts/GremlinNormal.ttf"
+    },
+    {
+      "family": "Jester",
+      "cssFamily": "KPX Native Jester",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "e90041510cf8878ab5f33c517c2da85e5ab459d4822f00f701bae137a60bcad8",
+      "bytes": 62064,
+      "source": "sfnt/Jester.ttf",
+      "key": "original/fonts/Jester.ttf"
+    },
+    {
+      "family": "Jolt",
+      "cssFamily": "KPX Native Jolt",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "7c099dfaa94d90665d7f7b2195b41dbb01d570f4dac9dffa080a0ca518f1c67b",
+      "bytes": 63308,
+      "source": "sfnt/JoltNormal.ttf",
+      "key": "original/fonts/JoltNormal.ttf"
+    },
+    {
+      "family": "Keira Condensed",
+      "cssFamily": "KPX Native Keira Condensed",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "d3472a7befa40f78afe3613771e78559c97c30dd5b907fcdb4feaab94d78fbb0",
+      "bytes": 61656,
+      "source": "sfnt/KeiraCondensedNormal.ttf",
+      "key": "original/fonts/KeiraCondensedNormal.ttf"
+    },
+    {
+      "family": "Market",
+      "cssFamily": "KPX Native Market",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "9cdfc0dde32058bfd6b5f85ea9fcbd2dc8bc805e8c79e025f406da7c5e35c3e8",
+      "bytes": 57764,
+      "source": "sfnt/Market.ttf",
+      "key": "original/fonts/Market.ttf"
+    },
+    {
+      "family": "Patrick",
+      "cssFamily": "KPX Native Patrick",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "a18017de48d33bf373b33144b34a4afb9c081e0843c4d3058d120b6d46175864",
+      "bytes": 64924,
+      "source": "sfnt/Patrick.ttf",
+      "key": "original/fonts/Patrick.ttf"
+    },
+    {
+      "family": "Pegasus",
+      "cssFamily": "KPX Native Pegasus",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "a6839b7bb53c8b8370d754a2d2ef93beeb0939f10844801bab2abbf5617013e0",
+      "bytes": 41960,
+      "source": "sfnt/Pegasus.ttf",
+      "key": "original/fonts/Pegasus.ttf"
+    },
+    {
+      "family": "Rococo",
+      "cssFamily": "KPX Native Rococo",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "3921bfdb862840f75033b1b0734e43cda1ed5d5261c31d44034364c58e0c9d9e",
+      "bytes": 46432,
+      "source": "sfnt/Rococo.ttf",
+      "key": "original/fonts/Rococo.ttf"
+    },
+    {
+      "family": "Schoolhouse",
+      "cssFamily": "KPX Native Schoolhouse",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "a2c51773b820e644a3758c89f415a9e85b985da1fa6da723955eed5a830c5eed",
+      "bytes": 47372,
+      "source": "sfnt/Schoolhouse.ttf",
+      "key": "original/fonts/Schoolhouse.ttf"
+    },
+    {
+      "family": "Schoolhouse",
+      "cssFamily": "KPX Native Schoolhouse",
+      "cssWeight": 700,
+      "cssStyle": "normal",
+      "sha256": "d2e5b8481ab43514f25867711f710a9e63c56475a2d9fb954ff8f38a2f71cc27",
+      "bytes": 44884,
+      "source": "sfnt/SchoolhouseBold.ttf",
+      "key": "original/fonts/SchoolhouseBold.ttf"
+    },
+    {
+      "family": "Schoolhouse",
+      "cssFamily": "KPX Native Schoolhouse",
+      "cssWeight": 700,
+      "cssStyle": "italic",
+      "sha256": "b336c88fa6e371fc2dd37de9bcf76f3bda093e804f679791391f868299a169d0",
+      "bytes": 44368,
+      "source": "sfnt/SchoolhouseBoldItalic.ttf",
+      "key": "original/fonts/SchoolhouseBoldItalic.ttf"
+    },
+    {
+      "family": "Schoolhouse",
+      "cssFamily": "KPX Native Schoolhouse",
+      "cssWeight": 400,
+      "cssStyle": "italic",
+      "sha256": "def784378e1ad31740e47167348a9003e58c160bc96d6384a193960303d89160",
+      "bytes": 48096,
+      "source": "sfnt/SchoolhouseItalic.ttf",
+      "key": "original/fonts/SchoolhouseItalic.ttf"
+    },
+    {
+      "family": "Socket",
+      "cssFamily": "KPX Native Socket",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "acbc31a8469f475cde4cabad871e79fdf0ae47aad625239e26f0563820acb6b8",
+      "bytes": 36808,
+      "source": "sfnt/Socket.ttf",
+      "key": "original/fonts/Socket.ttf"
+    },
+    {
+      "family": "Storybook",
+      "cssFamily": "KPX Native Storybook",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "ea2146a9d18fc476f8da386bcd02399ea38f7b4a2b2a7dcf92ffeda40556af34",
+      "bytes": 54728,
+      "source": "sfnt/Storybook.ttf",
+      "key": "original/fonts/Storybook.ttf"
+    },
+    {
+      "family": "Tarzana",
+      "cssFamily": "KPX Native Tarzana",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "14299f1664863203e64ff00a71d74333f4b237c0a8900b9a353ddf28bee63ebe",
+      "bytes": 41820,
+      "source": "sfnt/Tarzana.ttf",
+      "key": "original/fonts/Tarzana.ttf"
+    },
+    {
+      "family": "Techno",
+      "cssFamily": "KPX Native Techno",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "6b9522e0751f384bed5bdfee913cd2d58cc4e48f36d1001fa51b38e2c7805977",
+      "bytes": 65832,
+      "source": "sfnt/TechnoNormal.ttf",
+      "key": "original/fonts/TechnoNormal.ttf"
+    },
+    {
+      "family": "Teletype",
+      "cssFamily": "KPX Native Teletype",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "2d25d1ec1877da18bff5408f8af99f834e3d888c70610c44ac5ad47283bf1b72",
+      "bytes": 50328,
+      "source": "sfnt/Teletype.ttf",
+      "key": "original/fonts/Teletype.ttf"
+    },
+    {
+      "family": "Tubular",
+      "cssFamily": "KPX Native Tubular",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "2c43c04c120fd881b1c0f2e019c079ccb89922a2655cc30e3c59bb750f1e7970",
+      "bytes": 46648,
+      "source": "sfnt/Tubular.ttf",
+      "key": "original/fonts/Tubular.ttf"
+    },
+    {
+      "family": "Vogel",
+      "cssFamily": "KPX Native Vogel",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "f5c309664f4a79e1b56e1357819c63452919203aa58c01c08afded0972b509b9",
+      "bytes": 56976,
+      "source": "sfnt/VogelNormal.ttf",
+      "key": "original/fonts/VogelNormal.ttf"
+    },
+    {
+      "family": "Yankee",
+      "cssFamily": "KPX Native Yankee",
+      "cssWeight": 400,
+      "cssStyle": "normal",
+      "sha256": "600eae82b699316a4314a527a934c0cd81ca9e50db1274f499dfc881779a4627",
+      "bytes": 79864,
+      "source": "sfnt/Yankee.ttf",
+      "key": "original/fonts/Yankee.ttf"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 const types = {
-  json: 'application/json; charset=utf-8', svg: 'image/svg+xml', png: 'image/png',
+  ttf: 'font/ttf', json: 'application/json; charset=utf-8', svg: 'image/svg+xml', png: 'image/png',
   jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif',
   mp4: 'video/mp4', webm: 'video/webm', flac: 'audio/flac', mp3: 'audio/mpeg',
   wav: 'audio/wav', ogg: 'audio/ogg', pdf: 'application/pdf',

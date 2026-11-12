@@ -2,11 +2,18 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.29.1 (candidate)
+
+- Preserve accepted Stamp Editor pointer and keyboard input when artwork binds before release. Read the current selected stamp before accepting fallback input and before every owner-ready update, so editor/size/arrow completion order cannot cancel an unchanged selection.
+- Retire cancelled Space suppression at its matching release, including after focus moves outside the control. Preserve cancellation and competing-contact rejection while permitting fresh semantic activation.
+- Independent final review found no actionable issues within readiness/order/cancellation scope: 106 positive checks pass, and the prior-adapter control fails both forced editor-first cases while size-first controls pass. The scoped Chromium/WebKit dev/built matrix passes 668 cases without skips. Full release and public acceptance remain pending.
+- No media, artwork, source timelines, cues, history or baseline changes. Native references remain 0/17; physical iPad latency, foreground idle, audible behavior and IME remain unverified. Enlarged vacuum stays disabled and Pencil preview defaults off.
+
 ## 0.29.0
 
 - Restore Add Picture to Slide Show's authored three-pose, silent hover loop at 100 ms per source update. Clip playback to its original 79×95 control rectangle and restore the clean backing before each frame; preserve the existing Add Picture action and sound.
 - Accept only the exact source-identified 1128 resource through an explicit decoder opt-in. Preserve its unreachable trailing bytes as metadata; keep unknown tails and Play program 1039 rejected. Reuse existing artwork and clean backing, without adding media or changing baselines.
-- Retire ready or pending hover playback on leave, press, cancellation, lost capture, inactivity or disposal. Independent review found no actionable issues: 92 scoped browser checks and 20 Python checks passed. All 372 Node checks, source-only 344 checks with 28 existing imported-asset skips, asset verification, build and Worker dry run pass. Full suites pass 886 development, 798 built and 662 WebKit cases with existing skips. All 17 static captures are RGBA-identical to accepted 0.28.1. Public acceptance is recorded separately against the exact published revision.
+- Retire ready or pending hover playback on leave, press, cancellation, lost capture, inactivity or disposal. Independent review found no actionable issues: 92 scoped browser checks and 20 Python checks passed. All 372 Node checks, source-only 344 checks with 28 existing imported-asset skips, asset verification, build and Worker dry run pass. Full suites pass 886 development, 798 built and 662 WebKit cases with existing skips. All 17 static captures are RGBA-identical to accepted 0.28.1. Public Chromium passed 543 selected cases; one WebKit editor-opening failure was retained. Subsequent controlled readiness defects are addressed by 0.29.1 without claiming forensic proof of that original failure.
 - Native references remain 0/17. Physical iPad latency, foreground idle, audible behavior and IME remain unverified; enlarged vacuum stays disabled and Pencil preview defaults off.
 
 ## 0.28.1

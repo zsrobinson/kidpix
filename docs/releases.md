@@ -2,6 +2,14 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
+## 0.30.0
+
+- Add 25 original font families using 28 unchanged recovered TrueType faces. Preserve the four existing font choices, default Chalkboard/32px, and unknown saved font identities. Load only the selected or referenced faces; exclude the malformed Tabloid face.
+- Keep delayed font choices bound to their original text, selection and document. Preserve focus, directional ranges and Undo/Redo; failed or cancelled loads leave committed text and defaults intact. Use Schoolhouse's four real faces and browser synthesis for single-face families.
+- Prepare fonts before PNG, print, stereo, Flipbook and slide rendering. Reject stale-document output and refresh reused Canvas contexts to avoid WebKit retaining fallback text. Report restored-font failures only while the failed face is still referenced.
+- Focused validation passes 158 browser checks and 378 Node checks. Independent review and correction recheck found no remaining issue within their scopes; full release and public validation are pending. Verify every new font payload against its original bytes before publication.
+- Browser font rendering, layout and synthesis are adaptations; native references remain 0/17. Physical iPad latency, foreground idle, audio and IME remain unverified. Enlarged vacuum stays disabled and Pencil preview defaults off.
+
 ## 0.29.1
 
 - Preserve accepted Stamp Editor pointer and keyboard input when artwork binds before release. Read the current selected stamp before accepting fallback input and before every owner-ready update, so editor/size/arrow completion order cannot cancel an unchanged selection.

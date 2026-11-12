@@ -2,11 +2,11 @@
 
 The current public build identifies its version, source revision and build time at [version.json](https://kidpix.zsrobinson.com/version.json). About also displays the version. Release validation includes the built-app browser suite and a repeat against the public site.
 
-## 0.29.1 (candidate)
+## 0.29.1
 
 - Preserve accepted Stamp Editor pointer and keyboard input when artwork binds before release. Read the current selected stamp before accepting fallback input and before every owner-ready update, so editor/size/arrow completion order cannot cancel an unchanged selection.
 - Retire cancelled Space suppression at its matching release, including after focus moves outside the control. Preserve cancellation and competing-contact rejection while permitting fresh semantic activation.
-- Independent final review found no actionable issues within readiness/order/cancellation scope: 106 positive checks pass, and the prior-adapter control fails both forced editor-first cases while size-first controls pass. The scoped Chromium/WebKit dev/built matrix passes 668 cases without skips. Full release and public acceptance remain pending.
+- Independent final review found no actionable issues within readiness/order/cancellation scope: 106 positive checks pass, and the prior-adapter control fails both forced editor-first cases while size-first controls pass. The scoped Chromium/WebKit dev/built matrix passes 668 cases without skips. All 372 Node checks, source-only 344 checks with 28 existing asset skips, assets, build and Worker dry run pass. Full suites pass 909 development, 821 built and 685 WebKit cases with existing skips. All 17 captures are RGBA-identical to accepted 0.28.1 without baseline changes. Public acceptance is recorded separately against the exact published revision.
 - No media, artwork, source timelines, cues, history or baseline changes. Native references remain 0/17; physical iPad latency, foreground idle, audible behavior and IME remain unverified. Enlarged vacuum stays disabled and Pencil preview defaults off.
 
 ## 0.29.0

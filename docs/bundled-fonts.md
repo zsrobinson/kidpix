@@ -216,3 +216,14 @@ suite across Chromium/WebKit dev/built, including 16 new reference-lifecycle
 checks. The prior source fails eight intended retired-reference assertions while
 eight current-reference controls pass. Host Node tests pass 378/378, zero skipped;
 strict asset verification passes. Parent release and public gates remain pending.
+
+## Full local release validation
+
+Frozen 0.30.0 source `c4040492f5c517525544f919e75ba557e4683e39`
+passes 949 development, 860 built and 725 WebKit cases, with the existing
+1/1/3 skips. All 17 static captures are RGBA-identical to accepted 0.28.1;
+no baseline or tolerance changed. Host checks pass 378/378; source-only checks
+pass 349 with 29 expected asset skips, build and Worker dry run. The correction
+recheck adds 48 independent browser and five Node passes without a remaining
+finding within its scope. Media publication and selected public acceptance are
+separate gates recorded against the final published revision.
